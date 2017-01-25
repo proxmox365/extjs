@@ -1,0 +1,14 @@
+Source: libjs-extjs
+Section: web
+Priority: optional
+Maintainer: Proxmox Support Team <support@proxmox.com>
+Build-Depends: debhelper (>= 9)
+Standards-Version: 3.9.4
+Homepage: https://www.sencha.com/
+
+Package: libjs-extjs
+Architecture: all
+Depends: ${misc:Depends}
+Description: cross-browser JavaScript library
+ Ext JS is a cross-browser JavaScript library for building rich internet
+ applications.
