@@ -25,7 +25,8 @@ WWWEXT6DIR=${DESTDIR}/usr/share/javascript/extjs
 all: ${EXTDATA}
 
 .PHONY: deb
-deb ${DEB}:
+deb: ${DEB}
+${DEB}:
 	rm -rf build
 	rsync -a * build
 	cp extjs/licenses/license.txt build/debian/copyright
