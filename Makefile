@@ -34,7 +34,7 @@ ${DEB}:
 	cp Makefile build/
 	cp extjs/licenses/license.txt build/debian/copyright
 	cd build; dpkg-buildpackage -b -us -uc
-	lintian -X copyright-file ${DEB}
+	lintian $@
 
 .PHONY: install
 install: ${EXTDATA}
