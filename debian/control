@@ -3,7 +3,7 @@ Section: web
 Priority: optional
 Maintainer: Proxmox Support Team <support@proxmox.com>
 Build-Depends: debhelper (>= 10~)
-Standards-Version: 3.9.4
+Standards-Version: 3.9.8
 Homepage: https://www.sencha.com/
 
 Package: libjs-extjs
