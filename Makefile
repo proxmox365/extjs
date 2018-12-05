@@ -28,7 +28,7 @@ ${DEB}: ${BUILD_DIR}
 dsc: ${DSC}
 ${DSC}: ${BUILD_DIR}
 	cd ${BUILD_DIR}; tar czf ../${PACKAGE}_${PKGVER}.orig.tar.gz *
-	cd ${BUILD_DIR}; dpkg-buildpackage -S -us -uc -nc -d
+	cd ${BUILD_DIR}; dpkg-buildpackage -S -us -uc -d
 	lintian $@
 
 .PHONY: upload
