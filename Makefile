@@ -2,7 +2,10 @@ PACKAGE=libjs-extjs
 PKGVER=6.0.1
 PKGREL=2
 
+BUILD_DIR=${PACKAGE}-${PKGVER}
+
 DEB=${PACKAGE}_${PKGVER}-${PKGREL}_all.deb
+DSC=${PACKAGE}_${PKGVER}-${PKGREL}.dsc
 
 # EXTJSDIR=ext-6.0.1
 # wget http://cdn.sencha.com/ext/gpl/ext-6.0.1-gpl.zip
@@ -24,16 +27,27 @@ WWWEXT6DIR=${DESTDIR}/usr/share/javascript/extjs
 
 all: ${EXTDATA}
 
+${BUILD_DIR}: debian extjs
+	rm -rf $@ $@.tmp
+	mkdir $@.tmp
+	rsync -a debian/ $@.tmp/debian
+	mkdir $@.tmp/extjs
+	rsync -a extjs/build/ $@.tmp/extjs/build
+	cp Makefile $@.tmp/
+	cp extjs/licenses/license.txt $@.tmp/debian/copyright
+	mv $@.tmp $@
+
 .PHONY: deb
 deb: ${DEB}
-${DEB}:
-	rm -rf build
-	mkdir build
-	rsync -a debian/ build/debian
-	rsync -a extjs/ build/extjs
-	cp Makefile build/
-	cp extjs/licenses/license.txt build/debian/copyright
-	cd build; dpkg-buildpackage -b -us -uc
+${DEB}: ${BUILD_DIR}
+	cd ${BUILD_DIR}; dpkg-buildpackage -b -us -uc
+	lintian $@
+
+.PHONY: dsc
+dsc: ${DSC}
+${DSC}: ${BUILD_DIR}
+	cd ${BUILD_DIR}; tar czf ../${PACKAGE}_${PKGVER}.orig.tar.gz *
+	cd ${BUILD_DIR}; dpkg-buildpackage -S -us -uc -nc -d
 	lintian $@
 
 .PHONY: install
@@ -53,7 +67,7 @@ distclean: clean
 
 .PHONY: clean
 clean:
-	rm -rf ./build *.deb *.changes *.buildinfo
+	rm -rf ${BUILD_DIR} ${BUILD_DIR}.tmp *.deb *.changes *.buildinfo *.orig.tar.* *.dsc *.debian.tar.*
 	find . -name '*~' -exec rm {} ';'
 
 .PHONY: dinstall

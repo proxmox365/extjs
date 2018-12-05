@@ -1,0 +1,2 @@
+# minified files that we want to ship
+libjs-extjs source: source-is-missing extjs/build/*
