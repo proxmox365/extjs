@@ -28,7 +28,10 @@ all: ${EXTDATA}
 deb: ${DEB}
 ${DEB}:
 	rm -rf build
-	rsync -a * build
+	mkdir build
+	rsync -a debian/ build/debian
+	rsync -a extjs/ build/extjs
+	cp Makefile build/
 	cp extjs/licenses/license.txt build/debian/copyright
 	cd build; dpkg-buildpackage -b -us -uc
 	lintian -X copyright-file ${DEB}
