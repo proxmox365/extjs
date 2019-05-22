@@ -1,15 +1,16 @@
+include /usr/share/dpkg/pkg-info.mk
+
 PACKAGE=libjs-extjs
-PKGVER=6.0.1
-PKGREL=2
 
-BUILD_DIR=${PACKAGE}-${PKGVER}
+BUILDDIR ?= ${PACKAGE}-${DEB_VERSION_UPSTREAM}
+GITVERSION:=$(shell git rev-parse HEAD)
 
-DEB=${PACKAGE}_${PKGVER}-${PKGREL}_all.deb
-DSC=${PACKAGE}_${PKGVER}-${PKGREL}.dsc
+DEB=${PACKAGE}_${DEB_VERSION_UPSTREAM_REVISION}_all.deb
+DSC=${PACKAGE}_${DEB_VERSION_UPSTREAM_REVISION}.dsc
 
 all: deb
 
-${BUILD_DIR}: debian extjs
+${BUILDDIR}: debian extjs
 	rm -rf $@ $@.tmp
 	mkdir $@.tmp
 	rsync -a debian/ $@.tmp/debian
@@ -20,27 +21,25 @@ ${BUILD_DIR}: debian extjs
 
 .PHONY: deb
 deb: ${DEB}
-${DEB}: ${BUILD_DIR}
-	cd ${BUILD_DIR}; dpkg-buildpackage -b -us -uc
+${DEB}: ${BUILDDIR}
+	cd ${BUILDDIR}; dpkg-buildpackage -b -us -uc
 	lintian $@
 
 .PHONY: dsc
 dsc: ${DSC}
-${DSC}: ${BUILD_DIR}
-	cd ${BUILD_DIR}; tar czf ../${PACKAGE}_${PKGVER}.orig.tar.gz *
-	cd ${BUILD_DIR}; dpkg-buildpackage -S -us -uc -d
+${DSC}: ${BUILDDIR}
+	cd ${BUILDDIR}; tar czf ../${PACKAGE}_${DEB_VERSION_UPSTREAM}.orig.tar.gz *
+	cd ${BUILDDIR}; dpkg-buildpackage -S -us -uc -d
 	lintian $@
 
 .PHONY: upload
 upload: ${DEB}
 	tar cf - ${DEB} | ssh repoman@repo.proxmox.com -- upload --product pve,pmg --dist stretch
 
-.PHONY: distclean
+.PHONY: distclean clean
 distclean: clean
-
-.PHONY: clean
 clean:
-	rm -rf ${BUILD_DIR} ${BUILD_DIR}.tmp *.deb *.changes *.buildinfo *.orig.tar.* *.dsc *.debian.tar.*
+	rm -rf ${PACKAGE}-*/ *.deb *.changes *.buildinfo *.orig.tar.* *.dsc *.debian.tar.*
 	find . -name '*~' -exec rm {} ';'
 
 .PHONY: dinstall
