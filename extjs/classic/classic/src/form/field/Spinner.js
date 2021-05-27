@@ -1,9 +1,9 @@
 /**
  * A field with a pair of up/down spinner buttons. This class is not normally instantiated directly,
- * instead it is subclassed and the {@link #onSpinUp} and {@link #onSpinDown} methods are implemented
- * to handle when the buttons are clicked. A good example of this is the {@link Ext.form.field.Number}
- * field which uses the spinner to increment and decrement the field's value by its
- * {@link Ext.form.field.Number#step step} config value.
+ * instead it is subclassed and the {@link #onSpinUp} and {@link #onSpinDown} methods
+ * are implemented to handle when the buttons are clicked. A good example of this is the
+ * {@link Ext.form.field.Number} field which uses the spinner to increment and decrement
+ * the field's value by its {@link Ext.form.field.Number#step step} config value.
  *
  * For example:
  *
@@ -16,7 +16,8 @@
  *         onSpinUp: function() {
  *             var me = this;
  *             if (!me.readOnly) {
- *                 var val = parseInt(me.getValue().split(' '), 10)||0; // gets rid of " Pack", defaults to zero on parse failure
+ *                 // gets rid of " Pack", defaults to zero on parse failure
+ *                 var val = parseInt(me.getValue().split(' '), 10) || 0;
  *                 me.setValue((val + me.step) + ' Pack');
  *             }
  *         },
@@ -25,7 +26,8 @@
  *         onSpinDown: function() {
  *             var me = this;
  *             if (!me.readOnly) {
- *                var val = parseInt(me.getValue().split(' '), 10)||0; // gets rid of " Pack", defaults to zero on parse failure
+ *                // gets rid of " Pack", defaults to zero on parse failure
+ *                var val = parseInt(me.getValue().split(' '), 10) || 0;
  *                if (val <= me.step) {
  *                    me.setValue('Dry!');
  *                } else {
@@ -47,13 +49,14 @@
  *         }]
  *     });
  *
- * By default, pressing the up and down arrow keys will also trigger the onSpinUp and onSpinDown methods;
- * to prevent this, set `{@link #keyNavEnabled} = false`.
+ * By default, pressing the up and down arrow keys will also trigger the onSpinUp and onSpinDown
+ * methods; to prevent this, set `{@link #keyNavEnabled} = false`.
  */
 Ext.define('Ext.form.field.Spinner', {
     extend: 'Ext.form.field.Text',
     alias: 'widget.spinnerfield',
     alternateClassName: 'Ext.form.Spinner',
+
     requires: [
         'Ext.form.trigger.Spinner',
         'Ext.util.KeyNav'
@@ -65,6 +68,7 @@ Ext.define('Ext.form.field.Spinner', {
                 type: 'spinner',
                 upHandler: 'onSpinnerUpClick',
                 downHandler: 'onSpinnerDownClick',
+                endHandler: 'onSpinEnd',
                 scope: 'this'
             }
         }
@@ -72,34 +76,37 @@ Ext.define('Ext.form.field.Spinner', {
 
     /**
      * @cfg {Boolean} spinUpEnabled
-     * Specifies whether the up spinner button is enabled. Defaults to true. To change this after the component is
-     * created, use the {@link #setSpinUpEnabled} method.
+     * Specifies whether the up spinner button is enabled. Defaults to true. To change this after
+     * the component is created, use the {@link #setSpinUpEnabled} method.
      */
     spinUpEnabled: true,
 
     /**
      * @cfg {Boolean} spinDownEnabled
-     * Specifies whether the down spinner button is enabled. Defaults to true. To change this after the component is
-     * created, use the {@link #setSpinDownEnabled} method.
+     * Specifies whether the down spinner button is enabled. Defaults to true. To change this after
+     * the component is created, use the {@link #setSpinDownEnabled} method.
      */
     spinDownEnabled: true,
 
     /**
      * @cfg {Boolean} keyNavEnabled
-     * Specifies whether the up and down arrow keys should trigger spinning up and down. Defaults to true.
+     * Specifies whether the up and down arrow keys should trigger spinning up and down.
+     * Defaults to true.
      */
     keyNavEnabled: true,
 
     /**
      * @cfg {Boolean} mouseWheelEnabled
-     * Specifies whether the mouse wheel should trigger spinning up and down while the field has focus.
+     * Specifies whether the mouse wheel should trigger spinning up and down while the field
+     * has focus.
      * Defaults to true.
      */
     mouseWheelEnabled: true,
 
     /**
      * @cfg {Boolean} repeatTriggerClick
-     * Whether a {@link Ext.util.ClickRepeater click repeater} should be attached to the spinner buttons.
+     * Whether a {@link Ext.util.ClickRepeater click repeater} should be attached to the spinner
+     * buttons.
      * Defaults to true.
      */
     repeatTriggerClick: true,
@@ -107,19 +114,19 @@ Ext.define('Ext.form.field.Spinner', {
     /**
      * @method
      * @protected
-     * This method is called when the spinner up button is clicked, or when the up arrow key is pressed if
-     * {@link #keyNavEnabled} is true. Must be implemented by subclasses.
+     * This method is called when the spinner up button is clicked, or when the up arrow key
+     * is pressed if {@link #keyNavEnabled} is true. Must be implemented by subclasses.
      */
     onSpinUp: Ext.emptyFn,
 
     /**
      * @method
      * @protected
-     * This method is called when the spinner down button is clicked, or when the down arrow key is pressed if
-     * {@link #keyNavEnabled} is true. Must be implemented by subclasses.
+     * This method is called when the spinner down button is clicked, or when the down arrow key
+     * is pressed if {@link #keyNavEnabled} is true. Must be implemented by subclasses.
      */
     onSpinDown: Ext.emptyFn,
-    
+
     ariaRole: 'spinbutton',
 
     /**
@@ -139,6 +146,17 @@ Ext.define('Ext.form.field.Spinner', {
      * @event spindown
      * Fires when the spinner is made to spin down.
      * @param {Ext.form.field.Spinner} this
+     */
+
+    /**
+     * @event spinend
+     * Fires when a spin command has been finished. For example on mouseup
+     * on the spin buttons, when an `UP` or `DOWN` arrow key is released
+     * of when a mousewheel stops spinning.
+     *
+     * When this event fires, the field's value has stabilized.
+     * @param {Ext.form.field.Spinner} this
+     * @since 6.2.0
      */
 
     applyTriggers: function(triggers) {
@@ -162,10 +180,16 @@ Ext.define('Ext.form.field.Spinner', {
 
         // Init up/down arrow keys
         if (me.keyNavEnabled) {
-            me.spinnerKeyNav = new Ext.util.KeyNav(me.inputEl, {
+            me.spinnerKeyNav = new Ext.util.KeyNav({
+                target: me.inputEl,
                 scope: me,
                 up: me.spinUp,
                 down: me.spinDown
+            });
+
+            me.inputEl.on({
+                keyup: me.onInputElKeyUp,
+                scope: me
             });
         }
 
@@ -197,12 +221,13 @@ Ext.define('Ext.form.field.Spinner', {
     },
 
     /**
-     * Triggers the spinner to step up; fires the {@link #spin} and {@link #spinup} events and calls the
-     * {@link #onSpinUp} method. Does nothing if the field is {@link #disabled} or if {@link #spinUpEnabled}
-     * is false.
+     * Triggers the spinner to step up; fires the {@link #spin} and {@link #spinup} events
+     * and calls the {@link #onSpinUp} method. Does nothing if the field is {@link #disabled}
+     * or if {@link #spinUpEnabled} is false.
      */
     spinUp: function() {
         var me = this;
+
         if (me.spinUpEnabled && !me.disabled) {
             me.fireEvent('spin', me, 'up');
             me.fireEvent('spinup', me);
@@ -211,12 +236,13 @@ Ext.define('Ext.form.field.Spinner', {
     },
 
     /**
-     * Triggers the spinner to step down; fires the {@link #spin} and {@link #spindown} events and calls the
-     * {@link #onSpinDown} method. Does nothing if the field is {@link #disabled} or if {@link #spinDownEnabled}
-     * is false.
+     * Triggers the spinner to step down; fires the {@link #spin} and {@link #spindown} events
+     * and calls the {@link #onSpinDown} method. Does nothing if the field is {@link #disabled}
+     * or if {@link #spinDownEnabled} is false.
      */
     spinDown: function() {
         var me = this;
+
         if (me.spinDownEnabled && !me.disabled) {
             me.fireEvent('spin', me, 'down');
             me.fireEvent('spindown', me);
@@ -231,7 +257,9 @@ Ext.define('Ext.form.field.Spinner', {
     setSpinUpEnabled: function(enabled) {
         var me = this,
             wasEnabled = me.spinUpEnabled;
+
         me.spinUpEnabled = enabled;
+
         if (wasEnabled !== enabled && me.rendered) {
             me.getTrigger('spinner').setUpEnabled(enabled);
         }
@@ -244,7 +272,9 @@ Ext.define('Ext.form.field.Spinner', {
     setSpinDownEnabled: function(enabled) {
         var me = this,
             wasEnabled = me.spinDownEnabled;
+
         me.spinDownEnabled = enabled;
+
         if (wasEnabled !== enabled && me.rendered) {
             me.getTrigger('spinner').setDownEnabled(enabled);
         }
@@ -257,20 +287,44 @@ Ext.define('Ext.form.field.Spinner', {
     onMouseWheel: function(e) {
         var me = this,
             delta;
+
         if (me.hasFocus) {
             delta = e.getWheelDelta();
+
             if (delta > 0) {
                 me.spinUp();
-            } else if (delta < 0) {
+            }
+            else if (delta < 0) {
                 me.spinDown();
             }
+
             e.stopEvent();
+            me.onSpinEnd();
         }
     },
 
-    onDestroy: function() {
+    onInputElKeyUp: function(e) {
+        if (e.keyCode === e.UP || e.keyCode === e.DOWN) {
+            this.onSpinEnd();
+        }
+    },
+
+    doDestroy: function() {
         Ext.destroyMembers(this, 'spinnerKeyNav');
+
         this.callParent();
     }
 
+}, function(Spinner) {
+    var spinEnd = function() {
+        if (!this.destroying && !this.destroyed) {
+            this.fireEvent('spinend', this);
+        }
+    };
+
+    //<debug>
+    spinEnd.$skipTimerCheck = true;
+    //</debug>
+
+    Spinner.prototype.onSpinEnd = Ext.Function.createBuffered(spinEnd, 100);
 });

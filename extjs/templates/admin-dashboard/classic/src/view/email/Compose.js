@@ -40,6 +40,14 @@ Ext.define('Admin.view.email.Compose', {
         },
         {
             xtype: 'htmleditor',
+            
+            // Make tips align neatly below buttons.
+            buttonDefaults: {
+                tooltip: {
+                    align: 't-b',
+                    anchor: true
+                }
+            },
             flex: 1,
             minHeight: 100,
             labelAlign: 'top',
@@ -59,7 +67,7 @@ Ext.define('Admin.view.email.Compose', {
                 buttonConfig: {
                     xtype: 'filebutton',
                     glyph:'',
-                    iconCls: 'x-fa fa-cloud-upload',
+                    iconCls: 'x-fa fa-cloud-upload-alt',
                     text: 'Browse'
                 }
             },

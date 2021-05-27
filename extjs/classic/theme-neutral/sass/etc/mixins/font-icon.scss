@@ -1,4 +1,4 @@
-require('font-icon');
+@import "font-icon.js";
 
 /**
  * Applies a font icon to an element.
@@ -88,7 +88,13 @@ require('font-icon');
  * @member Global_CSS
  * @private
  */
-@mixin font-icon($glyph, $pseudo: true, $line-height: 1, $color: null, $style-pseudo: false) {
+@mixin font-icon(
+    $glyph,
+    $pseudo: true,
+    $line-height: 1,
+    $color: null,
+    $style-pseudo: false
+) {
     $args: parseFontIconArgs($glyph);
 
     $char: nth($args, 1);
@@ -143,7 +149,7 @@ require('font-icon');
             // IE8 does not support filters on pseudo elements, so we have to rotate the
             // containing element instead of the pseudo element
             .#{$prefix}ie8 & {
-                filter: progid:DXImageTransform.Microsoft.BasicImage(rotation=#{$ie-rotation});
+                -ms-filter: "progid:DXImageTransform.Microsoft.BasicImage(rotation=#{$ie-rotation})";
             }
         }
     }

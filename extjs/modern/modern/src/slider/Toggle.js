@@ -1,36 +1,26 @@
 /**
- * @private
+ * Toggle switch component used by Ext.field.Toggle
  */
 Ext.define('Ext.slider.Toggle', {
     extend: 'Ext.slider.Slider',
+    xtype: 'toggleslider',
 
     config: {
-        /**
-         * @cfg
-         * @inheritdoc
-         */
-        baseCls: 'x-toggle',
-
-        /**
-         * @cfg {String} minValueCls CSS class added to the field when toggled to its minValue
-         * @accessor
-         */
-        minValueCls: 'x-toggle-off',
-
-        /**
-         * @cfg {String} maxValueCls CSS class added to the field when toggled to its maxValue
-         * @accessor
-         */
-        maxValueCls: 'x-toggle-on'
+        onThumbUi: 'toggle-on',
+        offThumbUi: 'toggle-off'
     },
 
-    initialize: function() {
-        this.callParent();
+    /**
+     * @cfg value
+     * @inheritdoc
+     */
+    value: 0,
 
-        this.on({
-            change: 'onChange'
-        });
-    },
+    classCls: Ext.baseCSSPrefix + 'toggleslider',
+
+    // TODO:  7.0 remove these two classes once legacy themes that rely on them are removed
+    minValueCls: Ext.baseCSSPrefix + 'off',
+    maxValueCls: Ext.baseCSSPrefix + 'on',
 
     applyMinValue: function() {
         return 0;
@@ -60,50 +50,70 @@ Ext.define('Ext.slider.Toggle', {
         }
     },
 
-    setValue: function(newValue, oldValue) {
-        this.callParent(arguments);
-        this.onChange(this, this.getThumbs()[0], newValue, oldValue);
-    },
-
     setIndexValue: function(index, value, animation) {
-        var oldValue = this.getValue()[index];
+        var oldValue = this.getValue()[index],
+            thumb, newValue;
+
         this.callParent(arguments);
 
-        var thumb = this.getThumb(index),
-            newValue = this.getValue()[index];
+        thumb = this.thumbs[index];
+        newValue = this.getValue();
 
         if (oldValue !== newValue) {
             this.fireEvent('change', this, thumb, newValue, oldValue);
         }
     },
 
-    onChange: function(me, thumb, newValue, oldValue) {
-        var isOn = newValue > 0,
-            onCls = me.getMaxValueCls(),
-            offCls = me.getMinValueCls(),
-            element = this.element;
+    onChange: function(thumb, newValue, oldValue) {
+        var me = this,
+            isOn = newValue > 0,
+            onCls = me.maxValueCls,
+            offCls = me.minValueCls,
+            element = me.element;
 
         element.addCls(isOn ? onCls : offCls);
         element.removeCls(isOn ? offCls : onCls);
+
+        me.thumbs[0].setUi(isOn ? me.getOnThumbUi() : me.getOffThumbUi());
+
+        me.callParent([thumb, newValue, oldValue]);
     },
 
     toggle: function() {
         var value = this.getValue();
-        this.setValue((value == 1) ? 0 : 1);
+
+        this.setValue((value === 1) ? 0 : 1);
 
         return this;
     },
 
     onTap: function() {
+        var oldValue, newValue, thumb;
+
         if (this.isDisabled() || this.getReadOnly()) {
             return;
         }
 
-        var oldValue = this.getValue(),
-            newValue = (oldValue == 1) ? 0 : 1,
-            thumb = this.getThumb(0);
+        oldValue = this.getValue();
+        newValue = (oldValue === 1) ? 0 : 1;
+        thumb = this.thumbs[0];
 
         this.setIndexValue(0, newValue, this.getAnimation());
-        this.refreshThumbConstraints(thumb);
+        this.refreshAdjacentThumbConstraints(thumb);
+    },
+
+    privates: {
+        syncFill: function() {
+            var me = this,
+                fillElement = me.trackElement.down(me.fillSelector),
+                values = me.getArrayValues();
+
+            if (values && (values[0] === 1)) {
+                fillElement.show();
+            }
+            else {
+                fillElement.hide();
+            }
+        }
     }
 });

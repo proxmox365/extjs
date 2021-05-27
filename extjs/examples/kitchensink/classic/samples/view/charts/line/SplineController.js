@@ -6,8 +6,17 @@ Ext.define('KitchenSink.view.charts.line.SplineController', {
         return Ext.util.Format.number(label, '0.00');
     },
 
-    onPreview: function () {
-        var chart = this.lookupReference('chart');
+    onPreview: function() {
+        var chart;
+
+        if (Ext.isIE8) {
+            Ext.Msg.alert('Unsupported Operation', 'This operation requires a newer version of Internet Explorer.');
+
+            return;
+        }
+
+        chart = this.lookup('chart');
+
         chart.preview();
     }
 

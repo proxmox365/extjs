@@ -1,7 +1,7 @@
 /**
  * @class Ext.chart.series.sprite.Pie3DPart
  * @extends Ext.draw.sprite.Path
- * 
+ *
  * Pie3D series sprite.
  */
 Ext.define('Ext.chart.series.sprite.Pie3DPart', {
@@ -81,7 +81,7 @@ Ext.define('Ext.chart.series.sprite.Pie3DPart', {
                 baseColor: 'color',
 
                 /**
-                 * @cfg {Number} [colorSpread=1]
+                 * @cfg {Number} [colorSpread=0.7]
                  * An attribute used to control how flat the gradient of the sprite looks.
                  * A value of 0 essentially means no gradient (flat color).
                  */
@@ -122,7 +122,8 @@ Ext.define('Ext.chart.series.sprite.Pie3DPart', {
                 baseColor: 'partZIndex,partColor',
                 colorSpread: 'partColor',
                 part: 'path,partZIndex',
-                globalAlpha: 'canvas,alpha'
+                globalAlpha: 'canvas,alpha',
+                fillOpacity: 'canvas,alpha'
             },
             defaults: {
                 centerX: 0,
@@ -136,7 +137,7 @@ Ext.define('Ext.chart.series.sprite.Pie3DPart', {
                 distortion: 0.5,
                 baseRotation: 0,
                 baseColor: 'white',
-                colorSpread: 1,
+                colorSpread: 0.5,
                 miterLimit: 1,
                 bevelWidth: 5,
                 strokeOpacity: 0,
@@ -151,9 +152,16 @@ Ext.define('Ext.chart.series.sprite.Pie3DPart', {
         }
     },
 
+    config: {
+        renderer: null,
+        rendererData: null,
+        rendererIndex: 0,
+        series: null
+    },
+
     bevelParams: [],
 
-    constructor: function (config) {
+    constructor: function(config) {
         this.callParent([config]);
 
         this.bevelGradient = new Ext.draw.gradient.Linear({
@@ -170,20 +178,36 @@ Ext.define('Ext.chart.series.sprite.Pie3DPart', {
         });
     },
 
-    alphaUpdater: function (attr) {
+    updateRenderer: function() {
+        this.setDirty(true);
+    },
+
+    updateRendererData: function() {
+        this.setDirty(true);
+    },
+
+    updateRendererIndex: function() {
+        this.setDirty(true);
+    },
+
+    alphaUpdater: function(attr) {
         var me = this,
             opacity = attr.globalAlpha,
-            oldOpacity = me.oldOpacity;
+            fillOpacity = attr.fillOpacity,
+            oldOpacity = me.oldOpacity,
+            oldFillOpacity = me.oldFillOpacity;
 
         // Update the path when the sprite becomes translucent or completely opaque.
-        if (opacity !== oldOpacity && (opacity === 1 || oldOpacity === 1)) {
+        if ((opacity !== oldOpacity && (opacity === 1 || oldOpacity === 1)) ||
+            (fillOpacity !== oldFillOpacity && (fillOpacity === 1 || oldFillOpacity === 1))) {
             me.scheduleUpdater(attr, 'path', ['globalAlpha']);
             me.oldOpacity = opacity;
+            me.oldFillOpacity = fillOpacity;
         }
     },
 
-    partColorUpdater: function (attr) {
-        var color = Ext.draw.Color.fly(attr.baseColor),
+    partColorUpdater: function(attr) {
+        var color = Ext.util.Color.fly(attr.baseColor),
             colorString = color.toString(),
             colorSpread = attr.colorSpread,
             fillStyle;
@@ -209,9 +233,11 @@ Ext.define('Ext.chart.series.sprite.Pie3DPart', {
                         color: color.createDarker(0.1 * colorSpread)
                     }]
                 });
+
                 break;
+
             case 'bottom':
-                fillStyle =  new Ext.draw.gradient.Radial({
+                fillStyle = new Ext.draw.gradient.Radial({
                     start: {
                         x: 0,
                         y: 0,
@@ -230,10 +256,12 @@ Ext.define('Ext.chart.series.sprite.Pie3DPart', {
                         color: color.toString()
                     }]
                 });
+
                 break;
+
             case 'outerFront':
             case 'outerBack':
-                fillStyle =  new Ext.draw.gradient.Linear({
+                fillStyle = new Ext.draw.gradient.Linear({
                     stops: [{
                         offset: 0,
                         color: color.createDarker(0.15 * colorSpread).toString()
@@ -248,7 +276,9 @@ Ext.define('Ext.chart.series.sprite.Pie3DPart', {
                         color: color.createDarker(0.25 * colorSpread).toString()
                     }]
                 });
+
                 break;
+
             case 'start':
                 fillStyle = new Ext.draw.gradient.Linear({
                     stops: [{
@@ -259,7 +289,9 @@ Ext.define('Ext.chart.series.sprite.Pie3DPart', {
                         color: color.createLighter(0.2 * colorSpread).toString()
                     }]
                 });
+
                 break;
+
             case 'end':
                 fillStyle = new Ext.draw.gradient.Linear({
                     stops: [{
@@ -270,7 +302,9 @@ Ext.define('Ext.chart.series.sprite.Pie3DPart', {
                         color: color.createLighter(0.2 * colorSpread).toString()
                     }]
                 });
+
                 break;
+
             case 'innerFront':
             case 'innerBack':
                 fillStyle = new Ext.draw.gradient.Linear({
@@ -288,6 +322,7 @@ Ext.define('Ext.chart.series.sprite.Pie3DPart', {
                         color: color.createDarker(0.1 * colorSpread).toString()
                     }]
                 });
+
                 break;
         }
 
@@ -295,7 +330,7 @@ Ext.define('Ext.chart.series.sprite.Pie3DPart', {
         attr.canvasAttributes.fillStyle = fillStyle;
     },
 
-    partZIndexUpdater: function (attr) {
+    partZIndexUpdater: function(attr) {
         var normalize = Ext.draw.sprite.AttributeParser.angle,
             rotation = attr.baseRotation,
             startAngle = attr.startAngle,
@@ -304,49 +339,63 @@ Ext.define('Ext.chart.series.sprite.Pie3DPart', {
 
         switch (attr.part) {
             case 'top':
-                attr.zIndex = 5;
+                attr.zIndex = 6;
                 break;
+
             case 'outerFront':
                 startAngle = normalize(startAngle + rotation);
-                endAngle   = normalize(endAngle   + rotation);
+                endAngle = normalize(endAngle + rotation);
+
                 if (startAngle >= 0 && endAngle < 0) {
                     depth = Math.sin(startAngle);
-                } else if (startAngle <= 0 && endAngle > 0) {
+                }
+                else if (startAngle <= 0 && endAngle > 0) {
                     depth = Math.sin(endAngle);
-                } else if (startAngle >= 0 && endAngle > 0) {
+                }
+                else if (startAngle >= 0 && endAngle > 0) {
                     if (startAngle > endAngle) {
                         depth = 0;
-                    } else {
+                    }
+                    else {
                         depth = Math.max(Math.sin(startAngle), Math.sin(endAngle));
                     }
-                } else {
+                }
+                else {
                     depth = 1;
                 }
+
                 attr.zIndex = 4 + depth;
                 break;
+
             case 'outerBack':
                 attr.zIndex = 1;
                 break;
+
             case 'start':
                 attr.zIndex = 4 + Math.sin(normalize(startAngle + rotation));
                 break;
+
             case 'end':
                 attr.zIndex = 4 + Math.sin(normalize(endAngle + rotation));
                 break;
+
             case 'innerFront':
                 attr.zIndex = 2;
                 break;
+
             case 'innerBack':
                 attr.zIndex = 4 + Math.sin(normalize((startAngle + endAngle) / 2 + rotation));
                 break;
+
             case 'bottom':
                 attr.zIndex = 0;
                 break;
         }
+
         attr.dirtyZIndex = true;
     },
 
-    updatePlainBBox: function (plain) {
+    updatePlainBBox: function(plain) {
         var attr = this.attr,
             part = attr.part,
             baseRotation = attr.baseRotation,
@@ -356,7 +405,8 @@ Ext.define('Ext.chart.series.sprite.Pie3DPart', {
 
         if (part === 'start') {
             angle = attr.startAngle + baseRotation;
-        } else if (part === 'end') {
+        }
+        else if (part === 'end') {
             angle = attr.endAngle + baseRotation;
         }
 
@@ -380,7 +430,8 @@ Ext.define('Ext.chart.series.sprite.Pie3DPart', {
 
         if (part === 'innerFront' || part === 'innerBack') {
             rho = attr.startRho;
-        } else {
+        }
+        else {
             rho = attr.endRho;
         }
 
@@ -390,30 +441,67 @@ Ext.define('Ext.chart.series.sprite.Pie3DPart', {
         plain.y = attr.centerY - rho * attr.distortion;
     },
 
-    updateTransformedBBox: function (transform) {
+    updateTransformedBBox: function(transform) {
         if (this.attr.part === 'start' || this.attr.part === 'end') {
             return this.callParent(arguments);
         }
+
         return this.updatePlainBBox(transform);
     },
-    
-    updatePath: function (path) {
+
+    updatePath: function(path) {
         if (!this.attr.globalAlpha) {
             return;
         }
+
         if (this.attr.endAngle < this.attr.startAngle) {
             return;
         }
+
         this[this.attr.part + 'Renderer'](path);
     },
 
-    render: function (surface, ctx) {
+    render: function(surface, ctx, rect) {
         var me = this,
-            attr = me.attr;
+            renderer = me.getRenderer(),
+            attr = me.attr,
+            part = attr.part,
+            itemCfg, changes;
 
-        if (!attr.globalAlpha) {
+        if (!attr.globalAlpha || Ext.Number.isEqual(attr.startAngle, attr.endAngle, 1e-8)) {
             return;
         }
+
+        if (renderer) {
+            itemCfg = {
+                type: 'pie3dPart',
+                part: attr.part,
+                margin: attr.margin,
+                distortion: attr.distortion,
+                centerX: attr.centerX,
+                centerY: attr.centerY,
+                baseRotation: attr.baseRotation,
+                startAngle: attr.startAngle,
+                endAngle: attr.endAngle,
+                startRho: attr.startRho,
+                endRho: attr.endRho
+            };
+
+            changes = Ext.callback(renderer, null,
+                                   [me, itemCfg, me.getRendererData(), me.getRendererIndex()],
+                                   0, me.getSeries());
+
+            if (changes) {
+                if (changes.part) {
+                    // Can't let users change the nature of the sprite.
+                    changes.part = part;
+                }
+
+                me.setAttributes(changes);
+                me.useAttributes(ctx, rect);
+            }
+        }
+
         me.callParent([surface, ctx]);
         me.bevelRenderer(surface, ctx);
 
@@ -423,7 +511,7 @@ Ext.define('Ext.chart.series.sprite.Pie3DPart', {
         }
     },
 
-    placeLabel: function () {
+    placeLabel: function() {
         var me = this,
             attr = me.attr,
             attributeId = attr.attributeId,
@@ -446,6 +534,7 @@ Ext.define('Ext.chart.series.sprite.Pie3DPart', {
             calloutLine = labelTpl.getCalloutLine(),
             calloutLineLength = calloutLine && calloutLine.length || 40,
             labelCfg = {},
+            rendererParams, rendererChanges,
             x, y;
 
         surfaceMatrix.appendMatrix(attr.matrix);
@@ -471,6 +560,21 @@ Ext.define('Ext.chart.series.sprite.Pie3DPart', {
 
         labelCfg.calloutWidth = 2;
 
+        if (labelTpl.attr.renderer) {
+            rendererParams = [me.attr.label, label, labelCfg, me.getRendererData(),
+                              me.getRendererIndex()];
+
+            rendererChanges = Ext.callback(labelTpl.attr.renderer, null, rendererParams,
+                                           0, me.getSeries());
+
+            if (typeof rendererChanges === 'string') {
+                labelCfg.text = rendererChanges;
+            }
+            else {
+                Ext.apply(labelCfg, rendererChanges);
+            }
+        }
+
         me.putMarker('labels', labelCfg, attributeId);
 
         me.putMarker('labels', {
@@ -478,7 +582,7 @@ Ext.define('Ext.chart.series.sprite.Pie3DPart', {
         }, attributeId);
     },
 
-    bevelRenderer: function (surface, ctx) {
+    bevelRenderer: function(surface, ctx) {
         var me = this,
             attr = me.attr,
             bevelWidth = attr.bevelWidth,
@@ -497,7 +601,7 @@ Ext.define('Ext.chart.series.sprite.Pie3DPart', {
         }
     },
 
-    lidRenderer: function (path, thickness) {
+    lidRenderer: function(path, thickness) {
         var attr = this.attr,
             margin = attr.margin,
             distortion = attr.distortion,
@@ -532,19 +636,20 @@ Ext.define('Ext.chart.series.sprite.Pie3DPart', {
         path.closePath();
     },
 
-    topRenderer: function (path) {
+    topRenderer: function(path) {
         this.lidRenderer(path, 0);
     },
 
-    bottomRenderer: function (path) {
-        var attr = this.attr;
+    bottomRenderer: function(path) {
+        var attr = this.attr,
+            none = Ext.util.Color.RGBA_NONE;
 
-        if (attr.globalAlpha < 1 || attr.shadowColor !== Ext.draw.Color.RGBA_NONE) {
+        if (attr.globalAlpha < 1 || attr.fillOpacity < 1 || attr.shadowColor !== none) {
             this.lidRenderer(path, attr.thickness);
         }
     },
 
-    sideRenderer: function (path, position) {
+    sideRenderer: function(path, position) {
         var attr = this.attr,
             margin = attr.margin,
             centerX = attr.centerX,
@@ -553,6 +658,8 @@ Ext.define('Ext.chart.series.sprite.Pie3DPart', {
             baseRotation = attr.baseRotation,
             startAngle = attr.startAngle + baseRotation,
             endAngle = attr.endAngle + baseRotation,
+            // eslint-disable-next-line max-len
+            isFullPie = (!attr.startAngle && Ext.Number.isEqual(Math.PI * 2, attr.endAngle, 0.0000001)),
             thickness = attr.thickness,
             startRho = attr.startRho,
             endRho = attr.endRho,
@@ -566,7 +673,7 @@ Ext.define('Ext.chart.series.sprite.Pie3DPart', {
                         isTranslucent,
             midAngle;
 
-        if (isVisible) {
+        if (isVisible && !isFullPie) {
             midAngle = (startAngle + endAngle) / 2;
             centerX += Math.cos(midAngle) * margin;
             centerY += Math.sin(midAngle) * margin * distortion;
@@ -590,15 +697,15 @@ Ext.define('Ext.chart.series.sprite.Pie3DPart', {
         }
     },
 
-    startRenderer: function (path) {
+    startRenderer: function(path) {
         this.sideRenderer(path, 'start');
     },
 
-    endRenderer: function (path) {
+    endRenderer: function(path) {
         this.sideRenderer(path, 'end');
     },
 
-    rimRenderer: function (path, radius, isDonut, isFront) {
+    rimRenderer: function(path, radius, isDonut, isFront) {
         var me = this,
             attr = me.attr,
             margin = attr.margin,
@@ -645,9 +752,11 @@ Ext.define('Ext.chart.series.sprite.Pie3DPart', {
                 radius, radius * distortion,
                 0, startAngle, Math.PI, false
             ];
+
             if (!isDonut) {
                 me.bevelParams.push(params);
             }
+
             path.ellipse.apply(path, params);
             path.closePath();
         }
@@ -667,9 +776,11 @@ Ext.define('Ext.chart.series.sprite.Pie3DPart', {
                 radius, radius * distortion,
                 0, endAngle, 0, true
             ];
+
             if (!isDonut) {
                 me.bevelParams.push(params);
             }
+
             path.ellipse.apply(path, params);
             path.closePath();
         }
@@ -689,13 +800,14 @@ Ext.define('Ext.chart.series.sprite.Pie3DPart', {
                 radius, radius * distortion,
                 0, endAngle, Math.PI, true
             ];
+
             if (isDonut) {
                 me.bevelParams.push(params);
             }
+
             path.ellipse.apply(path, params);
             path.closePath();
         }
-
 
         function renderRightBackChunk() {
             path.ellipse(
@@ -712,9 +824,11 @@ Ext.define('Ext.chart.series.sprite.Pie3DPart', {
                 radius, radius * distortion,
                 0, 0, startAngle, true
             ];
+
             if (isDonut) {
                 me.bevelParams.push(params);
             }
+
             path.ellipse.apply(path, params);
             path.closePath();
         }
@@ -723,9 +837,11 @@ Ext.define('Ext.chart.series.sprite.Pie3DPart', {
             if (!isDonut || isTranslucent) {
                 if (startAngle >= 0 && endAngle < 0) {
                     renderLeftFrontChunk();
-                } else if (startAngle <= 0 && endAngle > 0) {
+                }
+                else if (startAngle <= 0 && endAngle > 0) {
                     renderRightFrontChunk();
-                } else if (startAngle <= 0 && endAngle < 0) {
+                }
+                else if (startAngle <= 0 && endAngle < 0) {
                     if (startAngle > endAngle) {
                         path.ellipse(
                             centerX, centerY + thickness,
@@ -741,26 +857,32 @@ Ext.define('Ext.chart.series.sprite.Pie3DPart', {
                             radius, radius * distortion,
                             0, Math.PI, 0, true
                         ];
+
                         if (!isDonut) {
                             me.bevelParams.push(params);
                         }
+
                         path.ellipse.apply(path, params);
                         path.closePath();
                     }
-                } else { // startAngle >= 0 && endAngle > 0
+                }
+                else { // startAngle >= 0 && endAngle > 0
                     // obtuse horseshoe-like slice with the gap facing forward
                     if (startAngle > endAngle) {
                         renderLeftFrontChunk();
                         renderRightFrontChunk();
-                    } else { // acute slice facing forward
+                    }
+                    else { // acute slice facing forward
                         params = [
                             centerX, centerY,
                             radius, radius * distortion,
                             0, startAngle, endAngle, false
                         ];
+
                         if (isAllFront && !isDonut || isAllBack && isDonut) {
                             me.bevelParams.push(params);
                         }
+
                         path.ellipse.apply(path, params);
                         path.lineTo(
                             centerX + Math.cos(endAngle) * radius,
@@ -775,17 +897,21 @@ Ext.define('Ext.chart.series.sprite.Pie3DPart', {
                     }
                 }
             }
-        } else {
+        }
+        else {
             if (isDonut || isTranslucent) {
                 if (startAngle >= 0 && endAngle < 0) {
                     renderLeftBackChunk();
-                } else if (startAngle <= 0 && endAngle > 0) {
+                }
+                else if (startAngle <= 0 && endAngle > 0) {
                     renderRightBackChunk();
-                } else if (startAngle <= 0 && endAngle < 0) {
+                }
+                else if (startAngle <= 0 && endAngle < 0) {
                     if (startAngle > endAngle) {
                         renderLeftBackChunk();
                         renderRightBackChunk();
-                    } else {
+                    }
+                    else {
                         path.ellipse(
                             centerX, centerY + thickness,
                             radius, radius * distortion,
@@ -800,13 +926,16 @@ Ext.define('Ext.chart.series.sprite.Pie3DPart', {
                             radius, radius * distortion,
                             0, endAngle, startAngle, true
                         ];
+
                         if (isDonut) {
                             me.bevelParams.push(params);
                         }
+
                         path.ellipse.apply(path, params);
                         path.closePath();
                     }
-                } else { // startAngle >= 0 && endAngle > 0
+                }
+                else { // startAngle >= 0 && endAngle > 0
                     if (startAngle > endAngle) {
                         path.ellipse(
                             centerX, centerY + thickness,
@@ -822,9 +951,11 @@ Ext.define('Ext.chart.series.sprite.Pie3DPart', {
                             radius, radius * distortion,
                             0, 0, -Math.PI, true
                         ];
+
                         if (isDonut) {
                             me.bevelParams.push(params);
                         }
+
                         path.ellipse.apply(path, params);
                         path.closePath();
                     }
@@ -833,19 +964,19 @@ Ext.define('Ext.chart.series.sprite.Pie3DPart', {
         }
     },
 
-    innerFrontRenderer: function (path) {
+    innerFrontRenderer: function(path) {
         this.rimRenderer(path, this.attr.startRho, true, true);
     },
 
-    innerBackRenderer: function (path) {
+    innerBackRenderer: function(path) {
         this.rimRenderer(path, this.attr.startRho, true, false);
     },
 
-    outerFrontRenderer: function (path) {
+    outerFrontRenderer: function(path) {
         this.rimRenderer(path, this.attr.endRho, false, true);
     },
 
-    outerBackRenderer: function (path) {
+    outerBackRenderer: function(path) {
         this.rimRenderer(path, this.attr.endRho, false, false);
     }
 });

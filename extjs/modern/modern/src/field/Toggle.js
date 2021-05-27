@@ -1,9 +1,10 @@
 /**
- * Specialized {@link Ext.field.Slider} with a single thumb which only supports two {@link #value values}.
+ * Specialized {@link Ext.field.Slider} with a single thumb which only supports 
+ * two {@link #value values}.
  *
  * ## Examples
  *
- *     @example miniphone preview
+ *     @example
  *     Ext.Viewport.add({
  *         xtype: 'togglefield',
  *         name: 'awesome',
@@ -13,7 +14,7 @@
  *
  * Having a default value of 'toggled':
  *
- *     @example miniphone preview
+ *     @example
  *     Ext.Viewport.add({
  *         xtype: 'togglefield',
  *         name: 'awesome',
@@ -24,7 +25,7 @@
  *
  * And using the {@link #value} {@link #toggle} method:
  *
- *     @example miniphone preview
+ *     @example
  *     Ext.Viewport.add([
  *         {
  *             xtype: 'togglefield',
@@ -51,54 +52,70 @@
  */
 Ext.define('Ext.field.Toggle', {
     extend: 'Ext.field.SingleSlider',
-    xtype : 'togglefield',
+    xtype: 'togglefield',
     alternateClassName: 'Ext.form.Toggle',
     requires: ['Ext.slider.Toggle'],
 
     /**
-     * @event change
-     * Fires when the value changes.
-     * @param {Ext.field.Slider} me
-     * @param {Boolean} newValue The new value.
-     * @param {Boolean} oldValue The old value.
+     * @cfg twoWayBindable
+     * @inheritdoc
      */
+    twoWayBindable: {
+        value: 1
+    },
+
+    /**
+     * @cfg publishes
+     * @inheritdoc
+     */
+    publishes: {
+        value: 1
+    },
 
     config: {
         /**
-         * @cfg
+         * @cfg slider
          * @inheritdoc
          */
-        cls: 'x-toggle-field',
+        slider: {
+            xtype: 'toggleslider'
+        },
 
         /**
-         * @cfg {String} labelAlign
-         * The position to render the label relative to the field input.
-         * Available options are: 'top', 'left', 'bottom' and 'right'
-         * @accessor
-         */
-        labelAlign: 'left',
-
-        /**
-         * @cfg {String} activeLabel The label to add to the toggle field when it is toggled on.
-         * Only available in the Blackberry theme.
+         * @cfg {String} activeLabel
+         * The label to add to the toggle field when it is toggled on. Only available in
+         * the Blackberry theme.
          * @accessor
          */
         activeLabel: null,
 
         /**
-         * @cfg {String} inactiveLabel The label to add to the toggle field when it is toggled off.
-         * Only available in the Blackberry theme.
+         * @cfg {String} inactiveLabel
+         * The label to add to the toggle field when it is toggled off. Only available in
+         * the Blackberry theme.
          * @accessor
          */
         inactiveLabel: null,
 
         /**
-         * @inheritdoc Ext.slider.Slider#value
-         * @cfg {Boolean} value
+         * @cfg value
+         * @inheritdoc Ext.slider.Slider#cfg-value
          * @accessor
          */
         value: false
     },
+
+    /**
+     * @cfg bodyAlign
+     * @inheritdoc
+     */
+    bodyAlign: 'start',
+
+    /**
+     * @property classCls
+     * @inheritdoc
+     */
+    classCls: Ext.baseCSSPrefix + 'togglefield',
 
     /**
      * @event change
@@ -134,45 +151,26 @@ Ext.define('Ext.field.Toggle', {
     * @hide
     */
 
-    proxyConfig: {
-        /**
-         * @cfg {String} minValueCls See {@link Ext.slider.Toggle#minValueCls}
-         * @accessor
-         */
-        minValueCls: Ext.baseCSSPrefix + 'toggle-off',
-
-        /**
-         * @cfg {String} maxValueCls  See {@link Ext.slider.Toggle#maxValueCls}
-         * @accessor
-         */
-        maxValueCls: Ext.baseCSSPrefix + 'toggle-on'
-    },
-
-    /**
-     * @private
-     */
-    applyComponent: function(config) {
-        return Ext.factory(config, Ext.slider.Toggle);
-    },
-
     /**
      * @private
      */
     updateActiveLabel: function(newActiveLabel, oldActiveLabel) {
-        this.getComponent().element.dom.setAttribute('data-activelabel', newActiveLabel);
+        this.getSlider().element.dom.setAttribute('data-activelabel', newActiveLabel);
     },
-
     /**
      * @private
      */
     updateInactiveLabel: function(newInactiveLabel, oldInactiveLabel) {
-        this.getComponent().element.dom.setAttribute('data-inactivelabel', newInactiveLabel);
+        this.getSlider().element.dom.setAttribute('data-inactivelabel', newInactiveLabel);
     },
 
-    applyValue: function(value) {
+    applyValue: function(value, oldValue) {
+        value = this.callParent([value, oldValue]);
+
         if (typeof value !== 'boolean') {
             value = value !== 0;
         }
+
         return value;
     },
 
@@ -184,11 +182,15 @@ Ext.define('Ext.field.Toggle', {
         if (active || inactive) {
             me.setLabel(value ? active : inactive);
         }
+
         me.callParent([value, oldValue]);
     },
 
-    setComponentValue: function(value) {
-        this.getComponent().setValue(value ? 1 : 0);
+    setSliderValue: function(value) {
+        this.getSlider().setValue(value ? 1 : 0);
+
+        return !!value;
+
     },
 
     /**
@@ -198,6 +200,18 @@ Ext.define('Ext.field.Toggle', {
     toggle: function() {
         // We call setValue directly so the change event can be fired
         this.setValue(!this.getValue());
+
         return this;
-    }
+    },
+
+    /**
+     * Returns the toggled state of the togglefield.
+     * @return {Boolean} True if toggled on, else false
+	 * @since 7.0
+     */
+    getRawValue: function() {
+        return this.getValue();
+    },
+
+    rawToValue: Ext.emptyFn
 });

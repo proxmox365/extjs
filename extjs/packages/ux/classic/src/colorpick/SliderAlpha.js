@@ -3,30 +3,33 @@
  * @private
  */
 Ext.define('Ext.ux.colorpick.SliderAlpha', {
-    extend : 'Ext.ux.colorpick.Slider',
-    alias  : 'widget.colorpickerslideralpha',
-    cls    : Ext.baseCSSPrefix + 'colorpicker-alpha',
+    extend: 'Ext.ux.colorpick.Slider',
+    alias: 'widget.colorpickerslideralpha',
+    cls: Ext.baseCSSPrefix + 'colorpicker-alpha',
 
     requires: [
         'Ext.XTemplate'
     ],
 
-    gradientStyleTpl: Ext.create('Ext.XTemplate',
+    /* eslint-disable max-len */
+    gradientStyleTpl: Ext.create(
+        'Ext.XTemplate',
         Ext.isIE && Ext.ieVersion < 10
-        ? 'filter: progid:DXImageTransform.Microsoft.gradient(GradientType=0, startColorstr=\'#FF{hex}\', endColorstr=\'#00{hex}\');' /* IE6-9 */
-        : 'background: -mox-linear-gradient(top, rgba({r}, {g}, {b}, 1) 0%, rgba({r}, {g}, {b}, 0) 100%);' +   /* FF3.6+ */
-          'background: -webkit-linear-gradient(top,rgba({r}, {g}, {b}, 1) 0%, rgba({r}, {g}, {b}, 0) 100%);' + /* Chrome10+,Safari5.1+ */
-          'background: -o-linear-gradient(top, rgba({r}, {g}, {b}, 1) 0%, rgba({r}, {g}, {b}, 0) 100%);' +      /* Opera 11.10+ */
-          'background: -ms-linear-gradient(top, rgba({r}, {g}, {b}, 1) 0%, rgba({r}, {g}, {b}, 0) 100%);' +     /* IE10+ */
-          'background: linear-gradient(to bottom, rgba({r}, {g}, {b}, 1) 0%, rgba({r}, {g}, {b}, 0) 100%);'     /* W3C */
+            ? 'filter: progid:DXImageTransform.Microsoft.gradient(GradientType=0, startColorstr=\'#FF{hex}\', endColorstr=\'#00{hex}\');' /* IE6-9 */
+            : 'background: -moz-linear-gradient(top, rgba({r}, {g}, {b}, 1) 0%, rgba({r}, {g}, {b}, 0) 100%);' +   /* FF3.6+ */
+              'background: -webkit-linear-gradient(top,rgba({r}, {g}, {b}, 1) 0%, rgba({r}, {g}, {b}, 0) 100%);' + /* Chrome10+,Safari5.1+ */
+              'background: -o-linear-gradient(top, rgba({r}, {g}, {b}, 1) 0%, rgba({r}, {g}, {b}, 0) 100%);' +      /* Opera 11.10+ */
+              'background: -ms-linear-gradient(top, rgba({r}, {g}, {b}, 1) 0%, rgba({r}, {g}, {b}, 0) 100%);' +     /* IE10+ */
+              'background: linear-gradient(to bottom, rgba({r}, {g}, {b}, 1) 0%, rgba({r}, {g}, {b}, 0) 100%);'     /* W3C */
     ),
+    /* eslint-enable max-len */
 
     // Called via data binding whenever selectedColor.a changes; param is 0-100
-    setAlpha: function (value) {
-        var me              = this,
-            container       = me.getDragContainer(),
-            dragHandle      = me.getDragHandle(),
-            containerEl     = container.getEl(),
+    setAlpha: function(value) {
+        var me = this,
+            container = me.getDragContainer(),
+            dragHandle = me.getDragHandle(),
+            containerEl = container.getEl(),
             containerHeight = containerEl.getHeight(),
             el, top;
 
@@ -46,7 +49,7 @@ Ext.define('Ext.ux.colorpick.SliderAlpha', {
         // Position dragger
         el = dragHandle.getEl();
         el.setStyle({
-            top: top
+            top: top + 'px'
         });
     },
 
@@ -64,7 +67,7 @@ Ext.define('Ext.ux.colorpick.SliderAlpha', {
         // Determine HEX for new hue and set as background based on template
         hex = Ext.ux.colorpick.ColorUtils.rgb2hex(color.r, color.g, color.b);
 
-        el = container.getEl().down('.x-autocontainer-innerCt');
-        el.applyStyles(me.gradientStyleTpl.apply({hex: hex, r: color.r, g: color.g, b: color.b}));
+        el = container.getEl().first();
+        el.applyStyles(me.gradientStyleTpl.apply({ hex: hex, r: color.r, g: color.g, b: color.b }));
     }
 });

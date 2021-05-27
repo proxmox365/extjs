@@ -1,8 +1,9 @@
 /**
+ * @protected
  * Simple wrapper class that represents a set of records returned by a Proxy.
  */
 Ext.define('Ext.data.ResultSet', {
-    
+
     /**
      * @property {Boolean} isResultSet
      * Identifies this class as a result set.
@@ -10,7 +11,7 @@ Ext.define('Ext.data.ResultSet', {
     isResultSet: true,
 
     $configPrefixed: false,
-    
+
     config: {
         /**
          * @cfg {Boolean} loaded
@@ -27,10 +28,16 @@ Ext.define('Ext.data.ResultSet', {
 
         /**
          * @cfg {Number} total
-         * The total number of records reported by the data source. This ResultSet may form a subset of
-         * those records (see {@link #count}).
+         * The total number of records reported by the data source. This ResultSet may form
+         * a subset of those records (see {@link #count}).
          */
         total: null,
+
+        /**
+         * @cfg {Number} remoteTotal
+         * The total number of records reported by the remote data source.
+         */
+        remoteTotal: null,
 
         /**
          * @cfg {Boolean} success
@@ -48,7 +55,25 @@ Ext.define('Ext.data.ResultSet', {
          * @cfg {String} message
          * The message that was read in from the data
          */
-        message: null
+        message: null,
+
+        /**
+         * @cfg {Object} metadata
+         * The metadata object from a server sourced JSON data packet.
+         */
+        metadata: null,
+
+        /**
+         * @cfg {Ext.data.Model[]} groupData
+         * The grouping data.
+         */
+        groupData: null,
+
+        /**
+         * @cfg {Ext.data.Model} summaryData
+         * The summary data.
+         */
+        summaryData: null
     },
 
     /**
@@ -65,10 +90,12 @@ Ext.define('Ext.data.ResultSet', {
 
         if (!count) {
             records = this.getRecords();
+
             if (records) {
                 count = records.length;
             }
         }
+
         return count;
     }
 });

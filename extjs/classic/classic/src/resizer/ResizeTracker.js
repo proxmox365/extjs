@@ -4,13 +4,17 @@
  */
 Ext.define('Ext.resizer.ResizeTracker', {
     extend: 'Ext.dd.DragTracker',
+
     dynamic: true,
     preserveRatio: false,
 
+    // Resizer mousedown must blur active element
+    preventDefault: false,
+
     // Default to no constraint
     constrainTo: null,
-    
-    proxyCls:  Ext.baseCSSPrefix + 'resizable-proxy',
+
+    proxyCls: Ext.baseCSSPrefix + 'resizable-proxy',
 
     constructor: function(config) {
         var me = this,
@@ -20,10 +24,12 @@ Ext.define('Ext.resizer.ResizeTracker', {
         if (!config.el) {
             if (config.target.isComponent) {
                 me.el = config.target.getEl();
-            } else {
+            }
+            else {
                 me.el = config.target;
             }
         }
+
         this.callParent(arguments);
 
         // Ensure that if we are preserving aspect ratio, the largest minimum is honoured
@@ -36,7 +42,8 @@ Ext.define('Ext.resizer.ResizeTracker', {
             // minWidth: 50, maxWidth: 50, the maxWidth will be 400 * (50/200)... that is 100
             if (heightRatio > widthRatio) {
                 me.minWidth = me.el.getWidth() * heightRatio;
-            } else {
+            }
+            else {
                 me.minHeight = me.el.getHeight() * widthRatio;
             }
         }
@@ -45,13 +52,14 @@ Ext.define('Ext.resizer.ResizeTracker', {
         // a throttled function to perform the resize operation.
         if (me.throttle) {
             throttledResizeFn = Ext.Function.createThrottled(function() {
-                    Ext.resizer.ResizeTracker.prototype.resize.apply(me, arguments);
-                }, me.throttle);
+                Ext.resizer.ResizeTracker.prototype.resize.apply(me, arguments);
+            }, me.throttle);
 
             me.resize = function(box, direction, atEnd) {
                 if (atEnd) {
                     Ext.resizer.ResizeTracker.prototype.resize.apply(me, arguments);
-                } else {
+                }
+                else {
                     throttledResizeFn.apply(null, arguments);
                 }
             };
@@ -78,8 +86,10 @@ Ext.define('Ext.resizer.ResizeTracker', {
             // When a wrapped resizer is used it passes the wrapping el in as the proxy.
             me.hideProxy = true;
         }
+
         if (me.proxy) {
             me.proxy.show();
+
             return me.proxy;
         }
     },
@@ -89,13 +99,14 @@ Ext.define('Ext.resizer.ResizeTracker', {
      * @param {Ext.Component/Ext.dom.Element} target The target
      * @return {Ext.dom.Element} A proxy element
      */
-    createProxy: function(target){
+    createProxy: function(target) {
         var proxy,
             cls = this.proxyCls;
 
         if (target.isComponent) {
             proxy = target.getProxy().addCls(cls);
-        } else {
+        }
+        else {
             proxy = target.createProxy({
                 tag: 'div',
                 role: 'presentation',
@@ -103,7 +114,9 @@ Ext.define('Ext.resizer.ResizeTracker', {
                 id: target.id + '-rzproxy'
             }, Ext.getBody());
         }
+
         proxy.removeCls(Ext.baseCSSPrefix + 'proxy-el');
+
         return proxy;
     },
 
@@ -117,32 +130,22 @@ Ext.define('Ext.resizer.ResizeTracker', {
         }
     },
 
-    onMouseDown: function (e, target) {
-        // Logic to resize components on top of iframes. To properly handle iframes "below"
-        // the resizable component, we cannot wait for triggerStart or onStart because if
-        // mouse moves out of the component and over the iframe we won't detect that the
-        // drag has started. So we have to mask the iframes now. We cannot do this in
+    onMouseDown: function(e, target) {
+        // Logic to resize components on top of iframes or handle resizers bound to iframes.
+        // To properly handle iframes "below" the resizable component, we cannot wait for 
+        // triggerStart or onStart because if the cursor moves out of the component and over the 
+        // iframe we won't detect that the drag has started. We cannot do this in
         // general because other draggable things cannot assume that mouseDown is safe
-        // for this purpose. In particular ComponentDragger on a maximaizable window will
+        // for this purpose. In particular ComponentDragger on a maximizable window will
         // get tricked by the maximize button onMouseDown and mask everything but will
-        // noever get the onMopuseUp to unmask.
-        var targetEl = Ext.fly(target.parentNode);
-            
-        this.callParent(arguments);
-        
-        if (targetEl && targetEl.shim) {
-            targetEl.maskIframes();
-        }
+        // never get the onMouseUp to unmask.
+        this.callParent([e, target]);
+        Ext.dom.Element.maskIframes();
     },
 
     onMouseUp: function(e) {
-        var targetEl = Ext.fly(this.dragTarget.parentNode);
-        
-        this.callParent(arguments);
-        
-        if (targetEl && targetEl.shim) {
-            targetEl.unmaskIframes();
-        }
+        this.callParent([e]);
+        Ext.dom.Element.unmaskIframes();
     },
 
     onDrag: function(e) {
@@ -231,7 +234,8 @@ Ext.define('Ext.resizer.ResizeTracker', {
         // Snap value between stops according to configured increments
         snappedWidth = Ext.Number.snap(newBox.width, me.widthIncrement);
         snappedHeight = Ext.Number.snap(newBox.height, me.heightIncrement);
-        if (snappedWidth !== newBox.width || snappedHeight !== newBox.height){
+
+        if (snappedWidth !== newBox.width || snappedHeight !== newBox.height) {
             switch (region) {
                 case 'northeast':
                     newBox.y -= snappedHeight - newBox.height;
@@ -249,6 +253,7 @@ Ext.define('Ext.resizer.ResizeTracker', {
                     newBox.x -= snappedWidth - newBox.width;
                     newBox.y -= snappedHeight - newBox.height;
             }
+
             newBox.width = snappedWidth;
             newBox.height = snappedHeight;
         }
@@ -261,9 +266,11 @@ Ext.define('Ext.resizer.ResizeTracker', {
             if (adjustX) {
                 newBox.x = box.x + (box.width - newBox.width);
             }
-        } else {
+        }
+        else {
             me.lastX = newBox.x;
         }
+
         if (newBox.height < me.minHeight || newBox.height > me.maxHeight) {
             newBox.height = Ext.Number.constrain(newBox.height, me.minHeight, me.maxHeight);
 
@@ -271,11 +278,13 @@ Ext.define('Ext.resizer.ResizeTracker', {
             if (adjustY) {
                 newBox.y = box.y + (box.height - newBox.height);
             }
-        } else {
+        }
+        else {
             me.lastY = newBox.y;
         }
 
-        // If this is configured to preserve the aspect ratio, or they are dragging using the shift key
+        // If this is configured to preserve the aspect ratio,
+        // or they are dragging using the shift key
         if (me.preserveRatio || e.shiftKey) {
             ratio = me.startBox.width / me.startBox.height;
 
@@ -297,22 +306,26 @@ Ext.define('Ext.resizer.ResizeTracker', {
             else {
                 // Drag ratio is the ratio of the mouse point from the opposite corner.
                 // Basically what edge we are dragging, a horizontal edge or a vertical edge.
-                dragRatio = Math.abs(oppositeCorner[0] - this.lastXY[0]) / Math.abs(oppositeCorner[1] - this.lastXY[1]);
+                dragRatio = Math.abs(oppositeCorner[0] - this.lastXY[0]) /
+                            Math.abs(oppositeCorner[1] - this.lastXY[1]);
 
                 // If drag ratio > aspect ratio then width is dominant and height must obey
                 if (dragRatio > ratio) {
                     newBox.height = newHeight;
-                } else {
+                }
+                else {
                     newBox.width = newWidth;
                 }
 
                 // Handle dragging start coordinates
                 if (region === 'northeast') {
                     newBox.y = box.y - (newBox.height - box.height);
-                } else if (region === 'northwest') {
+                }
+                else if (region === 'northwest') {
                     newBox.y = box.y - (newBox.height - box.height);
                     newBox.x = box.x - (newBox.width - box.width);
-                } else if (region === 'southwest') {
+                }
+                else if (region === 'southwest') {
                     newBox.x = box.x - (newBox.width - box.width);
                 }
             }
@@ -333,7 +346,8 @@ Ext.define('Ext.resizer.ResizeTracker', {
             // Resize the target
             if (setPosition) {
                 me.target.setBox(box);
-            } else {
+            }
+            else {
                 me.target.setSize(box.width, box.height);
             }
 
@@ -342,10 +356,12 @@ Ext.define('Ext.resizer.ResizeTracker', {
         // In the middle of a resize - just resize the proxy
         if (!atEnd) {
             target = me.getProxy();
+
             if (target && target !== me.target) {
                 if (setPosition || me.hideProxy) {
                     target.setBox(box);
-                } else {
+                }
+                else {
                     target.setSize(box.width, box.height);
                 }
             }
@@ -354,6 +370,7 @@ Ext.define('Ext.resizer.ResizeTracker', {
 
     onEnd: function(e) {
         this.updateDimensions(e, true);
+
         if (this.proxy && this.hideProxy) {
             this.proxy.hide();
         }

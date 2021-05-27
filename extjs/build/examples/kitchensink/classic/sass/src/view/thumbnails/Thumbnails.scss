@@ -1,6 +1,10 @@
 $kitchensink-thumbnail-background-color: #888;
 $kitchensink-thumbnail-color: #fff;
 
+$kitchensink-thumbnail-size: 96px;
+$kitchensink-thumbnail-width: $kitchensink-thumbnail-size + 20;
+$kitchensink-thumbnail-height: $kitchensink-thumbnail-size + 60;
+
 @if $theme-name == 'theme-crisp' or $theme-name == 'theme-crisp-touch' {
     $kitchensink-thumbnail-background-color: #2a3f5d;
 } @else if $theme-name == 'theme-neptune' or $theme-name == 'theme-neptune-touch' {
@@ -10,9 +14,16 @@ $kitchensink-thumbnail-color: #fff;
     $kitchensink-thumbnail-background-color: #275287;
 } @else if $theme-name == 'theme-triton' {
     $kitchensink-thumbnail-background-color: darken($base-color, 5%);
+} @else if $theme-name == 'theme-graphite' {
+    $kitchensink-thumbnail-background-color: darken($base-color, 5%);
+    $kitchensink-thumbnail-width: 130px;
+    $kitchensink-thumbnail-height: 190px;
+} @else if $theme-name == 'theme-material' {
+    $kitchensink-thumbnail-background-color: $base-color;
+    $kitchensink-thumbnail-width: 130px;
+    $kitchensink-thumbnail-height: 190px;
 }
 
-$kitchensink-thumbnail-size: 96px;
 
 .thumbnails {
     display: table;
@@ -20,11 +31,11 @@ $kitchensink-thumbnail-size: 96px;
 
 .thumbnail-item {
     float: left;
-    width: $kitchensink-thumbnail-size + 20;
-    height: $kitchensink-thumbnail-size + 60;
+    width: $kitchensink-thumbnail-width;
+    height: $kitchensink-thumbnail-height;
     margin-right: 20px;
     cursor: pointer;
-    overflow: hidden;
+    //overflow: hidden;
 }
 
 .thumbnail-text {
@@ -40,7 +51,7 @@ $kitchensink-thumbnail-size: 96px;
     font-family: Sencha-Examples;
     margin: 0 auto 8px;
     position: relative;
-    overflow: hidden;
+    //overflow: hidden;
     color: $kitchensink-thumbnail-background-color;
 }
 
@@ -57,7 +68,26 @@ $kitchensink-thumbnail-size: 96px;
     overflow: hidden;
 }
 
+.thumbnail-new, .thumbnail-has-new {
+    position: absolute;
+    top: -12px;
+    right: -9px;
+    width: 18px;
+    height: 18px;
+    line-height: 18px;
+    font-size: 18px;
+    color: orange;
+}
+
+.thumbnail-has-new {
+    @include opacity(0.5);
+}
+
 .x-rtl.thumbnails {
+    .thumbnail-new {
+        left: -9px;
+        right: auto;
+    }
     .thumbnail-item {
         direction: ltr;
         float: right;

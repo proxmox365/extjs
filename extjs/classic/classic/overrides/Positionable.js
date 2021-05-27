@@ -1,4 +1,6 @@
-/** */
+/**
+ * @class Ext.util.Positionable
+ */
 Ext.define('Ext.overrides.util.Positionable', {
     override: 'Ext.util.Positionable',
 
@@ -32,7 +34,7 @@ Ext.define('Ext.overrides.util.Positionable', {
         var me = this,
             scroll = !Ext.isEmpty(monitorScroll),
             action = function() {
-                me.alignTo(anchorToEl, alignment, offsets, animate);
+                me.mixins.positionable.alignTo.call(me, anchorToEl, alignment, offsets, animate);
                 Ext.callback(callback, me);
             },
             anchor = me.getAnchor();
@@ -48,26 +50,56 @@ Ext.define('Ext.overrides.util.Positionable', {
 
         if (scroll) {
             Ext.getWin().on('scroll', action, null,
-                    {buffer: !isNaN(monitorScroll) ? monitorScroll : 50});
+                            { buffer: !isNaN(monitorScroll) ? monitorScroll : 50 });
         }
+
         action(); // align immediately
+
         return me;
     },
 
-    getAnchor: function(){
+    getAnchor: function() {
         var el = this.el,
             data, anchor;
-            
-        if (!el.dom) {
+
+        if (!el || !el.dom) {
             return;
         }
+
         data = el.getData();
         anchor = data._anchor;
 
-        if(!anchor){
+        if (!anchor) {
             anchor = data._anchor = {};
         }
+
         return anchor;
+    },
+
+    alignTo: function(element, position, offsets, /* private (documented in ext) */ animate) {
+        var me = this,
+            el = me.el,
+            newMaxHeight,
+            newRegion;
+
+        // Release any height constraint prior to aligning if we are shrinkwrap height.
+        if (me.isComponent && me.getSizeModel().height.shrinkWrap) {
+            if (me.maxHeight) {
+                me.setMaxHeight(null);
+            }
+
+            newMaxHeight = true;
+        }
+
+        newRegion = me.getAlignToRegion(element, position, offsets, me.minHeight || 150);
+        me.setXY([newRegion.x, newRegion.y], el.anim && !!animate ? el.anim(animate) : false);
+
+        // Impose calculated height constraint.
+        if (newMaxHeight && (newMaxHeight = newRegion.getHeight()) !== me.getHeight()) {
+            me.setMaxHeight(newMaxHeight);
+        }
+
+        return me;
     },
 
     /**
@@ -94,11 +126,14 @@ Ext.define('Ext.overrides.util.Positionable', {
 
         if (anchor && anchor.fn) {
             Ext.un('resize', anchor.fn);
+
             if (anchor.scroll) {
                 Ext.getWin().on('scroll', anchor.fn);
             }
+
             delete anchor.fn;
         }
+
         return this;
     },
 
@@ -131,7 +166,8 @@ Ext.define('Ext.overrides.util.Positionable', {
                     afteranimate: Ext.Function.bind(me.afterSetPosition, me, [box.x, box.y])
                 }
             }, animate));
-        } else {
+        }
+        else {
             me.callParent([box]);
         }
 
@@ -165,5 +201,4 @@ Ext.define('Ext.overrides.util.Positionable', {
      * Element animation config object
      * @return {Ext.util.Positionable} this
      */
-
 });

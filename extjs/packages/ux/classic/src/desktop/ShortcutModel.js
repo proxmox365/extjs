@@ -1,4 +1,4 @@
-/*!
+/*
  * Ext JS Library
  * Copyright(c) 2006-2014 Sencha Inc.
  * licensing@sencha.com
@@ -12,9 +12,12 @@
  */
 Ext.define('Ext.ux.desktop.ShortcutModel', {
     extend: 'Ext.data.Model',
-    fields: [
-       { name: 'name' },
-       { name: 'iconCls' },
-       { name: 'module' }
-    ]
+    fields: [{
+        name: 'name',
+        convert: Ext.String.createVarName
+    }, {
+        name: 'iconCls'
+    }, {
+        name: 'module'
+    }]
 });

@@ -2,7 +2,8 @@ Ext.require([
     'Ext.data.*',
     'Ext.panel.Panel',
     'Ext.layout.container.Card',
-    'Ext.tip.QuickTipManager'
+    'Ext.tip.QuickTipManager',
+    'Ext.grid.column.Date'
 ]);
 
 Ext.define('Customer', {
@@ -27,15 +28,14 @@ Ext.define('Order', {
     fields: [{
         name: 'id',
         type: 'int'
-    },{
+    }, {
         name: 'customer_id',
         type: 'int'
-    },{
+    }, {
         name: 'date',
         type: 'date',
         dateFormat: 'Y-m-d'
     }],
-    belongsTo: 'Customer',
     associations: [{
         model: 'OrderItem',
         type: 'hasMany',
@@ -55,14 +55,13 @@ Ext.define('OrderItem', {
     }, {
         name: 'order_id',
         type: 'int'
-    },'product', {
+    }, 'product', {
         name: 'quantity',
         type: 'int'
     }, {
         name: 'price',
         type: 'float'
     }],
-    belongsTo: 'Order',
     proxy: {
         type: 'ajax',
         url: 'orderitem.php'
@@ -72,64 +71,63 @@ Ext.define('OrderItem', {
 Ext.define('CustomerGrid', {
     extend: 'Ext.grid.Panel',
     alias: 'widget.customergrid',
-    
+
     title: 'Customers',
-    
-    initComponent: function(){
-        Ext.apply(this, {
-            store: {
-                autoLoad: true,
-                model: 'Customer',
-                listeners: {
-                    load: function() {
-                        Logger.log('Customer store loaded', false);
-                    }
-                }
-            },
-            columns: [{
-                text: 'Id',
-                dataIndex: 'id'
-            },{
-                text: 'Name',
-                dataIndex: 'name',
-                flex: 1
-            }, {
-                width: 140,
-                text: 'Phone',
-                dataIndex: 'phone'
-            }],
-            dockedItems: [{
-                xtype: 'toolbar',
-                items: {
-                    itemId: 'load',
-                    text: 'Load Orders',
-                    scope: this,
-                    handler: this.loadOrders,
-                    disabled: true
-                }
-            }]
-        });
-        this.callParent();
-        this.getSelectionModel().on('selectionchange', this.onSelectChange, this);
+
+    defaultListenerScope: true,
+
+    store: {
+        autoLoad: true,
+        model: 'Customer',
+        listeners: {
+            load: function() {
+                Logger.log('Customer store loaded', false);
+            }
+        }
     },
-    
+    columns: [{
+        text: 'Id',
+        dataIndex: 'id'
+    }, {
+        text: 'Name',
+        dataIndex: 'name',
+        flex: 1
+    }, {
+        width: 140,
+        text: 'Phone',
+        dataIndex: 'phone'
+    }],
+    dockedItems: [{
+        xtype: 'toolbar',
+        items: {
+            itemId: 'load',
+            text: 'Load Orders',
+            handler: 'loadOrders',
+            disabled: true
+        }
+    }],
+
+    listeners: {
+        selectionchange: 'onSelectChange'
+    },
+
     onSelectChange: function(selModel, selections) {
         this.active = selections[0];
         this.down('#load').setDisabled(!this.active);
     },
-    
-    loadOrders: function(){
+
+    loadOrders: function() {
         var rec = this.active,
-            name = rec.get('name'),
             owner = this.ownerCt,
             orders;
-         
-        
+
         orders = rec.orders();
+
         if (orders.isLoading()) {
             Logger.log('Begin loading orders: ' + rec.getId(), true);
         }
-        orders.on('load', function(){
+
+        orders.on('load', function() {
             Logger.log('Order store loaded - ' + rec.getId(), false);
         });
         owner.add({
@@ -139,63 +137,64 @@ Ext.define('CustomerGrid', {
             store: orders
         });
         owner.getLayout().next();
-    }    
+    }
 });
 
 Ext.define('OrderGrid', {
     extend: 'Ext.grid.Panel',
     alias: 'widget.ordergrid',
-    
-    initComponent: function(){
-        Ext.apply(this, {
-            columns: [{
-                text: 'Id',
-                dataIndex: 'id'
-            },{
-                flex: 1,
-                text: 'Date',
-                dataIndex: 'date',
-                renderer: Ext.util.Format.dateRenderer('Y-m-d')
-            }],
-            dockedItems: [{
-                xtype: 'toolbar',
-                items: [{
-                    text: 'Back',
-                    scope: this,
-                    handler: this.onBackClick
-                },{
-                    itemId: 'load',
-                    text: 'Load Order Items',
-                    scope: this,
-                    handler: this.loadItems,
-                    disabled: true
-                }]
-            }]
-        });
-        this.callParent();
-        this.getSelectionModel().on('selectionchange', this.onSelectChange, this);
+
+    defaultListenerScope: true,
+
+    columns: [{
+        text: 'Id',
+        dataIndex: 'id'
+    }, {
+        xtype: 'datecolumn',
+        flex: 1,
+        text: 'Date',
+        dataIndex: 'date',
+        format: 'Y-m-d'
+    }],
+    dockedItems: [{
+        xtype: 'toolbar',
+        items: [{
+            text: 'Back',
+            handler: 'onBackClick'
+        }, {
+            itemId: 'load',
+            text: 'Load Order Items',
+            handler: 'loadItems',
+            disabled: true
+        }]
+    }],
+
+    listeners: {
+        selectionchange: 'onSelectChange'
     },
-    
-    onBackClick: function(){
+
+    onBackClick: function() {
         this.ownerCt.getLayout().prev();
-        this.destroy();    
+        this.destroy();
     },
-    
+
     onSelectChange: function(selModel, selections) {
         this.active = selections[0];
         this.down('#load').setDisabled(!this.active);
     },
-    
-    loadItems: function(){
+
+    loadItems: function() {
         var rec = this.active,
             owner = this.ownerCt,
             orderitems;
-        
+
         orderitems = rec.orderItems();
+
         if (orderitems.isLoading()) {
             Logger.log('Begin loading order items - ' + rec.getId(), true);
         }
-        orderitems.on('load', function(){
+
+        orderitems.on('load', function() {
             Logger.log('Order items loaded - ' + rec.getId(), false);
         });
         owner.add({
@@ -204,64 +203,62 @@ Ext.define('OrderGrid', {
             store: orderitems
         });
         owner.getLayout().next();
-    }    
+    }
 });
 
 Ext.define('OrderItemGrid', {
     extend: 'Ext.grid.Panel',
     alias: 'widget.orderitemgrid',
-    
-    initComponent: function(){
-        Ext.apply(this, {
-            columns: [{
-                text: 'Id',
-                dataIndex: 'id'
-            },{
-                flex: 1,
-                text: 'Product',
-                dataIndex: 'product'
-            }, {
-                text: 'Quantity',
-                dataIndex: 'quantity'
-            }, {
-                text: 'Price',
-                dataIndex: 'price',
-                renderer: Ext.util.Format.usMoney
-            }],
-            dockedItems: [{
-                xtype: 'toolbar',
-                items: [{
-                    text: 'Back',
-                    scope: this,
-                    handler: this.onBackClick
-                }, {
-                    itemId: 'load',
-                    text: 'Parent association loader',
-                    tooltip: 'Demonstrate loading parent relationships - A new record will be created so we ignore any previous associations setup',
-                    scope: this,
-                    handler: this.onLoadClick,
-                    disabled: true
-                }]
-            }]
-        });
-        this.callParent();
-        this.getSelectionModel().on('selectionchange', this.onSelectChange, this);
+
+    defaultListenerScope: true,
+
+    columns: [{
+        text: 'Id',
+        dataIndex: 'id'
+    }, {
+        flex: 1,
+        text: 'Product',
+        dataIndex: 'product'
+    }, {
+        text: 'Quantity',
+        dataIndex: 'quantity'
+    }, {
+        text: 'Price',
+        dataIndex: 'price',
+        formatter: 'usMoney'
+    }],
+    dockedItems: [{
+        xtype: 'toolbar',
+        items: [{
+            text: 'Back',
+            handler: 'onBackClick'
+        }, {
+            itemId: 'load',
+            text: 'Parent association loader',
+            tooltip: 'Demonstrate loading parent relationships - A new record will be created so we ignore any previous associations setup',
+            handler: 'onLoadClick',
+            disabled: true
+        }]
+    }],
+
+    listeners: {
+        selectionchange: 'onSelectChange'
     },
-    
+
     onSelectChange: function(selModel, selections) {
         this.active = selections[0];
         this.down('#load').setDisabled(!this.active);
     },
-    
-    onBackClick: function(){
+
+    onBackClick: function() {
         this.ownerCt.getLayout().prev();
-        this.destroy();    
+        this.destroy();
     },
-    
-    onLoadClick: function(){
+
+    onLoadClick: function() {
         var rec = this.active,
             id = rec.getId();
-        
+
         new ItemLoader({
             width: 400,
             height: 400,
@@ -275,48 +272,50 @@ Ext.define('OrderItemGrid', {
 
 Ext.define('ItemLoader', {
     extend: 'Ext.window.Window',
-    
-    initComponent: function(){
-        Ext.apply(this, {
-            border: false,
-            scrollable: true,
-            dockedItems: [{
-                xtype: 'toolbar',
-                items: [{
-                    text: 'Print order detail',
-                    scope: this,
-                    handler: this.onOrderClick
-                }, {
-                    itemId: 'company',
-                    text: 'Print company detail',
-                    disabled: true,
-                    scope: this,
-                    handler: this.onCompanyClick
-                }]
-            }],
-            bodyPadding: 5,
-            tpl: '<div>{type} {id} - {value}</div>',
-            tplWriteMode: 'append'
-        });
+
+    defaultListenerScope: true,
+
+    border: false,
+    scrollable: true,
+    dockedItems: [{
+        xtype: 'toolbar',
+        items: [{
+            text: 'Print order detail',
+            handler: 'onOrderClick'
+        }, {
+            itemId: 'company',
+            text: 'Print company detail',
+            disabled: true,
+            handler: 'onCompanyClick'
+        }]
+    }],
+    bodyPadding: 5,
+    tpl: '<div>{type} {id} - {value}</div>',
+    tplWriteMode: 'append',
+
+    initComponent: function() {
         this.callParent();
         this.orderItem = new OrderItem(this.orderItemData);
     },
-    
-    onOrderClick: function(){
+
+    onOrderClick: function() {
         var id = this.orderItem.get('order_id'),
             hasOrder = !!this.order;
-            
+
         if (!hasOrder) {
             Logger.log('Begin loading order - ' + id, true);
         }
+
         this.orderItem.getOrder({
             scope: this,
-            success: function(order){
+            success: function(order) {
                 this.order = order;
                 this.down('#company').enable();
+
                 if (!hasOrder) {
                     Logger.log('Order loaded - ' + id, false);
                 }
+
                 this.update({
                     type: 'Order',
                     id: order.getId(),
@@ -325,21 +324,24 @@ Ext.define('ItemLoader', {
             }
         });
     },
-    
-    onCompanyClick: function(){
+
+    onCompanyClick: function() {
         var id = this.order.get('customer_id'),
             hasCustomer = !!this.customer;
-            
+
         if (!hasCustomer) {
             Logger.log('Begin loading customer - ' + id, true);
         }
+
         this.order.getCustomer({
             scope: this,
-            success: function(customer){
+            success: function(customer) {
                 this.customer = customer;
+
                 if (!hasCustomer) {
                     Logger.log('Customer loaded - ' + id, false);
                 }
+
                 this.update({
                     type: 'Customer',
                     id: customer.getId(),
@@ -347,30 +349,30 @@ Ext.define('ItemLoader', {
                 });
             }
         });
-    }    
+    }
 });
 
-Logger = (function(){
-    var panel;
-    
-    return {
-        init: function(log){
-            panel = log;
-        },
-        
-        log: function(msg, isStart){
-            panel.update({
-                now: new Date(),
-                cls: isStart ? 'beforeload' : 'afterload',
-                msg: msg
-            });
-            panel.body.scroll('b', 100000, true);
-        }    
-    };
+Logger = (function() {
+var panel;
+
+return {
+    init: function(log) {
+        panel = log;
+    },
+
+    log: function(msg, isStart) {
+        panel.update({
+            now: new Date(),
+            cls: isStart ? 'beforeload' : 'afterload',
+            msg: msg
+        });
+        panel.body.scroll('b', 100000, true);
+    }
+};
 })();
 
-Ext.onReady(function(){
-    
+Ext.onReady(function() {
+
     var main = Ext.create('Ext.panel.Panel', {
         renderTo: document.body,
         width: 750,
@@ -397,9 +399,10 @@ Ext.onReady(function(){
             }
         }]
     });
+
     Logger.log('Begin loading customer store', true);
     main.items.first().add({
         xtype: 'customergrid'
     });
-    
+
 });

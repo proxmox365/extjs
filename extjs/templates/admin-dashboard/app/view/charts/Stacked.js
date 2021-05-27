@@ -11,7 +11,7 @@ Ext.define('Admin.view.charts.Stacked', {
     ],
 
     title: 'Stacked Bar Chart',
-    iconCls: 'x-fa fa-bar-chart',
+    iconCls: 'x-fa fa-chart-bar',
 
     items: [{
         xtype: 'cartesian',
@@ -51,6 +51,15 @@ Ext.define('Admin.view.charts.Stacked', {
             ]
         }],
         platformConfig: {
+            phone: {
+                // On a phone the whole view becomes a vertical strip of charts,
+                // which makes it impossible to scroll the view if touch action
+                // started on a chart. So we use a custom touchAction config.
+                touchAction: {
+                    panX: true,
+                    panY: true
+                }
+            },
             '!phone': {
                 interactions: {
                     type: 'panzoom',

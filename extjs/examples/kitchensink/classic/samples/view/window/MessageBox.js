@@ -4,20 +4,42 @@
 Ext.define('KitchenSink.view.window.MessageBox', {
     extend: 'Ext.panel.Panel',
     xtype: 'message-box',
-    
+
     //<example>
     exampleTitle: 'Message Box',
     otherContent: [{
-        type: 'ViewController',
+        type: 'Controller',
         path: 'classic/samples/view/window/MessageBoxController.js'
     }],
+    profiles: {
+        classic: {
+            width: 420,
+            labelWidth: 120,
+            comboboxWidth: 250
+        },
+        neptune: {
+            width: 420,
+            labelWidth: 120,
+            comboboxWidth: 250
+        },
+        graphite: {
+            width: 500,
+            labelWidth: 180,
+            comboboxWidth: 300
+        },
+        'classic-material': {
+            width: 500,
+            labelWidth: 180,
+            comboboxWidth: 300
+        }
+    },
     //</example>
     layout: {
         type: 'vbox',
         align: 'stretch'
     },
     controller: 'window-messagebox',
-    width: 400,
+    width: '${width}',
     title: 'Message Box Variations',
 
     bodyPadding: 15,
@@ -80,21 +102,27 @@ Ext.define('KitchenSink.view.window.MessageBox', {
             }]
         }]
     }, {
-        xtype: 'container',
         margin: '30 0 0 0',
+        xtype: 'checkboxfield',
+        labelWidth: '${labelWidth}',
+        fieldLabel: 'Hide on mask click',
+        reference: 'hideOnMaskClick'
+    }, {
+        xtype: 'container',
         layout: 'hbox',
         items: [{
             xtype: 'combobox',
             fieldLabel: 'Choose Icon',
+            labelWidth: 120,
             reference: 'icon',
             forceSelection: true,
             editable: false,
             value: 'error',
-            width: 250,
+            width: '${comboboxWidth}',
             store: [
-                ['error', 'Error'], 
-                ['info', 'Informational'], 
-                ['question', 'Question'], 
+                ['error', 'Error'],
+                ['info', 'Informational'],
+                ['question', 'Question'],
                 ['warning', 'Warning']
             ]
         }, {

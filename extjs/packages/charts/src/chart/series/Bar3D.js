@@ -80,17 +80,18 @@ Ext.define('Ext.chart.series.Bar3D', {
 
     requires: [
         'Ext.chart.series.sprite.Bar3D',
-        'Ext.chart.series.sprite.Box'
+        'Ext.chart.sprite.Bar3D'
     ],
 
     alias: 'series.bar3d',
     type: 'bar3d',
     seriesType: 'bar3dSeries',
+    is3D: true,
 
     config: {
         itemInstancing: {
-            type: 'box',
-            fx: {
+            type: 'bar3d',
+            animation: {
                 customDurations: {
                     x: 0,
                     y: 0,
@@ -105,67 +106,27 @@ Ext.define('Ext.chart.series.Bar3D', {
         }
     },
 
-    getSprites: function () {
-        var sprites = this.callParent(arguments),
-            sprite, zIndex, i;
+    /**
+     * For 3D series, it's quite the opposite. It would be extremely odd,
+     * if top segments were rendered as if they were under the bottom ones.
+     */
+    reversedSpriteZOrder: false,
 
-        for (i = 0; i < sprites.length; i++) {
-            sprite = sprites[i];
-            zIndex = sprite.attr.zIndex;
-            if (zIndex < 0) {
-                sprite.setAttributes({zIndex: -zIndex});
-            }
-            if (sprite.setSeries) {
-                sprite.setSeries(this);
-            }
+    updateXAxis: function(xAxis, oldXAxis) {
+        //<debug>
+        if (xAxis.type !== 'category3d') {
+            Ext.raise("'bar3d' series should be used with a 'category3d' axis." +
+                " Please refer to the 'bar3d' series docs.");
         }
-        return sprites;
+
+        //</debug>
+        this.callParent([xAxis, oldXAxis]);
     },
 
-    getDepth: function () {
+    getDepth: function() {
         var sprite = this.getSprites()[0];
+
         return sprite ? (sprite.depth || 0) : 0;
-    },
-
-    getItemForPoint: function (x, y) {
-        if (this.getSprites()) {
-            var me = this,
-                i, sprite,
-                itemInstancing = me.getItemInstancing(),
-                sprites = me.getSprites(),
-                store = me.getStore(),
-                hidden = me.getHidden(),
-                chart = me.getChart(),
-                padding = chart.getInnerPadding(),
-                isRtl = chart.getInherited().rtl,
-                item, index, yField;
-
-            // Convert the coordinates because the "items" sprites that draw the bars ignore the chart's InnerPadding.
-            // See also Ext.chart.series.sprite.Bar.getIndexNearPoint(x,y) regarding the series's vertical coordinate system.
-            x = x + (isRtl ? padding.right : -padding.left);
-            y = y + padding.bottom;
-
-            for (i = sprites.length - 1; i >= 0; i--) {
-                if (!hidden[i]) {
-                    sprite = sprites[i];
-                    index = sprite.getIndexNearPoint(x, y);
-                    if (index !== -1) {
-                        yField = me.getYField();
-                        item = {
-                            series: me,
-                            index: index,
-                            category: itemInstancing ? 'items' : 'markers',
-                            record: store.getData().items[index],
-                            // Handle the case where we're stacked but a single segment
-                            field: typeof yField === 'string' ? yField : yField[i],
-                            sprite: sprite
-                        };
-                        return item;
-                    }
-                }
-            }
-            return null;
-        }
     }
 
 });

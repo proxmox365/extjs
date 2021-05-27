@@ -1,4 +1,7 @@
-describe("Ext.form.field.Tag", function() {
+topSuite("Ext.form.field.Tag",
+    ['Ext.grid.Panel', 'Ext.grid.plugin.CellEditing', 'Ext.data.ArrayStore',
+     'Ext.app.ViewModel'],
+function() {
     var tagField, store, changeSpy,
         describeNotIE9_10 = Ext.isIE9 || Ext.isIE10 ? xdescribe : describe;
 
@@ -28,15 +31,16 @@ describe("Ext.form.field.Tag", function() {
     }
 
     function fireInputKey(key, shift, ctrl) {
-        tagField.inputEl.dom.focus;
-        jasmine.fireKeyEvent(tagField.inputEl.dom, 'keydown', key, shift, ctrl);
+        jasmine.syncPressKey(tagField.inputEl, key, { shift: shift, ctrl: ctrl });
     }
 
     function clickTag(id, isClose) {
         var tag = getTag(id);
+
         if (isClose) {
             tag = Ext.fly(tag).down(tagField.tagItemCloseSelector, true);
         }
+
         jasmine.fireMouseEvent(tag, 'click');
     }
 
@@ -50,6 +54,7 @@ describe("Ext.form.field.Tag", function() {
                 value: i
             });
         }
+
         return data;
     }
 
@@ -61,6 +66,7 @@ describe("Ext.form.field.Tag", function() {
         if (Ext.isNumber(data)) {
             data = makeData(data);
         }
+
         return new Ext.data.Store({
             model: Model,
             data: data,
@@ -72,6 +78,7 @@ describe("Ext.form.field.Tag", function() {
         if (theStore !== null) {
             store = theStore || makeStore();
         }
+
         tagField = new Ext.form.field.Tag(Ext.apply({
             store: store,
             renderTo: Ext.getBody(),
@@ -86,18 +93,20 @@ describe("Ext.form.field.Tag", function() {
         setupChangeSpy();
     }
 
+    function getRecordByTag(tag) {
+        var internalId = parseInt(tag.getAttribute('data-recordId'), 10);
+
+        return tagField.store.getByInternalId(internalId);
+    }
+
     function expectValue(values) {
         var tags = tagField.getEl().query(tagField.tagItemSelector);
+
         expect(tagField.getValue()).toEqual(values);
         expect(tags.length).toBe(values.length);
         Ext.Array.forEach(values, function(value, i) {
             expect(getRecordByTag(tags[i]).get(tagField.valueField)).toBe(value);
         });
-    }
-
-    function getRecordByTag(tag) {
-        var internalId = parseInt(tag.getAttribute('data-recordId'), 10);
-        return tagField.store.getByInternalId(internalId);
     }
 
     function getTag(id) {
@@ -108,6 +117,7 @@ describe("Ext.form.field.Tag", function() {
         for (i = 0; i < len; ++i) {
             tag = tags[i];
             rec = getRecordByTag(tag);
+
             if (rec.get(tagField.valueField) === id) {
                 return tag;
             }
@@ -130,6 +140,7 @@ describe("Ext.form.field.Tag", function() {
     function clickListItem(rec) {
         tagField.expand();
         var node = tagField.getPicker().getNode(rec);
+
         jasmine.fireMouseEvent(node, 'click');
     }
 
@@ -144,6 +155,7 @@ describe("Ext.form.field.Tag", function() {
 
         it("should accept a store instance", function() {
             var s = makeStore();
+
             makeField(null, s);
             expect(tagField.getStore()).toBe(s);
         });
@@ -169,7 +181,28 @@ describe("Ext.form.field.Tag", function() {
         });
     });
 
+    describe("creation", function() {
+        it("should not create the picker on initialization", function() {
+            makeField();
+            expect(tagField.picker).toBeFalsy();
+        });
+    });
+
     describe("setting values", function() {
+        it("should default to null with multiSelect: false", function() {
+            makeField({
+                multiSelect: false
+            });
+            expect(tagField.getValue()).toBeNull();
+        });
+
+        it("should default to [] with multiSelect: true", function() {
+            makeField({
+                multiSelect: true
+            });
+            expect(tagField.getValue()).toEqual([]);
+        });
+
         describe("configuring with a value", function() {
             it("should return an empty array if no value is configured", function() {
                 makeField();
@@ -199,6 +232,7 @@ describe("Ext.form.field.Tag", function() {
 
             it("should accept a single record", function() {
                 var s = makeStore();
+
                 makeField({
                     value: s.getAt(9)
                 }, s);
@@ -207,6 +241,7 @@ describe("Ext.form.field.Tag", function() {
 
             it("should accept an array of records", function() {
                 var s = makeStore();
+
                 makeField({
                     value: [s.getAt(4), s.getAt(8), s.getAt(13)]
                 }, s);
@@ -228,6 +263,7 @@ describe("Ext.form.field.Tag", function() {
                         value: [1, 2]
                     }
                 });
+
                 makeField({
                     viewModel: vm,
                     bind: '{value}'
@@ -270,6 +306,7 @@ describe("Ext.form.field.Tag", function() {
 
             it("should accept a single record", function() {
                 var s = makeStore();
+
                 makeFieldWithSpy(null, s);
                 tagField.setValue(s.getAt(9));
                 expectValue([10]);
@@ -278,6 +315,7 @@ describe("Ext.form.field.Tag", function() {
 
             it("should accept an array of records", function() {
                 var s = makeStore();
+
                 makeFieldWithSpy(null, s);
                 tagField.setValue([s.getAt(4), s.getAt(8), s.getAt(13)]);
                 expectValue([5, 9, 14]);
@@ -298,6 +336,14 @@ describe("Ext.form.field.Tag", function() {
                 tagField.setValue([2, 4, 6, 8]);
                 expectValue([2, 4, 6, 8]);
                 expectChange([2, 4, 6, 8], [1, 3, 5, 7]);
+            });
+
+            it("should accept an array and use the last value if multiSelect: false", function() {
+                makeField({ multiSelect: false });
+                tagField.setValue([1, 2]);
+
+                // multiSelect: false should return just value, not an Array
+                expect(tagField.getValue()).toEqual([2]);
             });
         });
 
@@ -474,6 +520,61 @@ describe("Ext.form.field.Tag", function() {
                     expectChange([2, 4], [2, 4, 5], 3);
                 });
             });
+
+            describeNotIE9_10("typing values", function() {
+                it("should erase the inputEl when selecting a typed value", function() {
+                    doTyping('Item1');
+                    tagField.inputEl.focus();
+                    waitsFor(function() {
+                        return tagField.isExpanded;
+                    });
+
+                    runs(function() {
+                        jasmine.fireKeyEvent(tagField.inputEl, 'keydown', 13);
+                        expect(tagField.inputEl.dom.value).toBe('');
+                    });
+                });
+
+                it("should not erase the inputEl when selecting a typed value that doesn't match", function() {
+                    doTyping('Foo');
+                    tagField.inputEl.focus();
+                    waitsFor(function() {
+                        return !tagField.isExpanded;
+                    });
+
+                    runs(function() {
+                        jasmine.fireKeyEvent(tagField.inputEl, 'keydown', 13);
+                        expect(tagField.inputEl.dom.value).toBe('Foo');
+                    });
+                });
+
+                it("should not erase the inputEl while using setValue", function() {
+                    doTyping('Foo');
+                    tagField.setValue(1);
+
+                    expect(tagField.getValue()).toEqual([1]);
+                    expect(tagField.inputEl.dom.value).toBe('Foo');
+                });
+            });
+        });
+
+        describe("emptyText", function() {
+            it("should display empty text upon rendering with no value", function() {
+                makeField();
+                expect(tagField.inputEl).toHaveCls(tagField.emptyCls);
+            });
+
+            it("should not display empty text with a value when multiSelect: false", function() {
+               makeField({ multiSelect: false });
+               tagField.setValue(1);
+               expect(tagField.inputEl).not.toHaveCls(tagField.emptyCls);
+            });
+
+            it("should not display empty text with a value when multiSelect: true", function() {
+                makeField({ multiSelect: false });
+                tagField.setValue([1, 2]);
+                expect(tagField.inputEl).not.toHaveCls(tagField.emptyCls);
+            });
         });
     });
 
@@ -491,6 +592,7 @@ describe("Ext.form.field.Tag", function() {
                 function expectContent(id, content) {
                     var tag = getTag(id),
                         selector = '.' + tagField.tagItemTextCls;
+
                     expect(Ext.fly(tag).down(selector, true)).hasHTML(content);
                 }
 
@@ -546,6 +648,7 @@ describe("Ext.form.field.Tag", function() {
             describe("tag tip", function() {
                 function expectTip(id, content) {
                     var tip = getTag(id).getAttribute('data-qtip') || '';
+
                     expect(tip).toBe(content);
                 }
 
@@ -602,8 +705,15 @@ describe("Ext.form.field.Tag", function() {
                     expectChange([6, 4, 10, 13], [6, 4, 10, 13, 2]);
                 });
 
-                it("should not remove the tag when backspace is pressed and there is text in the field", function() {
+                it("should not remove a tag on backspace with empty value when clearOnBackspace == false", function() {
+                    tagField.clearOnBackspace = false;
+                    fireInputKey(E.BACKSPACE);
+                    expectValue([6, 4, 10, 13, 2]);
+                });
+
+                it("should not remove the tag when backspace is pressed and there is text in the field, cursor at the end", function() {
                     var dom = tagField.inputEl.dom;
+
                     dom.value = 'asdf';
                     // Forces the cursor to the end
                     tagField.focus([4, 4]);
@@ -612,14 +722,24 @@ describe("Ext.form.field.Tag", function() {
                     expect(changeSpy).not.toHaveBeenCalled();
                 });
 
-                it("should remove a tag when delete is pressed and the field value is empty", function() {
+                it("should not remove the tag when backspace is pressed and there is text in the field, cursor at the beginning", function() {
+                    var dom = tagField.inputEl.dom;
+
+                    dom.value = 'asdf';
+                    tagField.focus();
+                    fireInputKey(E.BACKSPACE);
+                    expectValue([6, 4, 10, 13, 2]);
+                    expect(changeSpy).not.toHaveBeenCalled();
+                });
+
+                it("should note remove a tag when delete is pressed and the field value is empty", function() {
                     fireInputKey(E.DELETE);
-                    expectValue([6, 4, 10, 13]);
-                    expectChange([6, 4, 10, 13], [6, 4, 10, 13, 2]);
+                    expectValue([6, 4, 10, 13, 2]);
                 });
 
                 it("should not remove the tag when delete is pressed and there is text in the field", function() {
                     var dom = tagField.inputEl.dom;
+
                     dom.value = 'asdf';
                     // Forces the cursor to the end
                     tagField.focus([4, 4]);
@@ -640,6 +760,12 @@ describe("Ext.form.field.Tag", function() {
                     fireInputKey(E.LEFT);
                 });
 
+                it("should set aria-activedescendant", function() {
+                    var node = tagField.getAriaListNode(tagField.valueCollection.last());
+
+                    expect(tagField.inputEl).toHaveAttr('aria-activedescendant', node.id);
+                });
+
                 it("should move to the left when using the left key", function() {
                     fireInputKey(E.LEFT);
                     expectNotSelected(2);
@@ -654,6 +780,7 @@ describe("Ext.form.field.Tag", function() {
                     for (var i = 0; i <= 20; ++i) {
                         fireInputKey(E.LEFT);
                     }
+
                     expectSelected(6);
                 });
 
@@ -716,7 +843,7 @@ describe("Ext.form.field.Tag", function() {
                     expectNotSelected(6);
                 });
 
-                it("should keep selections when using the shift key", function() {
+                it("should keep selections when using the shift key, more tests", function() {
                     fireInputKey(E.LEFT);
                     fireInputKey(E.LEFT);
                     fireInputKey(E.LEFT);
@@ -762,6 +889,21 @@ describe("Ext.form.field.Tag", function() {
                     expectSelected(13);
                     expectSelected(2);
                 });
+
+                it("should deselect all when pressing Esc", function() {
+                    fireInputKey(E.ESC);
+                    expectNotSelected(6);
+                    expectNotSelected(4);
+                    expectNotSelected(10);
+                    expectNotSelected(13);
+                    expectNotSelected(2);
+                });
+
+                it("should remove aria-activedescendant when pressing Esc", function() {
+                    fireInputKey(E.ESC);
+
+                    expect(tagField.inputEl).not.toHaveAttr('aria-activedescendant');
+                });
             });
 
             describe("modifying tags", function() {
@@ -786,7 +928,15 @@ describe("Ext.form.field.Tag", function() {
                     expectChange([6, 4, 13, 2], [6, 4, 10, 13, 2]);
                 });
 
-                it("should select the previous item after deleting", function() {
+                it("should select the next item when deleting", function() {
+                    fireInputKey(E.LEFT);
+                    fireInputKey(E.DELETE);
+                    expectValue([6, 4, 10, 2]);
+                    expectChange([6, 4, 10, 2], [6, 4, 10, 13, 2]);
+                    expectSelected(2);
+                });
+
+                it("should select the previous item after deleting the last", function() {
                     fireInputKey(E.DELETE);
                     expectValue([6, 4, 10, 13]);
                     expectChange([6, 4, 10, 13], [6, 4, 10, 13, 2]);
@@ -797,7 +947,7 @@ describe("Ext.form.field.Tag", function() {
                     expectSelected(10);
                 });
 
-                it("should select the last item when deleting the first", function() {
+                it("should select the next item when deleting the first", function() {
                     fireInputKey(E.LEFT);
                     fireInputKey(E.LEFT);
                     fireInputKey(E.LEFT);
@@ -805,7 +955,7 @@ describe("Ext.form.field.Tag", function() {
                     fireInputKey(E.DELETE);
                     expectValue([4, 10, 13, 2]);
                     expectChange([4, 10, 13, 2], [6, 4, 10, 13, 2]);
-                    expectSelected(2);
+                    expectSelected(4);
                 });
 
                 it("should remove all selected items", function() {
@@ -833,23 +983,31 @@ describe("Ext.form.field.Tag", function() {
             });
 
             it("should select a tag when clicking", function() {
-                clickTag(4);
-                fireInputKey(Ext.event.Event.DELETE);
-                expectValue([6, 10, 13, 2]);
-                expectChange([6, 10, 13, 2], [6, 4, 10, 13, 2]);
-            });
+                focusAndWait(tagField);
 
-            describe('clicking the close icon', function () {
-                it('should remove an item', function () {
-                    clickTag(4, true);
+                runs(function() {
+                    clickTag(4);
+                    fireInputKey(Ext.event.Event.DELETE);
                     expectValue([6, 10, 13, 2]);
                     expectChange([6, 10, 13, 2], [6, 4, 10, 13, 2]);
-                    clickTag(13, true);
-                    expectValue([6, 10, 2]);
-                    expectChange([6, 10, 2], [6, 10, 13, 2], 2);
+                });
+            });
+
+            describe('clicking the close icon', function() {
+                it('should remove an item', function() {
+                    focusAndWait(tagField);
+
+                    runs(function() {
+                        clickTag(4, true);
+                        expectValue([6, 10, 13, 2]);
+                        expectChange([6, 10, 13, 2], [6, 4, 10, 13, 2]);
+                        clickTag(13, true);
+                        expectValue([6, 10, 2]);
+                        expectChange([6, 10, 2], [6, 10, 13, 2], 2);
+                    });
                 });
 
-                it('should remove an item when used as an editor', function () {
+                it('should be able to remove an item when used as an editor', function() {
                     // See EXTJS-17686.
                     var grid, tag;
 
@@ -862,7 +1020,8 @@ describe("Ext.form.field.Tag", function() {
                         },
                         displayField: 'display',
                         valueField: 'display',
-                        queryMode: 'local'
+                        queryMode: 'local',
+                        renderTo: null
                     });
 
                     store = new Ext.data.Store({
@@ -891,11 +1050,12 @@ describe("Ext.form.field.Tag", function() {
                     });
 
                     grid.editingPlugin.startEdit(store.getAt(4), grid.columns[1]);
-                    tag = tagField.getEl().query(tagField.tagItemSelector)[0]
+                    tag = tagField.getEl().query(tagField.tagItemSelector)[0];
                     tag = Ext.fly(tag).down(tagField.tagItemCloseSelector, true);
                     jasmine.fireMouseEvent(tag, 'click');
 
                     expectValue([]);
+                    expect(grid.editingPlugin.editing).toBe(true);
 
                     grid = Ext.destroy(grid);
                 });
@@ -973,6 +1133,7 @@ describe("Ext.form.field.Tag", function() {
                     stacked: true
                 });
                 var height = tagField.getHeight();
+
                 tagField.addValue(2);
                 expect(tagField.getHeight()).toBeGreaterThan(height);
 
@@ -996,6 +1157,7 @@ describe("Ext.form.field.Tag", function() {
                 });
 
                 var height = tagField.getHeight();
+
                 tagField.removeValue(1);
                 expect(tagField.getHeight()).toBeLessThan(height);
 
@@ -1020,6 +1182,7 @@ describe("Ext.form.field.Tag", function() {
                     stacked: false
                 });
                 var height = tagField.getHeight();
+
                 tagField.addValue([2, 3]);
                 expect(tagField.getHeight()).toBe(height);
             });
@@ -1038,8 +1201,8 @@ describe("Ext.form.field.Tag", function() {
                 for (i = 0; i < toWrap; ++i) {
                     tagField.addValue(i + 2);
                 }
-                expect(tagField.getHeight()).toBeGreaterThan(height);
 
+                expect(tagField.getHeight()).toBeGreaterThan(height);
 
             });
         });
@@ -1058,7 +1221,7 @@ describe("Ext.form.field.Tag", function() {
                 rec6 = valueStore.getAt(2);
 
             expect(store.getCount()).toBe(17);
-            
+
             // The three picked values should not be found in the filtered store
             expect(store.indexOf(rec0)).toBe(-1);
             expect(store.indexOf(rec3)).toBe(-1);
@@ -1093,7 +1256,7 @@ describe("Ext.form.field.Tag", function() {
                 rec1 = store.getAt(0);
 
             expect(store.getCount()).toBe(17);
-            
+
             // The tree picked values should not be found in the filtered store
             expect(store.indexOf(rec0)).toBe(-1);
             expect(store.indexOf(rec3)).toBe(-1);
@@ -1123,7 +1286,7 @@ describe("Ext.form.field.Tag", function() {
             expect(store.indexOf(rec0)).toBe(0);
         });
 
-        it('should preserve the scroll position of the bould list when selecting a value', function() {
+        it('should preserve the scroll position of the bound list when selecting a value', function() {
             var picker;
 
             makeField({
@@ -1171,20 +1334,39 @@ describe("Ext.form.field.Tag", function() {
                 tagField.inputEl.dom.value = '200';
 
                 // Programmatic blur fails on IEs. Focus then remove an input field
-                Ext.getBody().createChild({tag: 'input', type: 'text'}).focus().remove();
+                Ext.getBody().createChild({ tag: 'input', type: 'text' }).focus().remove();
             });
             jasmine.waitAWhile();
             runs(function() {
                 var v = tagField.getValue();
+
                 // The new value should have been added to the value list.
                 expect(v.length).toBe(4);
                 expect(v[3]).toBe('200');
             });
         });
+
+        it("should keep values in order when adding and selecting", function() {
+                makeField({
+                    createNewOnEnter: true,
+                    filterPickList: true
+                });
+
+                clickListItem(store.getAt(0));
+                jasmine.focusAndWait(tagField.inputEl);
+
+                runs(function() {
+                    tagField.inputEl.dom.value = 'foo';
+                    jasmine.fireKeyEvent(tagField.inputEl.dom, 'keyup', Ext.event.Event.ENTER);
+                    clickListItem(store.getAt(7));
+
+                    expect(tagField.getValue()).toEqual([1, 'foo', 9]);
+                });
+            });
     });
 
     describe("allowBlank: false", function() {
-        beforeEach(function () {
+        beforeEach(function() {
             makeField({
                 allowBlank: false
             });
@@ -1196,9 +1378,37 @@ describe("Ext.form.field.Tag", function() {
             expect(tagField.isValid()).toBe(true);
         });
 
-        it('should not show in the errors list', function () {
+        it('should not show in the errors list', function() {
             clickListItem(0);
             expect(tagField.getErrors().length).toBe(0);
+        });
+    });
+
+    describe('Narrowing the list on typing', function() {
+        it('should narrow the list as you type and maintain the autoSelected item', function() {
+
+            // Already values in the field.
+            makeField({
+                value: 1
+            });
+            var item2 = store.getAt(store.find('display', 'Item2'));
+
+            tagField.expand();
+
+            // First item is the positioned item
+            expect(tagField.getPicker().getNavigationModel().getRecord()).toBe(store.getAt(0));
+
+            doTyping('Item2');
+
+            // Wait for the query task to have filtered the store down to "Item2" and "Item20"
+            waitsFor(function() {
+                return store.getCount() === 2;
+            });
+
+            // Item2 must be the positioned item
+            runs(function() {
+                expect(tagField.getPicker().getNavigationModel().getRecord()).toBe(item2);
+            });
         });
     });
 
@@ -1262,6 +1472,7 @@ describe("Ext.form.field.Tag", function() {
                 layout: 'hbox',
                 items: tagField
             });
+
             tagField.setValue([1, 4, 7, 9]);
             p.expand(false);
             expect(p.getHeight()).toBe(tagField.getHeight());
@@ -1282,9 +1493,11 @@ describe("Ext.form.field.Tag", function() {
 
             tagField.expand();
             var beforeTop = picker.getBox().top;
+
             expect(beforeTop).toBe(tagField.triggerWrap.getBox().bottom);
             clickListItem(store.getAt(0));
             var afterTop = picker.getBox().top;
+
             expect(afterTop).toBe(tagField.triggerWrap.getBox().bottom);
             expect(afterTop).toBeGreaterThan(beforeTop);
         });
@@ -1302,9 +1515,11 @@ describe("Ext.form.field.Tag", function() {
 
             tagField.expand();
             var beforeTop = picker.getBox().top;
+
             expect(beforeTop).toBe(tagField.triggerWrap.getBox().bottom);
             tagField.setValue([1]);
             var afterTop = picker.getBox().top;
+
             expect(afterTop).toBe(tagField.triggerWrap.getBox().bottom);
             expect(afterTop).toBeLessThan(beforeTop);
         });
@@ -1324,122 +1539,39 @@ describe("Ext.form.field.Tag", function() {
                 tagField.destroy();
             }).not.toThrow();
         });
-    });
 
-    describe('emptyText', function () {
-        var emptyCls, emptyEl, emptyInputCls;
-
-        describe('elements and classes', function () {
-            beforeEach(function () {
-                makeField({
-                    emptyText: 'little Roo',
-                    store: [
-                        [1, 'Foo'],
-                        [2, 'Bar']
-                    ]
-                }, null);
-
-                emptyCls = tagField.emptyCls;
-                emptyEl = tagField.emptyEl;
-                emptyInputCls = tagField.emptyInputCls;
+        it("should not throw an exception when destroying with an active ownerCt", function() {
+            makeField({
+                filterPickList: true,
+                renderTo: null
             });
 
-            afterEach(function () {
-                emptyCls = emptyEl = emptyInputCls = null;
+            var panel = new Ext.Panel({
+                renderTo: document.body,
+                width: 200,
+                height: 200,
+                items: [{
+                    xtype: 'container',
+                    remove: Ext.emptyFn,
+                    items: [tagField],
+                    listeners: {
+                        beforedestroy: function(container) {
+                            tagField.destroy();
+                        }
+                    }
+                }]
             });
 
-            it('should apply the emptyText when configured', function () {
-                expect(tagField.emptyEl.dom.innerHTML).toBe('little Roo');
-            });
-
-            it('should hide the emptyText when an item is selected', function () {
-                clickListItem(tagField.getStore().getAt(0));
-
-                expect(emptyEl.getStyle('display')).toBe('none');
-            });
-
-            it('should add the emptyText classes to the appropriate elements', function () {
-                expect(emptyEl.hasCls(emptyInputCls)).toBe(false);
-                expect(emptyEl.hasCls(emptyCls)).toBe(true);
-
-                expect(tagField.inputEl.hasCls(emptyInputCls)).toBe(true);
-                expect(tagField.listWrapper.hasCls(emptyCls)).toBe(true);
-            });
-
-            describe('on value selection/deselection', function () {
-                it('should remove the emptyText classes when selected', function () {
-                    clickListItem(tagField.getStore().getAt(0));
-
-                    expect(emptyEl.hasCls(emptyInputCls)).toBe(true);
-                    expect(emptyEl.hasCls(emptyCls)).toBe(false);
-
-                    expect(tagField.inputEl.hasCls(emptyInputCls)).toBe(false);
-                    expect(tagField.listWrapper.hasCls(emptyCls)).toBe(false);
-                });
-
-                it('should add the emptyText classes when emptied of selections', function () {
-                    // Add a selection and then immediately remove it.
-                    clickListItem(tagField.getStore().getAt(0));
-                    tagField.removeValue(1);
-
-                    expect(emptyEl.hasCls(emptyInputCls)).toBe(false);
-                    expect(emptyEl.hasCls(emptyCls)).toBe(true);
-
-                    expect(tagField.inputEl.hasCls(emptyInputCls)).toBe(true);
-                    expect(tagField.listWrapper.hasCls(emptyCls)).toBe(true);
-                });
-            });
-        });
-
-        describe('placeholder', function () {
-            var emptyText = "The Owl's Nest Farm";
-
-            function checkPlaceholderText(text) {
-                var inputEl = tagField.inputEl,
-                    emptyEl = tagField.emptyEl,
-                    emptyInputCl = tagField.emptyInputCls,
-                    emptyCls = tagField.emptyCls;
-
-                if (!text) {
-                    expect(inputEl.hasCls(emptyInputCls)).toBe(false);
-                    expect(inputEl.dom.value).toBe('');
-                } else {
-                    expect(inputEl.hasCls(emptyCls)).toBe(false);
-                    expect(emptyEl.dom.innerHTML).toBe(text);
-                }
-            }
-
-            beforeEach(function () {
-                makeField({
-                    emptyText: emptyText
-                });
-            });
-
-            it('should work', function () {
-                checkPlaceholderText(emptyText);
-            });
-
-            it('should remove the emptyText when a selection is made', function () {
-                clickListItem(store.getAt(5));
-                checkPlaceholderText();
-            });
-
-            it('should reapply the emptyText when all selections are removed', function () {
-                clickListItem(store.getAt(5));
-                clickListItem(store.getAt(2));
-                checkPlaceholderText();
-
-                // Remove selected tags.
-                clickTag(6, true);
-                clickTag(3, true);
-                checkPlaceholderText(emptyText);
-            });
+            clickListItem(tagField.getStore().getAt(0));
+            panel.removeAll();
+            expect(panel.items.items.length).toBe(0);
+            panel.destroy();
         });
     });
 
-    describe('grow', function () {
-        describe('growMax', function () {
-            it('should work', function () {
+    describe('grow', function() {
+        describe('growMax', function() {
+            it('should work', function() {
                 var i;
 
                 makeField({
@@ -1464,6 +1596,193 @@ describe("Ext.form.field.Tag", function() {
                 }
 
                 expect(tagField.getHeight()).toBeApprox(90, 5);
+            });
+        });
+
+        it("should not grow when set to false", function() {
+            var i;
+
+            makeField({
+                grow: false,
+                store: [
+                    [0, 'Foo'],
+                    [1, 'Bar'],
+                    [2, 'Baz'],
+                    [3, 'Cat'],
+                    [4, 'Dog'],
+                    [5, 'Owl'],
+                    [6, 'Roo'],
+                    [7, 'Utz'],
+                    [8, 'Grr'],
+                    [9, 'Pff']
+                ],
+                width: 100
+            }, null);
+
+            for (i = 0; i < 10; i++) {
+                clickListItem(i);
+            }
+
+            expect(tagField.getHeight()).toBeApprox(25, 5);
+        });
+    });
+
+    describe("destroying", function() {
+        it("should not destroy the store proxy if it's been specified as a config on the store with inline fields", function() {
+            makeField(null, {
+                fields: ['display', 'value'],
+                proxy: {
+                    type: 'ajax'
+                }
+            });
+            var proxy = tagField.getStore().getProxy();
+
+            tagField.destroy();
+            expect(proxy.destroyed).toBe(false);
+        });
+    });
+
+    describe('select event', function() {
+        it('should fire the select event whenever the selection changes', function() {
+            makeField();
+
+            var selectSpy = jasmine.createSpy();
+
+            tagField.on('select', selectSpy);
+
+            // Select item 0
+            clickListItem(0);
+            expect(selectSpy.callCount).toBe(1);
+            expect(selectSpy.mostRecentCall.args).toEqual([tagField, [store.getAt(0)]]);
+
+            // Select item 1
+            clickListItem(1);
+            expect(selectSpy.callCount).toBe(2);
+            expect(selectSpy.mostRecentCall.args).toEqual([tagField, [store.getAt(0), store.getAt(1)]]);
+
+            // Deselect item 1
+            clickListItem(1);
+            expect(selectSpy.callCount).toBe(3);
+            expect(selectSpy.mostRecentCall.args).toEqual([tagField, [store.getAt(0)]]);
+
+            // Deselect item 0
+            clickListItem(0);
+            expect(selectSpy.callCount).toBe(4);
+            expect(selectSpy.mostRecentCall.args).toEqual([tagField, []]);
+        });
+    });
+
+    describe("ARIA", function() {
+        beforeEach(function() {
+            makeField({
+                value: [1, 4, 7]
+            });
+        });
+
+        describe("attributes", function() {
+            it("should set aria-label on the picker", function() {
+                tagField.expand();
+
+                expect(tagField.picker.ariaEl).toHaveAttr('aria-label', tagField.ariaAvailableListLabel);
+            });
+
+            it("should have combobox role on ariaEl", function() {
+                expect(tagField).toHaveAttr('role', 'combobox');
+            });
+
+            it("should have aria-owns on ariaEl", function() {
+                var id = tagField.id;
+
+                expect(tagField).toHaveAttr('aria-owns', id + '-inputEl ' + id + '-picker ' + id + '-ariaList');
+            });
+
+            it("should have textbox role on inputEl", function() {
+                expect(tagField.inputEl).toHaveAttr('role', 'textbox');
+            });
+
+            it("should have aria-describedby on inputEl", function() {
+                var id = tagField.id;
+
+                expect(tagField.inputEl).toHaveAttr('aria-describedby', id + '-selectedText ' +
+                    id + '-ariaStatusEl ' + id + '-ariaHelpEl');
+            });
+        });
+
+        describe("markup", function() {
+            var el, nodes;
+
+            afterEach(function() {
+                el = nodes = null;
+            });
+
+            describe("selectedText", function() {
+                beforeEach(function() {
+                    el = tagField.selectedText;
+                });
+
+                it("should be rendered", function() {
+                    expect(el.dom.tagName).toBe('SPAN');
+                });
+
+                it("should have aria-hidden = true", function() {
+                    expect(el).toHaveAttr('aria-hidden', 'true');
+                });
+
+                it("should have x-hidden-clip", function() {
+                    expect(el.hasCls('x-hidden-clip')).toBe(true);
+                });
+
+                it("should be set", function() {
+                    expect(el.dom.innerHTML).toBe('Selected Item1, Item4, Item7.');
+                });
+            });
+
+            describe("ariaList", function() {
+                beforeEach(function() {
+                    el = tagField.ariaList;
+                });
+
+                it("should be rendered", function() {
+                    expect(el.dom.tagName).toBe('UL');
+                });
+
+                it("should have listbox role", function() {
+                    expect(el).toHaveAttr('role', 'listbox');
+                });
+
+                it("should have aria-label", function() {
+                    expect(el).toHaveAttr('aria-label', tagField.ariaSelectedListLabel);
+                });
+
+                it("should have aria-multiselectable", function() {
+                    expect(el).toHaveAttr('aria-multiselectable', 'true');
+                });
+
+                describe("list item", function() {
+                    beforeEach(function() {
+                        nodes = el.dom.children;
+                    });
+
+                    it("should be rendered", function() {
+                        expect(nodes.length).toBe(3);
+                    });
+
+                    it("should contain proper markup", function() {
+                        expect(nodes[0].tagName).toBe('LI');
+                    });
+
+                    it("should have option role", function() {
+                        expect(nodes[0]).toHaveAttr('role', 'option');
+                    });
+
+                    it("should have CSS class", function() {
+                        expect(Ext.fly(nodes[0]).hasCls('x-tagfield-arialist-item')).toBe(true);
+                    });
+
+                    it("should have content", function() {
+                        expect(nodes[0].innerHTML).toBe('Item1');
+                    });
+                });
             });
         });
     });

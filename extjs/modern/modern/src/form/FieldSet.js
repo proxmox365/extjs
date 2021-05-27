@@ -1,9 +1,10 @@
 /**
- * A FieldSet is a great way to visually separate elements of a form. It's normally used when you have a form with
- * fields that can be divided into groups - for example a customer's billing details in one fieldset and their shipping
- * address in another. A fieldset can be used inside a form or on its own elsewhere in your app. Fieldsets can
- * optionally have a title at the top and instructions at the bottom. Here's how we might create a FieldSet inside a
- * form:
+ * A FieldSet is a great way to visually separate elements of a form. It's normally 
+ * used when you have a form with fields that can be divided into groups - for example a 
+ * customer's billing details in one fieldset and their shipping address in another. A fieldset
+ * can be used inside a form or on its own elsewhere in your app. Fieldsets can optionally have 
+ * a title at the top and instructions at the bottom. Here's how we might create a FieldSet 
+ * inside a form:
  *
  *     @example
  *     Ext.create('Ext.form.Panel', {
@@ -29,23 +30,25 @@
  *         ]
  *     });
  *
- * Above we created a {@link Ext.form.Panel form} with a fieldset that contains two text fields. In this case, all
- * of the form fields are in the same fieldset, but for longer forms we may choose to use multiple fieldsets. We also
- * configured a {@link #title} and {@link #instructions} to give the user more information on filling out the form if
- * required.
+ * Above we created a {@link Ext.form.Panel form} with a fieldset that contains two text fields. 
+ * In this case, all of the form fields are in the same fieldset, but for longer forms we may choose
+ * to use multiple fieldsets. We also configured a {@link #title} and {@link #instructions} to give 
+ * the user more information on filling out the form if required.
  */
 Ext.define('Ext.form.FieldSet', {
-    extend  : 'Ext.Container',
-    alias   : 'widget.fieldset',
-    requires: ['Ext.Title'],
+    extend: 'Ext.Container',
+    xtype: 'fieldset',
+
+    mixins: [
+        'Ext.form.Borders',
+        'Ext.mixin.FieldDefaults'
+    ],
+
+    requires: [
+        'Ext.Title'
+    ],
 
     config: {
-        /**
-         * @cfg
-         * @inheritdoc
-         */
-        baseCls: Ext.baseCSSPrefix + 'form-fieldset',
-
         /**
          * @cfg {String} title
          * Optional fieldset title, rendered just above the grouped fields.
@@ -87,19 +90,28 @@ Ext.define('Ext.form.FieldSet', {
          * @accessor
          */
         instructions: null
+
+        /**
+         * @cfg {Object} fieldDefaults
+         * The properties in this object are used as default config values for field instance.
+         */
     },
+
+    autoSize: null,
+
+    baseCls: Ext.baseCSSPrefix + 'form-fieldset',
 
     /**
      * @private
      */
     applyTitle: function(title) {
-        if (typeof title == 'string') {
-            title = {title: title};
+        if (typeof title === 'string') {
+            title = { title: title };
         }
 
         Ext.applyIf(title, {
-            docked : 'top',
-            baseCls: this.getBaseCls() + '-title'
+            docked: 'top',
+            cls: this.baseCls + '-title'
         });
 
         return Ext.factory(title, Ext.Title, this._title);
@@ -112,6 +124,7 @@ Ext.define('Ext.form.FieldSet', {
         if (newTitle) {
             this.add(newTitle);
         }
+
         if (oldTitle) {
             this.remove(oldTitle);
         }
@@ -134,13 +147,13 @@ Ext.define('Ext.form.FieldSet', {
      * @private
      */
     applyInstructions: function(instructions) {
-        if (typeof instructions == 'string') {
-            instructions = {title: instructions};
+        if (typeof instructions === 'string') {
+            instructions = { title: instructions };
         }
 
         Ext.applyIf(instructions, {
-            docked : 'bottom',
-            baseCls: this.getBaseCls() + '-instructions'
+            docked: 'bottom',
+            cls: this.baseCls + '-instructions'
         });
 
         return Ext.factory(instructions, Ext.Title, this._instructions);
@@ -153,6 +166,7 @@ Ext.define('Ext.form.FieldSet', {
         if (newInstructions) {
             this.add(newInstructions);
         }
+
         if (oldInstructions) {
             this.remove(oldInstructions);
         }
@@ -175,32 +189,11 @@ Ext.define('Ext.form.FieldSet', {
      * A convenient method to disable all fields in this FieldSet
      * @return {Ext.form.FieldSet} This FieldSet
      */
-     
     updateDisabled: function(newDisabled) {
-        this.getFieldsAsArray().forEach(function(field) {
+        this.query('field').forEach(function(field) {
             field.setDisabled(newDisabled);
         });
 
         return this;
-    },
-
-    /**
-     * @private
-     */
-    getFieldsAsArray: function() {
-        var fields = [],
-            getFieldsFrom = function(item) {
-                if (item.isField) {
-                    fields.push(item);
-                }
-
-                if (item.isContainer) {
-                    item.getItems().each(getFieldsFrom);
-                }
-            };
-
-        this.getItems().each(getFieldsFrom);
-
-        return fields;
     }
 });

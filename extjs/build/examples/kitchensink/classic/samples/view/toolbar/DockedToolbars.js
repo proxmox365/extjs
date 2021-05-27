@@ -4,18 +4,45 @@
 Ext.define('KitchenSink.view.toolbar.DockedToolbars', {
     extend: 'Ext.container.Container',
     xtype: 'docked-toolbars',
-    id: 'docked-toolbars',
-    
+    cls: 'docked-toolbars',
+
     //<example>
-    exampleTitle: 'Docked Toolbars',
     profiles: {
         classic: {
+            panelHeight: 220,
+            panelWidth: 220,
             listCls: 'list',
             closeCls: 'close',
             pasteCls: 'paste',
-            editCls: 'edit'
+            editCls: 'edit',
+            listGlyph: null,
+            closeGlyph: null,
+            pasteGlyph: null,
+            editGlyph: null
         },
         neptune: {
+            panelHeight: 220,
+            panelWidth: 220,
+            listCls: null,
+            closeCls: null,
+            pasteCls: null,
+            editCls: null,
+            listGlyph: 61,
+            closeGlyph: 88,
+            pasteGlyph: 70,
+            editGlyph: 47
+        },
+        graphite: {
+            panelHeight: 300,
+            panelWidth: 300
+        },
+        'classic-material': {
+            panelHeight: 300,
+            panelWidth: 300,
+            listCls: null,
+            closeCls: null,
+            pasteCls: null,
+            editCls: null,
             listGlyph: 61,
             closeGlyph: 88,
             pasteGlyph: 70,
@@ -23,6 +50,8 @@ Ext.define('KitchenSink.view.toolbar.DockedToolbars', {
         }
     },
     //</example>
+
+    width: 480,
     layout: {
         type: 'table',
         columns: 2,
@@ -31,120 +60,118 @@ Ext.define('KitchenSink.view.toolbar.DockedToolbars', {
 
     defaults: {
         xtype: 'panel',
-        height: 220,
-        width: 220,
+        height: '${panelHeight}',
+        width: '${panelWidth}',
         bodyPadding: 10
     },
-    width: 480,
 
-    initComponent: function() {
-        this.items = [
-            {
-                title: 'Top',
-                xtype: 'panel',
-                dockedItems: [{
-                    dock: 'top',
-                    xtype: 'toolbar',
-                    items: [{
-                        iconCls: this.profileInfo.listCls,
-                        glyph: this.profileInfo.listGlyph,
-                        xtype: 'button'
-                    }, '-', {
-                        iconCls: this.profileInfo.closeCls,
-                        glyph: this.profileInfo.closeGlyph,
-                        xtype: 'button'
-                    }, {
-                        iconCls: this.profileInfo.pasteCls,
-                        glyph: this.profileInfo.pasteGlyph,
-                        xtype: 'button'
-                    }, '-', {
-                        iconCls: this.profileInfo.editCls,
-                        glyph: this.profileInfo.editGlyph,
-                        xtype: 'button'
-                    }]
-                }],
-                html: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.'
-            },
-            {
-                title: 'Right',
-                xtype: 'panel',
-                dockedItems: [{
-                    dock: 'right',
-                    xtype: 'toolbar',
-                    items: [{
-                        iconCls: this.profileInfo.listCls,
-                        glyph: this.profileInfo.listGlyph,
-                        xtype: 'button'
-                    }, '-', {
-                        iconCls: this.profileInfo.closeCls,
-                        glyph: this.profileInfo.closeGlyph,
-                        xtype: 'button'
-                    }, {
-                        iconCls: this.profileInfo.pasteCls,
-                        glyph: this.profileInfo.pasteGlyph,
-                        xtype: 'button'
-                    }, '-', {
-                        iconCls: this.profileInfo.editCls,
-                        glyph: this.profileInfo.editGlyph,
-                        xtype: 'button'
-                    }]
-                }],
-                html: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.'
-            },
-            {
-                title: 'Left',
-                xtype: 'panel',
-                dockedItems: [{
-                    dock: 'left',
-                    xtype: 'toolbar',
-                    items: [{
-                        iconCls: this.profileInfo.listCls,
-                        glyph: this.profileInfo.listGlyph,
-                        xtype: 'button'
-                    }, '-', {
-                        iconCls: this.profileInfo.closeCls,
-                        glyph: this.profileInfo.closeGlyph,
-                        xtype: 'button'
-                    }, {
-                        iconCls: this.profileInfo.pasteCls,
-                        glyph: this.profileInfo.pasteGlyph,
-                        xtype: 'button'
-                    }, '-', {
-                        iconCls: this.profileInfo.editCls,
-                        glyph: this.profileInfo.editGlyph,
-                        xtype: 'button'
-                    }]
-                }],
-                html: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.'
-            },
-            {
-                title: 'Bottom',
-                xtype: 'panel',
-                dockedItems: [{
-                    dock: 'bottom',
-                    xtype: 'toolbar',
-                    items: [{
-                        iconCls: this.profileInfo.listCls,
-                        glyph: this.profileInfo.listGlyph,
-                        xtype: 'button'
-                    }, '-', {
-                        iconCls: this.profileInfo.closeCls,
-                        glyph: this.profileInfo.closeGlyph,
-                        xtype: 'button'
-                    }, {
-                        iconCls: this.profileInfo.pasteCls,
-                        glyph: this.profileInfo.pasteGlyph,
-                        xtype: 'button'
-                    }, '-', {
-                        iconCls: this.profileInfo.editCls,
-                        glyph: this.profileInfo.editGlyph,
-                        xtype: 'button'
-                    }]
-                }],
-                html: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.'
-            }
-        ];
+    items: [{
+        title: 'Top',
+        xtype: 'panel',
+        html: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.',
 
-        this.callParent();
-    }
+        dockedItems: [{
+            xtype: 'toolbar',
+            dock: 'top',
+
+            items: [{
+                iconCls: '${listCls}',
+                glyph: '${listGlyph}',
+                xtype: 'button'
+            }, '-', {
+                iconCls: '${closeCls}',
+                glyph: '${closeGlyph}',
+                xtype: 'button'
+            }, {
+                iconCls: '${pasteCls}',
+                glyph: '${pasteGlyph}',
+                xtype: 'button'
+            }, '-', {
+                iconCls: '${editCls}',
+                glyph: '${editGlyph}',
+                xtype: 'button'
+            }]
+        }]
+    }, {
+        title: 'Right',
+        xtype: 'panel',
+        html: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.',
+
+        dockedItems: [{
+            xtype: 'toolbar',
+            dock: 'right',
+
+            items: [{
+                iconCls: '${listCls}',
+                glyph: '${listGlyph}',
+                xtype: 'button'
+            }, '-', {
+                iconCls: '${closeCls}',
+                glyph: '${closeGlyph}',
+                xtype: 'button'
+            }, {
+                iconCls: '${pasteCls}',
+                glyph: '${pasteGlyph}',
+                xtype: 'button'
+            }, '-', {
+                iconCls: '${editCls}',
+                glyph: '${editGlyph}',
+                xtype: 'button'
+            }]
+        }]
+    }, {
+        title: 'Left',
+        xtype: 'panel',
+        html: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.',
+
+        dockedItems: [{
+            xtype: 'toolbar',
+            dock: 'left',
+
+            items: [{
+                iconCls: '${listCls}',
+                glyph: '${listGlyph}',
+                xtype: 'button'
+            }, '-', {
+                iconCls: '${closeCls}',
+                glyph: '${closeGlyph}',
+                xtype: 'button'
+            }, {
+                iconCls: '${pasteCls}',
+                glyph: '${pasteGlyph}',
+                xtype: 'button'
+            }, '-', {
+                iconCls: '${editCls}',
+                glyph: '${editGlyph}',
+                xtype: 'button'
+            }]
+        }]
+    }, {
+        title: 'Bottom',
+        xtype: 'panel',
+        html: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.',
+
+        dockedItems: [{
+            xtype: 'toolbar',
+            dock: 'bottom',
+
+            items: [{
+                iconCls: '${listCls}',
+                glyph: '${listGlyph}',
+                xtype: 'button'
+            }, '-', {
+                iconCls: '${closeCls}',
+                glyph: '${closeGlyph}',
+                xtype: 'button'
+            }, {
+                iconCls: '${pasteCls}',
+                glyph: '${pasteGlyph}',
+                xtype: 'button'
+            }, '-', {
+                iconCls: '${editCls}',
+                glyph: '${editGlyph}',
+                xtype: 'button'
+            }]
+        }]
+    }]
 });

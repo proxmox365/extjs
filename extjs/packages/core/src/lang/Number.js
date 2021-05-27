@@ -17,21 +17,142 @@ Ext.Number = (new function() { // jshint ignore:line
             wrap: true
         };
 
+    // polyfill
+    Number.MIN_SAFE_INTEGER = Number.MIN_SAFE_INTEGER || -(math.pow(2, 53) - 1);
+    Number.MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER || math.pow(2, 53) - 1;
+
     Ext.apply(ExtNumber, {
+        MIN_SAFE_INTEGER: Number.MIN_SAFE_INTEGER,
+        MAX_SAFE_INTEGER: Number.MAX_SAFE_INTEGER,
+        // No good way to allow "9." w/o allowing "." alone but we use isNaN to reject that
+        floatRe: /^[-+]?(?:\d+|\d*\.\d*)(?:[Ee][+-]?\d+)?$/,
+        intRe: /^[-+]?\d+(?:[Ee]\+?\d+)?$/,
+
         Clip: {
             DEFAULT: ClipDefault,
 
             COUNT: Ext.applyIf({
-                    count: true
-                }, ClipDefault),
+                count: true
+            }, ClipDefault),
 
             INCLUSIVE: Ext.applyIf({
-                    inclusive: true
-                }, ClipDefault),
+                inclusive: true
+            }, ClipDefault),
 
             NOWRAP: Ext.applyIf({
-                    wrap: false
-                }, ClipDefault)
+                wrap: false
+            }, ClipDefault)
+        },
+
+        /**
+         * Strictly parses the given value and returns the value as a number or `null` if
+         * the value is not a number or contains non-numeric pieces.
+         * @param {String} value
+         * @return {Number}
+         * @since 6.5.1
+         */
+        parseFloat: function(value) {
+            if (value === undefined) {
+                value = null;
+            }
+
+            if (value !== null && typeof value !== 'number') {
+                value = String(value);
+                value = ExtNumber.floatRe.test(value) ? +value : null;
+
+                if (isNaN(value)) {
+                    value = null;
+                }
+            }
+
+            return value;
+        },
+
+        /**
+         * Strictly parses the given value and returns the value as a number or `null` if
+         * the value is not an integer number or contains non-integer pieces.
+         * @param {String} value
+         * @return {Number}
+         * @since 6.5.1
+         */
+        parseInt: function(value) {
+            if (value === undefined) {
+                value = null;
+            }
+
+            if (typeof value === 'number') {
+                value = Math.floor(value);
+            }
+            else if (value !== null) {
+                value = String(value);
+                value = ExtNumber.intRe.test(value) ? +value : null;
+            }
+
+            return value;
+        },
+
+        binarySearch: function(array, value, begin, end) {
+            var middle, midVal;
+
+            if (begin === undefined) {
+                begin = 0;
+            }
+
+            if (end === undefined) {
+                end = array.length;
+            }
+
+            --end;
+
+            while (begin <= end) {
+                middle = (begin + end) >>> 1; // unsigned right shift = Math.floor(x/2)
+                midVal = array[middle];
+
+                if (value === midVal) {
+                    return middle;
+                }
+
+                if (midVal < value) {
+                    begin = middle + 1;
+                }
+                else {
+                    end = middle - 1;
+                }
+            }
+
+            return begin;
+        },
+
+        bisectTuples: function(array, value, index, begin, end) {
+            var middle, midVal;
+
+            if (begin === undefined) {
+                begin = 0;
+            }
+
+            if (end === undefined) {
+                end = array.length;
+            }
+
+            --end;
+
+            while (begin <= end) {
+                middle = (begin + end) >>> 1; // unsigned right shift = Math.floor(x/2)
+                midVal = array[middle][index];
+
+                if (value === midVal) {
+                    return middle;
+                }
+
+                if (midVal < value) {
+                    begin = middle + 1;
+                }
+                else {
+                    end = middle - 1;
+                }
+            }
+
+            return begin;
         },
 
         /**
@@ -82,33 +203,40 @@ Ext.Number = (new function() { // jshint ignore:line
          * exclusive such that `length = end - begin`. Both values are between 0 and the
          * given `length` and `end` will not be less-than `begin`.
          */
-        clipIndices: function (length, indices, options) {
-            options = options || ClipDefault;
-
+        clipIndices: function(length, indices, options) {
             var defaultValue = 0, // default value for "begin"
-                wrap = options.wrap,
-                begin, end, i;
+                wrap, begin, end, i;
+
+            options = options || ClipDefault;
+            wrap = options.wrap;
 
             indices = indices || [];
+
             for (i = 0; i < 2; ++i) {
                 // names are off on first pass but used this way so things make sense
                 // following the loop..
-                begin = end;  // pick up and keep the result from the first loop
+                begin = end; // pick up and keep the result from the first loop
                 end = indices[i];
+
                 if (end == null) {
                     end = defaultValue;
-                } else if (i && options.count) {
+                }
+                else if (i && options.count) {
                     end += begin; // this is the length not "end" so convert to "end"
                     end = (end > length) ? length : end;
-                } else {
+                }
+                else {
                     if (wrap) {
                         end = (end < 0) ? (length + end) : end;
                     }
+
                     if (i && options.inclusive) {
                         ++end;
                     }
+
                     end = (end < 0) ? 0 : ((end > length) ? length : end);
                 }
+
                 defaultValue = length; // default value for "end"
             }
 
@@ -118,13 +246,15 @@ Ext.Number = (new function() { // jshint ignore:line
 
             indices[0] = begin;
             indices[1] = (end < begin) ? begin : end;
+
             return indices;
         },
 
         /**
-         * Checks whether or not the passed number is within a desired range.  If the number is already within the
-         * range it is returned, otherwise the min or max value is returned depending on which side of the range is
-         * exceeded. Note that this method returns the constrained value but does not change the current number.
+         * Checks whether or not the passed number is within a desired range. If the number is
+         * already within the range it is returned, otherwise the min or max value is returned
+         * depending on which side of the range is exceeded. Note that this method returns the
+         * constrained value but does not change the current number.
          * @param {Number} number The number to check
          * @param {Number} min The minimum number in the range
          * @param {Number} max The maximum number in the range
@@ -154,23 +284,28 @@ Ext.Number = (new function() { // jshint ignore:line
         /**
          * Snaps the passed number between stopping points based upon a passed increment value.
          *
-         * The difference between this and {@link #snapInRange} is that {@link #snapInRange} uses the minValue
-         * when calculating snap points:
+         * The difference between this and {@link #snapInRange} is that {@link #snapInRange} uses
+         * the minValue when calculating snap points:
          *
-         *     r = Ext.Number.snap(56, 2, 55, 65);        // Returns 56 - snap points are zero based
+         *     // Returns 56 - snap points are zero based
+         *     r = Ext.Number.snap(56, 2, 55, 65);
          *
-         *     r = Ext.Number.snapInRange(56, 2, 55, 65); // Returns 57 - snap points are based from minValue
+         *     // Returns 57 - snap points are based from minValue
+         *     r = Ext.Number.snapInRange(56, 2, 55, 65);
          *
          * @param {Number} value The unsnapped value.
          * @param {Number} increment The increment by which the value must move.
-         * @param {Number} minValue The minimum value to which the returned value must be constrained. Overrides the increment.
-         * @param {Number} maxValue The maximum value to which the returned value must be constrained. Overrides the increment.
+         * @param {Number} minValue The minimum value to which the returned value must be
+         * constrained. Overrides the increment.
+         * @param {Number} maxValue The maximum value to which the returned value must be
+         * constrained. Overrides the increment.
          * @return {Number} The value of the nearest snap target.
          */
-        snap : function(value, increment, minValue, maxValue) {
+        snap: function(value, increment, minValue, maxValue) {
             var m;
 
-            // If no value passed, or minValue was passed and value is less than minValue (anything < undefined is false)
+            // If no value passed, or minValue was passed and value is less than minValue
+            // (anything < undefined is false)
             // Then use the minValue (or zero if the value was undefined)
             if (value === undefined || value < minValue) {
                 return minValue || 0;
@@ -178,35 +313,43 @@ Ext.Number = (new function() { // jshint ignore:line
 
             if (increment) {
                 m = value % increment;
+
                 if (m !== 0) {
                     value -= m;
+
                     if (m * 2 >= increment) {
                         value += increment;
-                    } else if (m * 2 < -increment) {
+                    }
+                    else if (m * 2 < -increment) {
                         value -= increment;
                     }
                 }
             }
-            return ExtNumber.constrain(value, minValue,  maxValue);
+
+            return ExtNumber.constrain(value, minValue, maxValue);
         },
 
         /**
          * Snaps the passed number between stopping points based upon a passed increment value.
          *
-         * The difference between this and {@link #snap} is that {@link #snap} does not use the minValue
-         * when calculating snap points:
+         * The difference between this and {@link #snap} is that {@link #snap} does not use
+         * the minValue when calculating snap points:
          *
-         *     r = Ext.Number.snap(56, 2, 55, 65);        // Returns 56 - snap points are zero based
+         *     // Returns 56 - snap points are zero based
+         *     r = Ext.Number.snap(56, 2, 55, 65);
          *
-         *     r = Ext.Number.snapInRange(56, 2, 55, 65); // Returns 57 - snap points are based from minValue
+         *     // Returns 57 - snap points are based from minValue
+         *     r = Ext.Number.snapInRange(56, 2, 55, 65);
          *
          * @param {Number} value The unsnapped value.
          * @param {Number} increment The increment by which the value must move.
-         * @param {Number} [minValue=0] The minimum value to which the returned value must be constrained.
-         * @param {Number} [maxValue=Infinity] The maximum value to which the returned value must be constrained.
+         * @param {Number} [minValue=0] The minimum value to which the returned value must be
+         * constrained.
+         * @param {Number} [maxValue=Infinity] The maximum value to which the returned value
+         * must be constrained.
          * @return {Number} The value of the nearest snap target.
          */
-        snapInRange : function(value, increment, minValue, maxValue) {
+        snapInRange: function(value, increment, minValue, maxValue) {
             var tween;
 
             // default minValue to zero
@@ -221,6 +364,7 @@ Ext.Number = (new function() { // jshint ignore:line
             if (increment && (tween = ((value - minValue) % increment))) {
                 value -= tween;
                 tween *= 2;
+
                 if (tween >= increment) {
                     value += increment;
                 }
@@ -237,13 +381,54 @@ Ext.Number = (new function() { // jshint ignore:line
         },
 
         /**
+         * Round a number to the nearest interval.
+         * @param {Number} value The value to round.
+         * @param {Number} interval The interval to round to.
+         * @return {Number} The rounded value.
+         *
+         * @since 6.2.0
+         */
+        roundToNearest: function(value, interval) {
+            interval = interval || 1;
+
+            return interval * math.round(value / interval);
+        },
+
+        /**
+         * Rounds a number to the specified precision.
+         * @param value
+         * @param precision
+         * @return {number}
+         */
+        roundToPrecision: function(value, precision) {
+            var factor = math.pow(10, precision || 1);
+
+            return math.round(value * factor) / factor;
+        },
+
+        /**
+         * Truncates a number to the specified precision,
+         * without rounding.
+         * @param value
+         * @param precision
+         * @return {number}
+         * @since 6.5.1
+         */
+        truncateToPrecision: function(value, precision) {
+            var factor = math.pow(10, precision || 1);
+
+            return parseInt(value * factor, 10) / factor;
+        },
+
+        /**
          * Returns the sign of the given number. See also MDN for Math.sign documentation
          * for the standard method this method emulates.
          * @param {Number} x The number.
          * @return {Number} The sign of the number `x`, indicating whether the number is
          * positive (1), negative (-1) or zero (0).
+         * @method sign
          */
-        sign: function (x) {
+        sign: math.sign || function(x) {
             x = +x; // force to a Number
 
             if (x === 0 || isNaN(x)) {
@@ -254,26 +439,79 @@ Ext.Number = (new function() { // jshint ignore:line
         },
 
         /**
+         * Returns the base 10 logarithm of a number.
+         * This will use Math.log10, if available (ES6).
+         * @param {Number} x The number.
+         * @return {Number} Base 10 logarithm of the number 'x'.
+         * @method log10
+         */
+        log10: math.log10 || function(x) {
+            return math.log(x) * math.LOG10E;
+        },
+
+        /**
+         * Determines if two numbers `n1` and `n2` are equal within a given
+         * margin of precision `epsilon`.
+         * @param {Number} n1 First number.
+         * @param {Number} n2 Second number.
+         * @param {Number} epsilon Margin of precision.
+         * @return {Boolean} `true`, if numbers are equal. `false` otherwise.
+         */
+        isEqual: function(n1, n2, epsilon) {
+            //<debug>
+            /* eslint-disable-next-line max-len */
+            if (!(typeof n1 === 'number' && typeof n2 === 'number' && typeof epsilon === 'number')) {
+                Ext.raise("All parameters should be valid numbers.");
+            }
+            //</debug>
+
+            return math.abs(n1 - n2) < epsilon;
+        },
+
+        /**
+         * Determines if the value passed is a number and also finite.
+         * This a Polyfill version of Number.isFinite(),differently than
+         * the isFinite() function, this method doesn't convert the parameter to a number.
+         * @param {Number} value Number to be tested.
+         * @return {Boolean} `true`, if the parameter is a number and finite, `false` otherwise.
+         * @since 6.2
+         */
+        isFinite: Number.isFinite || function(value) {
+            return typeof value === 'number' && isFinite(value);
+        },
+
+        isInteger: Number.isInteger || function(value) {
+            // Add zero get a valid result in a special case where the value is a number string.
+            // E.g. '10' + 0 is '100'.
+            return ~~(value + 0) === value;
+        },
+
+        /**
          * @method
          * Formats a number using fixed-point notation
          * @param {Number} value The number to format
          * @param {Number} precision The number of digits to show after the decimal point
          */
-        toFixed: isToFixedBroken ? function(value, precision) {
-            precision = precision || 0;
-            var pow = math.pow(10, precision);
-            return (math.round(value * pow) / pow).toFixed(precision);
-        } : function(value, precision) {
-            return value.toFixed(precision);
-        },
+        toFixed: isToFixedBroken
+            ? function(value, precision) {
+                var pow;
+
+                precision = precision || 0;
+                pow = math.pow(10, precision);
+
+                return (math.round(value * pow) / pow).toFixed(precision);
+            }
+            : function(value, precision) {
+                return value.toFixed(precision);
+            },
 
         /**
-         * Validate that a value is numeric and convert it to a number if necessary. Returns the specified default value if
-         * it is not.
-
-    Ext.Number.from('1.23', 1); // returns 1.23
-    Ext.Number.from('abc', 1); // returns 1
-
+         * Validate that a value is numeric and convert it to a number if necessary.
+         * Returns the specified default value if it is not.
+         *
+         *      Ext.Number.from('1.23', 1); // returns 1.23
+         *      Ext.Number.from('abc', 1); // returns 1
+         *
          * @param {Object} value
          * @param {Number} defaultValue The value to return if the original value is non-numeric
          * @return {Number} value, if numeric, defaultValue otherwise
@@ -292,10 +530,10 @@ Ext.Number = (new function() { // jshint ignore:line
          * @param {Number} to Highest value to return.
          * @return {Number} A random integer within the specified range.
          */
-        randomInt: function (from, to) {
-           return math.floor(math.random() * (to - from + 1) + from);
+        randomInt: function(from, to) {
+            return math.floor(math.random() * (to - from + 1) + from);
         },
-        
+
         /**
          * Corrects floating point numbers that overflow to a non-precise
          * value because of their floating nature, for example `0.1 + 0.2`

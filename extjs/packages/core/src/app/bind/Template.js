@@ -27,41 +27,25 @@
  */
 Ext.define('Ext.app.bind.Template', {
     requires: [
-        'Ext.util.Format'
+        'Ext.util.Format',
+        'Ext.app.bind.Parser'
     ],
 
-    numberRe: /^(?:\d+(?:\.\d*)?)$/,
-
-    stringRe: /^(?:["][^"]*["])$/,
-
     /**
-     * @property {RegExp} tokenRe
-     * Regular expression used to extract tokens.
+     * @cfg {Boolean} escapes
+     * Set to `true` to process escape characters as part of bind expressions.
      *
-     * Finds the following expressions within a format string
+     * The `'\'` character is used to escape the next character, treating it
+     * as a literal character even if it is a `'{'` or other escape.
      *
-     *                     {AND?}
-     *                     /    \
-     *                   /        \
-     *                 /            \
-     *               /                \
-     *            OR                   AND?
-     *           /  \                  / \
-     *          /    \                /   \
-     *         /      \              /     \
-     *    (\d+)  ([a-z_][\w\-\.]*)  /       \
-     *     index       name       /         \
-     *                           /           \
-     *                          /             \
-     *                   :([a-z_\.]*)    (?:\(([^\)]*?)?\))?
-     *                      formatFn           args
+     * The `'~~'` sequence will treat any subsequent characters as a verbatim,
+     * literal expression and no extra processing will take place. This includes
+     * escapes and replacement tokens.
      *
-     * Numeric index or (name followed by optional formatting function and args)
+     * @since 6.5.2
      * @private
      */
-    tokenRe: /\{[!]?(?:(?:(\d+)|([a-z_][\w\-\.]*))(?::([a-z_\.]+)(?:\(([^\)]*?)?\))?)?)\}/gi,
-
-    formatRe: /^([a-z_]+)(?:\(([^\)]*?)?\))?$/i,
+    escapes: false,
 
     /**
      * @property {String[]} buffer
@@ -121,7 +105,7 @@ Ext.define('Ext.app.bind.Template', {
     /**
      * @param {String} text The text of the template.
      */
-    constructor: function (text) {
+    constructor: function(text) {
         var me = this,
             initters = me._initters,
             name;
@@ -141,10 +125,10 @@ Ext.define('Ext.app.bind.Template', {
      * @since 5.0.0
      */
     _initters: {
-        apply: function (values, scope) {
+        apply: function(values, scope) {
             return this.parse().apply(values, scope);
         },
-        getTokens: function () {
+        getTokens: function() {
             return this.parse().getTokens();
         }
     },
@@ -159,239 +143,146 @@ Ext.define('Ext.app.bind.Template', {
      * @return {String}
      * @since 5.0.0
      */
-    apply: function (values, scope) {
+    apply: function(values, scope) {
         var me = this,
             slots = me.slots,
             buffer = me.buffer,
-            length = slots.length,  // === buffer.length
-            i, slot, value;
+            length = slots.length,
+            i, slot;
 
         for (i = 0; i < length; ++i) {
             slot = slots[i];
+
             if (slot) {
-                if ((value = values[slot.pos]) == null) {
-                    // map (value === null || value === undefined) to '':
-                    value = '';
-                }
-                if (slot.not) {
-                    value = !value;
-                }
-                if (slot.format) {
-                    value = slot.format(value, scope);
-                }
-                buffer[i] = value;
+                buffer[i] = slot(values, scope);
             }
         }
 
+        // If we have only one component and it is a slot (a {} component), then we
+        // want to evaluate to whatever that expression generated.
+        if (slot && me.single) {
+            return buffer[0];
+        }
+
         return buffer.join('');
+    },
+
+    getText: function() {
+        return this.buffer.join('');
     },
 
     /**
      * Returns the distinct set of binding tokens for this template.
      * @return {String[]} The `tokens` for this template.
      */
-    getTokens: function () {
+    getTokens: function() {
         return this.tokens;
     },
 
     /**
-     * Parses the template text into `buffer`, `slots` and `tokens`. This method is called
-     * automatically when the template is first used.
-     * @return {Ext.app.bind.Template} this
+     * Returns true if the expression is static, meaning it has no
+     * tokens or slots that need to be evaluated.
+     *
      * @private
      */
-    parse: function () {
-        // NOTE: The particulars of what is stored here, while private, are likely to be
-        // important to Sencha Architect so changes need to be coordinated.
-        var me = this,
-            text = me.text,
-            buffer = [],
-            slots = [],
-            tokens = [],
-            tokenMap = {},
-            last = 0,
-            tokenRe = me.tokenRe,
-            pos = 0,
-            fmt, i, length, match, s, slot, token;
+    isStatic: function() {
+        var tokens = this.getTokens(),
+            slots = this.slots;
 
-        // Remove the initters so that we don't get called here again.
-        for (i in me._initters) {
-            delete me[i];
-        }
+        return (tokens.length === 0 && slots.length === 0);
+    },
 
-        me.buffer = buffer;
+    privates: {
+        literalChar: '~',
+        escapeChar: '\\',
 
-        me.slots = slots;
+        /**
+         * Parses the template text into `buffer`, `slots` and `tokens`. This method is called
+         * automatically when the template is first used.
+         * @return {Ext.app.bind.Template} this
+         * @private
+         */
+        parse: function() {
+            // NOTE: The particulars of what is stored here, while private, are likely to be
+            // important to Sencha Architect so changes need to be coordinated.
+            var me = this,
+                text = me.text,
+                parser = Ext.app.bind.Parser.fly(),
+                buffer = (me.buffer = []),
+                slots = (me.slots = []),
+                length = text.length,
+                pos = 0,
+                escapes = me.escapes,
+                current = '',
+                i = 0,
+                esc = me.escapeChar,
+                lit = me.literalChar,
+                escaped, lastEscaped, c, prev, key;
 
-        me.tokens = tokens;
-
-        // text = 'Hello {foo:this.fmt(2,4)} World {bar} - {1}'
-        while ((match = tokenRe.exec(text))) {
-            //   0                      1          2         3           4         index
-            // [ '{foo:this.fmt(2,4)}', undefined, 'foo',    'this.fmt', '2,4']        6
-            // [ '{bar}',               undefined, 'bar',     undefined,  undefined]  32
-            // [ '{1}',                 '1',       undefined, undefined,  undefined]  40
-            length = match.index - last;
-            if (length) {
-                buffer[pos++] = text.substring(last, last + length);
-                last += length;
-            }
-            last += (s = match[0]).length;
-
-            slot = {
-                fmt: (fmt = match[3] || null),
-                index: match[1] ? parseInt(match[1], 10) : null,
-                not: s.charAt(1) === '!',
-                token: match[2] || null
-            };
-
-            token = slot.token || String(slot.index);
-            if (token in tokenMap) {
-                slot.pos = tokenMap[token];
-            } else {
-                tokenMap[token] = slot.pos = tokens.length;
-                tokens.push(token);
+            // Remove the initters so that we don't get called here again.
+            for (key in me._initters) {
+                delete me[key];
             }
 
-            if (fmt) {
-                if (fmt.substring(0,5) === 'this.') {
-                    slot.fmt = fmt.substring(5);
-                } else {
-                    //<debug>
-                    if (!(fmt in Ext.util.Format)) {
-                        Ext.raise('Invalid format specified: "' + fmt + '"');
+            me.tokens = [];
+            me.tokensMap = {};
+
+            // text = 'Hello {foo:this.fmt(2,4)} World {bar} - {1}'
+            while (i < length) {
+                c = text[i];
+                lastEscaped = escaped;
+                escaped = escapes && c === esc;
+
+                if (escaped) {
+                    c = text[i + 1];
+                    ++i;
+                }
+                else if (c === lit && prev === lit && !lastEscaped) {
+                    current = current.slice(0, -1);
+                    current += text.substring(i + 1);
+
+                    break;
+                }
+                else if (c === '{') {
+                    if (current) {
+                        buffer[pos++] = current;
+                        current = '';
                     }
-                    //</debug>
-                    slot.scope = Ext.util.Format;
+
+                    // parse expression
+                    parser.reset(text, i + 1);
+                    i = me.parseExpression(parser, pos);
+                    ++pos;
+
+                    continue;
                 }
 
-                me.parseArgs(match[4], slot);
+                current += c;
+                ++i;
+                prev = c;
             }
 
-            slots[pos++] = slot;
-        }
-
-        if (last < text.length) {
-            buffer[pos++] = text.substring(last);
-        }
-
-        return me;
-    },
-
-    parseArgs: function (argsString, slot) {
-        var me = this,
-            numberRe = me.numberRe,
-            stringRe = me.stringRe,
-            arg, args, i, length;
-
-        if (!argsString) {
-            args = [];
-        } else if (argsString.indexOf(',') < 0) {
-            args = [argsString];
-        } else {
-            args = argsString.split(',');
-        }
-
-        slot = slot || {};
-        length = args.length;
-        slot.args = args;
-
-        for (i = 0; i < length; ++i) {
-            arg = args[i];
-            if (arg === 'true') {
-                args[i] = true;
-            } else if (arg === 'false') {
-                args[i] = false;
-            } else if (arg === 'null') {
-                args[i] = null;
-            } else if (numberRe.test(arg)) {
-                args[i] = parseFloat(arg);
-            } else if (stringRe.test(arg)) {
-                args[i] = arg.substring(1, arg.length - 1);
-            } else {
-                slot.fn = Ext.functionFactory('return ['+  argsString +'];');
-                slot.format = me._formatEval;
-                break;
+            if (current) {
+                buffer[pos] = current;
             }
+
+            parser.release();
+
+            me.single = buffer.length === 0 && slots.length === 1;
+
+            return me;
+        },
+
+        parseExpression: function(parser, pos) {
+            var i;
+
+            this.slots[pos] = parser.compileExpression(this.tokens, this.tokensMap);
+
+            i = parser.token.at + 1; // skip over the "}" token
+            parser.expect('}'); // ensure the next token is "}"
+
+            return i;
         }
 
-        if (!slot.format) {
-            // make room for the value at index 0
-            args.unshift(0);
-            slot.format = me._formatArgs;
-        }
-
-        return slot;
-    },
-
-    /**
-     * This method parses token formats and returns an object with a `format` method that
-     * can format values accordingly.
-     * @param {String} fmt The format suffix of a template token. For example, in the
-     * token "{foo:round(2)}" the format is "round(2)".
-     * @return {Object} An object with a `format` method to format values.
-     * @private
-     * @since 5.0.0
-     */
-    parseFormat: function (fmt) {
-        var me = this,
-            match = me.formatRe.exec(fmt),
-            slot = {
-                fmt: fmt,
-                scope: Ext.util.Format
-            },
-            args;
-
-        //<debug>
-        if (!match) {
-            Ext.raise('Invalid format syntax: "' + slot + '"');
-        }
-        //</debug>
-
-        args = match[2];
-        if (args) {
-            slot.fmt = match[1];
-            me.parseArgs(args, slot);
-        } else {
-            slot.args = [0]; // for the value
-            slot.format = me._formatArgs;
-        }
-
-        return slot;
-    },
-
-    /**
-     * This method is placed on an entry in `slots` as the `format` method when that entry
-     * has `args` that could be parsed from the template.
-     * @param {Object} value The value of the token.
-     * @param {Object} [scope] The object instance to use for "this." formatter calls in the
-     * template.
-     * @return {String} The formatted result to place in `buffer`.
-     * @private
-     * @since 5.0.0
-     */
-    _formatArgs: function (value, scope) {
-        // NOTE: our "this" pointer is the object in the "slots" array!
-        scope = this.scope || scope;
-        this.args[0] = value; // index 0 is reserved for the value
-        return scope[this.fmt].apply(scope, this.args);
-    },
-
-    /**
-     * This method is placed on an entry in `slots` as the `format` method when that entry
-     * does not have a parsed `args` array.
-     * @param {Object} value The value of the token.
-     * @param {Object} [scope] The object instance to use for "this." formatter calls in the
-     * template.
-     * @return {String} The formatted result to place in `buffer`.
-     * @private
-     * @since 5.0.0
-     */
-    _formatEval: function (value, scope) {
-        // NOTE: our "this" pointer is the object in the "slots" array!
-        var args = this.fn(); // invoke to get the args array
-        args.unshift(value); // inject the value at the front
-        scope = this.scope || scope;
-        return scope[this.fmt].apply(scope, args);
     }
 });

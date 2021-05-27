@@ -15,7 +15,8 @@ Ext.define('KitchenSink.view.main.MainController', {
             refs['navigation-toolbar'].hide();
             refs.contentPanel.header.hidden = false;
             this._hasTreeNav = true;
-        } else {
+        }
+        else {
             this._hasTreeNav = false;
         }
     },
@@ -27,49 +28,58 @@ Ext.define('KitchenSink.view.main.MainController', {
     },
 
     showBreadcrumbNav: function() {
-        var refs = this.getReferences(),
+        var me = this,
+            refs = me.getReferences(),
             navToolbar = refs['navigation-toolbar'],
-            treeNav = refs.tree;
+            treeNav = refs.tree,
+            viewModel = me.getViewModel(),
+            selectedView = viewModel.get('selectedView'),
+            selection = me.preFilterSelection;
 
         Ext.suspendLayouts();
 
         if (navToolbar) {
             navToolbar.show();
-        } else {
+        }
+        else {
             refs.contentPanel.addDocked({
                 xtype: 'navigation-toolbar'
             });
         }
 
+        if (!selectedView && selection) {
+            viewModel.set('selectedView', selection);
+        }
+
         treeNav.hide();
         refs.contentPanel.getHeader().hide();
 
-        this._hasTreeNav = false;
-        this.getView().saveState();
+        me._hasTreeNav = false;
+        me.getView().saveState();
         Ext.resumeLayouts(true);
 
         // Ensure focus is not lost when treeNav panel is hidden
-        refs.breadcrumb.child(':last').focus();
+        navToolbar.child(':last').focus();
     },
 
     showTreeNav: function() {
         var refs = this.getReferences(),
             treeNav = refs.tree,
             navToolbar = refs['navigation-toolbar'],
-            selection = refs.breadcrumb.getSelection();
+            selection = navToolbar.getSelection();
 
         Ext.suspendLayouts();
 
         if (treeNav) {
             treeNav.show();
-        } else {
+        }
+        else {
             treeNav = this.getView().moveBefore({
                 region: 'west',
                 reference: 'tree',
                 xtype: 'navigation-tree'
             }, refs.contentPanel);
         }
-
 
         navToolbar.hide();
         refs.contentPanel.getHeader().show();
@@ -78,8 +88,9 @@ Ext.define('KitchenSink.view.main.MainController', {
         this.getView().saveState();
         Ext.resumeLayouts(true);
 
-        // Ensure NavTree scrolls to show the selection and that focus is not lost
-        if (selection) {
+        // Ensure NavTree scrolls to show the selection and that focus is not lost.
+        // Unless the selection is currently filtered out
+        if (selection && treeNav.store.contains(selection)) {
             treeNav.ensureVisible(selection.isRoot() ? treeNav.store.getAt(0) : selection, {
                 focus: true
             });
@@ -92,22 +103,25 @@ Ext.define('KitchenSink.view.main.MainController', {
 
     onNavFilterFieldChange: function(field, value) {
         var me = this,
-            tree = me.getReferences().tree;
+            tree = me.getReferences().tree,
+            store = tree.getStore(),
+            selection = me.preFilterSelection;
 
         if (value) {
             me.preFilterSelection = me.getViewModel().get('selectedView');
-            me.rendererRegExp = new RegExp( '(' + value + ')', "gi");
+            me.rendererRegExp = new RegExp('(' + value + ')', "gi");
             field.getTrigger('clear').show();
             me.filterStore(value);
-        } else {
+        }
+        else {
             me.rendererRegExp = null;
-            tree.store.clearFilter();
+            store.clearFilter();
             field.getTrigger('clear').hide();
 
             // Ensure selection is still selected.
             // It may have been evicted by the filter
-            if (me.preFilterSelection) {
-                    tree.ensureVisible(me.preFilterSelection, {
+            if (selection && selection !== store.getRoot() && store.contains(selection)) {
+                tree.ensureVisible(selection, {
                     select: true
                 });
             }
@@ -126,56 +140,51 @@ Ext.define('KitchenSink.view.main.MainController', {
 
     filterStore: function(value) {
         var me = this,
-            tree = me.getReferences().tree,
-            store = tree.store,
-            searchString = value.toLowerCase(),
-            filterFn = function(node) {
-                var children = node.childNodes,
-                    len      = children && children.length,
-                    visible  = v.test(node.get('text')),
-                    i;
+            tree = me.lookup('tree'),
+            store = tree.getStore();
 
-                // If the current node does NOT match the search condition
-                // specified by the user...
-                if ( !visible ) {
-
-                    // Check to see if any of the child nodes of this node
-                    // match the search condition.  If they do then we will
-                    // mark the current node as visible as well.
-                    for (i = 0; i < len; i++) {
-                        if ( children[i].isLeaf() ) {
-                            visible = children[i].get('visible');
-                        }
-                        else {
-                            visible = filterFn(children[i]);
-                        }
-                        if (visible) {
-                            break;
-                        }
-                    }
-
-                }
-
-                else { // Current node matches the search condition...
-
-                    // Force all of its child nodes to be visible as well so
-                    // that the user is able to select an example to display.
-                    for (i = 0; i < len; i++) {
-                        children[i].set('visible', true );
-                    }
-
-                }
-
-                return visible;
-            }, v;
-
-        if (searchString.length < 1) {
+        if (value.length < 1) {
             store.clearFilter();
-        } else {
-            v = new RegExp(searchString, 'i');
+        }
+        else {
             store.getFilters().replaceAll({
-                filterFn: filterFn
+                property: 'text',
+                value: new RegExp(Ext.String.escapeRegex(value), 'i')
             });
+        }
+    },
+
+    colorchange: function(menu, item) {
+        var darkMode = this.lookup('darkMode').getValue();
+
+        if (item && item.xtype === 'menuitem') {
+            this.updateMaterialTheme(darkMode, item.baseColor, item.accentColor);
+        }
+    },
+
+    changeDarkMode: function(checkbox, newValue, oldValue, eOpts) {
+        this.updateMaterialTheme(newValue);
+        Ext.getBody().toggleCls('dark-mode', newValue);
+        checkbox.ownerCt.hide();
+    },
+
+    updateMaterialTheme: function(darkMode, base, accent) {
+        var me = this;
+
+        if (Ext.theme.Material) {
+            Ext.theme.Material.setColors({
+                'darkMode': darkMode,
+                'base': base || me._materialBaseColor,
+                'accent': accent || me._materialAccentColor
+            });
+        }
+
+        if (base) {
+            me._materialBaseColor = base;
+        }
+
+        if (accent) {
+            me._materialAccentColor = accent;
         }
     }
 });

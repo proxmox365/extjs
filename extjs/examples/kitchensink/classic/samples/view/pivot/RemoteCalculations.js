@@ -13,112 +13,9 @@ Ext.define('KitchenSink.view.pivot.RemoteCalculations', {
     controller: 'remotecalculations',
 
     requires: [
-        'KitchenSink.view.pivot.RemoteCalculationsController'
+        'KitchenSink.view.pivot.RemoteCalculationsController',
+        'Ext.pivot.plugin.DrillDown'
     ],
-
-    title: 'Remote calculations',
-    collapsible: true,
-    multiSelect: true,
-    height: 350,
-
-    selModel: {
-        type: 'spreadsheet'
-    },
-
-    // Set matrix specific configuration
-    matrixConfig: {
-        type:   'remote',
-        url:    '/KitchenSink/RemoteSalesData'
-    },
-
-    plugins: [{
-        ptype: 'pivotdrilldown',
-        // define the columns used by the grid
-        columns: [
-            {dataIndex: 'company', text: 'Company'},
-            {dataIndex: 'continent', text: 'Continent'},
-            {dataIndex: 'country', text: 'Country'},
-            {dataIndex: 'person', text: 'Person'},
-            {dataIndex: 'date', text: 'Date', xtype: 'datecolumn'},
-            {dataIndex: 'value', text: 'Value', xtype: 'numbercolumn', align: 'right'},
-            {dataIndex: 'quantity', text: 'Qty', xtype: 'numbercolumn', align: 'right'},
-            {dataIndex: 'year', text: 'Year', xtype: 'numbercolumn', formatter: 'number(0)', align: 'right'},
-            {dataIndex: 'month', text: 'Month', xtype: 'numbercolumn', formatter: 'number(0)', align: 'right'}
-        ],
-
-        // define a remote store that will be used to filter the records
-        remoteStore: {
-            model: 'KitchenSink.model.pivot.Sale',
-
-            proxy: {
-                // load using HTTP
-                type: 'ajax',
-                url: '/KitchenSink/RemoteSalesData',
-                // the return will be JSON, so lets set up a reader
-                reader: {
-                    type: 'json',
-                    rootProperty: 'data'
-                }
-            }
-        }
-    }],
-
-    // Set layout type to "outline". If this config is missing then the default layout is "outline"
-    viewLayoutType: 'outline',
-
-    // Set this to false if multiple dimensions are configured on leftAxis and
-    // you want to automatically expand the row groups when calculations are ready.
-    startRowGroupsCollapsed: false,
-
-    // Configure the aggregate dimensions. Multiple dimensions are supported.
-    aggregate: [{
-        // id was provided for a better understanding of the JSON response
-        id:         'valueAgg',
-        dataIndex:  'value',
-        header:     'Sum of value',
-        aggregator: 'sum',
-        width:      90
-    },{
-        // id was provided for a better understanding of the JSON response
-        id:         'countAgg',
-        dataIndex:  'id',
-        header:     'Count',
-        aggregator: 'count',
-        width:      80
-    }],
-
-    // Configure the left axis dimensions that will be used to generate the grid rows
-    leftAxis: [{
-        // id was provided for a better understanding of the JSON response
-        id:         'person',
-        dataIndex:  'person',
-        header:     'Person',
-        width:      80
-    },{
-        // id was provided for a better understanding of the JSON response
-        id:         'company',
-        dataIndex:  'company',
-        header:     'Company',
-        sortable:   false,
-        width:      80
-    }],
-
-    /**
-     * Configure the top axis dimensions that will be used to generate the columns.
-     * When columns are generated the aggregate dimensions are also used. If multiple aggregation dimensions
-     * are defined then each top axis result will have in the end a column header with children
-     * columns for each aggregate dimension defined.
-     */
-    topAxis: [{
-        // id was provided for a better understanding of the JSON response
-        id:         'country',
-        dataIndex:  'country',
-        header:     'Country'
-    }],
-
-    listeners: {
-        pivotdone:  'onPivotDone'
-    },
 
     //<example>
     otherContent: [{
@@ -127,19 +24,150 @@ Ext.define('KitchenSink.view.pivot.RemoteCalculations', {
     }],
     profiles: {
         classic: {
-            width: 600
+            width: 600,
+            height: 350,
+            totalColumnWidth: 90,
+            companyColumnWidth: 80,
+            columnLines: true
         },
         neptune: {
-            width: 750
+            width: 750,
+            height: 400,
+            totalColumnWidth: 90,
+            companyColumnWidth: 80,
+            columnLines: true
+        },
+        graphite: {
+            width: 750,
+            height: 600,
+            totalColumnWidth: 120,
+            companyColumnWidth: 120,
+            columnLines: true
+        },
+        'classic-material': {
+            width: 800,
+            height: 600,
+            totalColumnWidth: 150,
+            companyColumnWidth: 150,
+            columnLines: false
         }
     },
     //</example>
 
-    initComponent: function () {
-        var me = this;
+    title: 'Remote calculations',
+    width: '${width}',
+    height: '${height}',
+    collapsible: true,
+    multiSelect: true,
+    columnLines: '${columnLines}',
 
-        me.width = me.profileInfo.width;
+    selModel: {
+        type: 'spreadsheet'
+    },
 
-        me.callParent();
+    plugins: {
+        pivotdrilldown: {
+            // define the columns used by the grid
+            columns: [
+                { dataIndex: 'company', text: 'Company' },
+                { dataIndex: 'continent', text: 'Continent' },
+                { dataIndex: 'country', text: 'Country' },
+                { dataIndex: 'person', text: 'Person' },
+                { dataIndex: 'date', text: 'Date', xtype: 'datecolumn' },
+                { dataIndex: 'value', text: 'Value', xtype: 'numbercolumn', align: 'right' },
+                { dataIndex: 'quantity', text: 'Qty', xtype: 'numbercolumn', align: 'right' },
+                { dataIndex: 'year', text: 'Year', xtype: 'numbercolumn', formatter: 'number(0)', align: 'right' },
+                { dataIndex: 'month', text: 'Month', xtype: 'numbercolumn', formatter: 'number(0)', align: 'right' }
+            ],
+
+            // define a remote store that will be used to filter the records
+            remoteStore: {
+                model: 'KitchenSink.model.pivot.Sale',
+
+                proxy: {
+                    // load using HTTP
+                    type: 'ajax',
+                    url: '/KitchenSink/RemoteSalesData',
+                    // the return will be JSON, so lets set up a reader
+                    reader: {
+                        type: 'json',
+                        rootProperty: 'data'
+                    }
+                }
+            }
+        }
+    },
+
+    // Set this to false if multiple dimensions are configured on leftAxis and
+    // you want to automatically expand the row groups when calculations are ready.
+    startRowGroupsCollapsed: false,
+
+    // Set matrix specific configuration
+    matrix: {
+        type: 'remote',
+        url: '/KitchenSink/RemoteSalesData',
+        // Check remote.php script available in the "server" folder of the
+        // "pivot" package
+        // Beware that you also need to change the remoteStore of the
+        // DrillDown plugin to point to another script that filters that table.
+        // url: 'path_to_remote.php'
+
+        // Set layout type to "outline". If this config is missing then
+        // the default layout is "outline"
+        viewLayoutType: 'outline',
+
+        // Configure the aggregate dimensions. Multiple dimensions are supported.
+        aggregate: [{
+            // id was provided for a better understanding of the JSON response
+            id: 'valueAgg',
+            dataIndex: 'value',
+            header: 'Total',
+            aggregator: 'sum',
+            width: '${totalColumnWidth}'
+        }, {
+            // id was provided for a better understanding of the JSON response
+            id: 'countAgg',
+            dataIndex: 'id',
+            header: 'Count',
+            aggregator: 'count',
+            width: 80
+        }],
+
+        // Configure the left axis dimensions that will be used to generate
+        // the grid rows
+        leftAxis: [{
+            // id was provided for a better understanding of the JSON response
+            id: 'person',
+            dataIndex: 'person',
+            header: 'Person',
+            width: 80
+        }, {
+            // id was provided for a better understanding of the JSON response
+            id: 'company',
+            dataIndex: 'company',
+            header: 'Company',
+            sortable: false,
+            width: '${companyColumnWidth}'
+        }],
+
+        /**
+         * Configure the top axis dimensions that will be used to generate
+         * the columns.
+         *
+         * When columns are generated the aggregate dimensions are also used.
+         * If multiple aggregation dimensions are defined then each top axis
+         * result will have in the end a column header with children columns
+         * for each aggregate dimension defined.
+         */
+        topAxis: [{
+            // id was provided for a better understanding of the JSON response
+            id: 'country',
+            dataIndex: 'country',
+            header: 'Country'
+        }]
+    },
+
+    listeners: {
+        pivotdone: 'onPivotDone'
     }
 });

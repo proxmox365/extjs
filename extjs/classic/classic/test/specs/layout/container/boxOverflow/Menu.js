@@ -1,4 +1,6 @@
-describe('Ext.layout.container.boxOverflow.Menu', function () {
+topSuite("Ext.layout.container.boxOverflow.Menu",
+    ['Ext.toolbar.Toolbar', 'Ext.Button', 'Ext.form.field.Text'],
+function() {
     var toolbar;
 
     function createToolbar(cfg) {
@@ -14,7 +16,7 @@ describe('Ext.layout.container.boxOverflow.Menu', function () {
         }, cfg || {}));
     }
 
-    afterEach(function () {
+    afterEach(function() {
         Ext.destroy(toolbar);
         toolbar = null;
     });
@@ -44,8 +46,8 @@ describe('Ext.layout.container.boxOverflow.Menu', function () {
         expect(button.getMenu().isVisible(true)).toBe(true);
     });
 
-    describe('addComponentToMenu', function () {
-        it('should create an overflowClone bound to each toolbar item', function () {
+    describe('addComponentToMenu', function() {
+        it('should create an overflowClone bound to each toolbar item', function() {
             createToolbar();
 
             toolbar.layout.overflowHandler.menu.show();
@@ -53,7 +55,7 @@ describe('Ext.layout.container.boxOverflow.Menu', function () {
             expect(toolbar.items.getAt(0).overflowClone).toBeDefined();
         });
 
-        it('should create an overflowClone bound to each toolbar item that is a reference to each menu item', function () {
+        it('should create an overflowClone bound to each toolbar item that is a reference to each menu item', function() {
             var menu, item;
 
             createToolbar();
@@ -68,8 +70,8 @@ describe('Ext.layout.container.boxOverflow.Menu', function () {
         });
     });
 
-    describe('createMenuConfig', function () {
-        it('should have same state as its complement toolbar item', function () {
+    describe('createMenuConfig', function() {
+        it('should have same state as its complement toolbar item', function() {
             var toolbarItems, overflowHandler, menuItems;
 
             createToolbar({
@@ -98,7 +100,38 @@ describe('Ext.layout.container.boxOverflow.Menu', function () {
             expect(menuItems.getAt(1).checked).toBe(false);
         });
 
-        it('should not overwrite listeners config defined on the original component', function () {
+        it('should be able to enable/disable a component', function() {
+            var toolbarItems, overflowHandler, menuItems;
+
+            createToolbar({
+                items: [{
+                    xtype: 'checkboxfield',
+                    name: 'check1',
+                    itemId: 'check1'
+                }, {
+                    xtype: 'checkboxfield',
+                    name: 'check2',
+                    itemId: 'check2',
+                    checked: true,
+                    disabled: true
+                }]
+            });
+
+            toolbarItems = toolbar.items;
+
+            overflowHandler = toolbar.layout.overflowHandler;
+            menuItems = overflowHandler.menu.items;
+
+            overflowHandler.menu.show();
+
+            toolbarItems.getAt(0).setDisabled(true);
+            toolbarItems.getAt(1).setDisabled(false);
+
+            expect(menuItems.getAt(0).disabled).toBe(true);
+            expect(menuItems.getAt(1).disabled).toBe(false);
+        });
+
+        it('should not overwrite listeners config defined on the original component', function() {
             // This test demonstrates that the menu item created from the original component's config
             // will receive any listeners defined in the item's listeners config.
             var wasClicked = false,
@@ -109,7 +142,7 @@ describe('Ext.layout.container.boxOverflow.Menu', function () {
                     // Button by default.
                     xtype: 'button',
                     listeners: {
-                        click: function () {
+                        click: function() {
                             wasClicked = true;
                         }
                     }
@@ -121,6 +154,30 @@ describe('Ext.layout.container.boxOverflow.Menu', function () {
             jasmine.fireMouseEvent(menu.items.getAt(0).el, 'click');
 
             expect(wasClicked).toBe(true);
+        });
+
+        it('should apply overflowText if defined', function() {
+            var overflowHandler, menuItems;
+
+            createToolbar({
+                items: [{
+                    text: 'Item One'
+                }, {
+                    text: 'Item Two',
+                    overflowText: 'Two'
+                }, {
+                    overflowText: 'Three'
+                }]
+            });
+
+            overflowHandler = toolbar.layout.overflowHandler;
+            menuItems = overflowHandler.menu.items;
+
+            overflowHandler.menu.show();
+
+            expect(menuItems.getAt(0).text).toBe('Item One');
+            expect(menuItems.getAt(1).text).toBe('Two');
+            expect(menuItems.getAt(2).text).toBe('Three');
         });
     });
 
@@ -137,15 +194,15 @@ describe('Ext.layout.container.boxOverflow.Menu', function () {
             });
             overflowHandler = toolbar.layout.overflowHandler;
             master = toolbar.down('#text1');
-            
+
             overflowHandler.menu.show();
             clone = overflowHandler.menu.down('[name=text1]');
 
             // Check syncing both ways
             master.setValue('foo');
-            expect(clone.getValue()).toBe('foo');            
+            expect(clone.getValue()).toBe('foo');
             clone.setValue('bar');
-            expect(master.getValue()).toBe('bar')
+            expect(master.getValue()).toBe('bar');
         });
     });
 });

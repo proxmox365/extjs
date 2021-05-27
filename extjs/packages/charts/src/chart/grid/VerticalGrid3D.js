@@ -20,22 +20,7 @@ Ext.define('Ext.chart.grid.VerticalGrid3D', {
         }
     },
 
-    render_: function (surface, ctx, clipRect) {
-        var attr = this.attr,
-            x = surface.roundPixel(attr.x),
-            halfLineWidth = ctx.lineWidth * 0.5;
-
-        ctx.beginPath();
-        ctx.rect(x - halfLineWidth, clipRect[1] - surface.matrix.getDY(), attr.width, clipRect[3]);
-        ctx.fill();
-
-        ctx.beginPath();
-        ctx.moveTo(x - halfLineWidth, clipRect[1] - surface.matrix.getDY());
-        ctx.lineTo(x - halfLineWidth, clipRect[1] + clipRect[3] - surface.matrix.getDY());
-        ctx.stroke();
-    },
-
-    render: function (surface, ctx, clipRect) {
+    render: function(surface, ctx, clipRect) {
         var attr = this.attr,
             x = surface.roundPixel(attr.x),
             dy = surface.matrix.getDY(),
@@ -51,7 +36,7 @@ Ext.define('Ext.chart.grid.VerticalGrid3D', {
         // Vertical stripe.
 
         left = x - halfLineWidth + depth;
-        top  = clipRect[1] - depth - dy;
+        top = clipRect[1] - depth - dy;
 
         ctx.beginPath();
         ctx.rect(left, top, width, clipRect[3]);
@@ -67,23 +52,23 @@ Ext.define('Ext.chart.grid.VerticalGrid3D', {
         // Diagonal stripe.
 
         left = x - halfLineWidth;
-        top  = clipRect[3];
+        top = clipRect[3];
 
         ctx.beginPath();
-        ctx.moveTo(left,                 top);
-        ctx.lineTo(left + depth,         top - depth);
+        ctx.moveTo(left, top);
+        ctx.lineTo(left + depth, top - depth);
         ctx.lineTo(left + depth + width, top - depth);
-        ctx.lineTo(left + width,         top);
+        ctx.lineTo(left + width, top);
         ctx.closePath();
         ctx.fill();
 
         // Diagonal line.
 
         left = x - halfLineWidth;
-        top  = clipRect[3];
+        top = clipRect[3];
 
         ctx.beginPath();
-        ctx.moveTo(left,         top);
+        ctx.moveTo(left, top);
         ctx.lineTo(left + depth, top - depth);
         ctx.stroke();
     }

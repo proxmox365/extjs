@@ -5,43 +5,10 @@
  * progress bar as needed from your own code. This method is most appropriate when you
  * want to show progress throughout an operation that has predictable points of interest
  * at which you can update the control.
- *
- *     @example
- *     var store = Ext.create('Ext.data.Store', {
- *         fields: ['name', 'progress'],
- *         data: [
- *             { name: 'Lisa', progress: .159 },
- *             { name: 'Bart', progress: .216 },
- *             { name: 'Homer', progress: .55 },
- *             { name: 'Maggie', progress: .167 },
- *             { name: 'Marge', progress: .145 }
- *         ]
- *     });
- *
- *     Ext.create('Ext.grid.Panel', {
- *         title: 'Simpsons',
- *         store: store,
- *         columns: [
- *             { text: 'Name',  dataIndex: 'name' },
- *             {
- *                 text: 'Progress',
- *                 xtype: 'widgetcolumn',
- *                 width: 120,
- *                 dataIndex: 'progress',
- *                 widget: {
- *                     xtype: 'progress'
- *                 }
- *             }
- *         ],
- *         height: 200,
- *         width: 400,
- *         renderTo: Ext.getBody()
- *     });
- *
  */
 Ext.define('Ext.Progress', {
-    extend: 'Ext.Widget',
-    xtype: [ 'progress', 'progressbarwidget' ],
+    extend: 'Ext.Gadget',
+    xtype: ['progress', 'progressbarwidget'],
     alternateClassName: 'Ext.ProgressBarWidget',
 
     mixins: [
@@ -63,38 +30,24 @@ Ext.define('Ext.Progress', {
     },
 
     cachedConfig: {
-        /**
-         * @cfg {String} [baseCls='x-progress']
-         * The base CSS class to apply to the progress bar's wrapper element.
-         */
-        baseCls: Ext.baseCSSPrefix + 'progress',
-
         textCls: Ext.baseCSSPrefix + 'progress-text',
 
-        cls: null,
-
-        ui: null
+        cls: null
     },
+
+    baseCls: Ext.baseCSSPrefix + 'progress',
 
     template: [{
         reference: 'backgroundEl'
     }, {
         reference: 'barEl',
+        cls: Ext.baseCSSPrefix + 'progress-bar',
         children: [{
             reference: 'textEl'
         }]
     }],
 
     defaultBindProperty: 'value',
-
-    updateWidth: function(width, oldWidth) {
-        var me = this;
-
-        me.callParent([width, oldWidth]);
-        width -= me.element.getBorderWidth('lr');
-        me.backgroundEl.setWidth(width);
-        me.textEl.setWidth(width);
-    },
 
     updateCls: function(cls, oldCls) {
         var el = this.element;
@@ -111,7 +64,9 @@ Ext.define('Ext.Progress', {
     updateUi: function(ui, oldUi) {
         var element = this.element,
             barEl = this.barEl,
-            baseCls = this.getBaseCls() + '-';
+            baseCls = this.baseCls + '-';
+
+        this.callParent([ui, oldUi]);
 
         if (oldUi) {
             element.removeCls(baseCls + oldUi);
@@ -122,16 +77,6 @@ Ext.define('Ext.Progress', {
         barEl.addCls(baseCls + 'bar-' + ui);
     },
 
-    updateBaseCls: function(baseCls, oldBaseCls) {
-        //<debug>
-        if (oldBaseCls) {
-            Ext.raise('You cannot configure baseCls - use a subclass');
-        }
-        //</debug>
-        this.element.addCls(baseCls);
-        this.barEl.addCls(baseCls + '-bar');
-    },
-
     updateTextCls: function(textCls) {
         this.backgroundEl.addCls(textCls + ' ' + textCls + '-back');
         this.textEl.addCls(textCls);
@@ -139,7 +84,6 @@ Ext.define('Ext.Progress', {
 
     updateValue: function(value, oldValue) {
         var me = this,
-            barEl = me.barEl,
             textTpl = me.getTextTpl();
 
         if (textTpl) {
@@ -148,9 +92,10 @@ Ext.define('Ext.Progress', {
                 percent: Math.round(value * 100)
             }));
         }
-        if (me.getAnimate()) {
-            barEl.stopAnimation();
-            barEl.animate(Ext.apply({
+
+        if (!me.isConfiguring && me.getAnimate()) {
+            me.stopBarAnimation();
+            me.startBarAnimation(Ext.apply({
                 from: {
                     width: (oldValue * 100) + '%'
                 },
@@ -158,13 +103,24 @@ Ext.define('Ext.Progress', {
                     width: (value * 100) + '%'
                 }
             }, me.animate));
-        } else {
-            barEl.setStyle('width', (value * 100) + '%');
+        }
+        else {
+            me.barEl.setStyle('width', (value * 100) + '%');
         }
     },
 
     updateText: function(text) {
         this.backgroundEl.setHtml(text);
         this.textEl.setHtml(text);
+    },
+
+    doDestroy: function() {
+        this.stopBarAnimation();
+        this.callParent();
+    },
+
+    privates: {
+        startBarAnimation: Ext.privateFn,
+        stopBarAnimation: Ext.privateFn
     }
 });

@@ -1,35 +1,11 @@
-/**
- * @class Ext.Toolbar
- */
-
-.x-toolbar {
+.#{$prefix}toolbar {
+    z-index: 1;
     position: relative;
-    overflow: hidden;
+    overflow: visible;
 }
 
-.x-title {
-    text-align: center;
-    max-width: 100%;
-
-    .x-innerhtml {
-        @include ellipsis;
-    }
-}
-
-.x-navigation-bar {
-    .x-container {
+.#{$prefix}navigation-bar {
+    .#{$prefix}container {
         overflow: visible;
     }
-}
-
-.x-toolbar-inner {
-    .x-field {
-        .x-component-outer {
-            @include st-box-flex(1);
-        }
-    }
-}
-
-.x-ie .x-toolbar-inner {
-    height: 100% !important;
 }

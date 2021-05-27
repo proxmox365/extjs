@@ -6,31 +6,58 @@
 Ext.define('KitchenSink.view.form.RadioGroupForm', {
     extend: 'Ext.form.Panel',
     xtype: 'form-radiogroup',
-    
+
     // This example shares its ViewController with Checkbox Group Form
     controller: 'form-checkboxgroup',
-    
+
     //<example>
     exampleTitle: 'Radio Groups',
     otherContent: [{
-        type: 'ViewController',
+        type: 'Controller',
         path: 'classic/samples/view/form/CheckboxGroupFormController.js'
     }],
     //</example>
-    
+    profiles: {
+        classic: {
+            width: 650,
+            labelWidth: 120,
+            openBoldTag: '',
+            closeBoldTag: '',
+            breakTag: '<br/>'
+        },
+        neptune: {
+            width: 650,
+            labelWidth: 120,
+            openBoldTag: '',
+            closeBoldTag: '',
+            breakTag: '<br/>'
+        },
+        graphite: {
+            width: 750,
+            labelWidth: 150,
+            breakTag: '<br/>'
+        },
+        'classic-material': {
+            width: 750,
+            labelWidth: 150,
+            openBoldTag: '<b>',
+            closeBoldTag: '</b>',
+            breakTag: ''
+        }
+    },
     title: 'Radio Group Example',
     frame: true,
-    width: 650,
+    width: '${width}',
     bodyPadding: 10,
-    
+
     fieldDefaults: {
-        labelWidth: 120
+        labelWidth: '${labelWidth}'
     },
-    
+
     items: [{
-        /*====================================================================
+        /* ====================================================================
          * Individual checkbox/radio examples
-         *====================================================================*/
+         *==================================================================== */
 
         // Using checkbox/radio groups will generally be more convenient and flexible than
         // using individual checkbox and radio controls, but this shows that you can
@@ -54,7 +81,7 @@ Ext.define('KitchenSink.view.form.RadioGroupForm', {
                 name: 'txt-test1',
                 fieldLabel: 'Alignment Test'
             }, {
-                fieldLabel: 'Favorite Animals',
+                fieldLabel: '${openBoldTag} Favorite Animals ${closeBoldTag}',
                 boxLabel: 'Dog',
                 name: 'fav-animal-dog',
                 inputValue: 'dog'
@@ -88,7 +115,7 @@ Ext.define('KitchenSink.view.form.RadioGroupForm', {
                 fieldLabel: 'Alignment Test'
             }, {
                 checked: true,
-                fieldLabel: 'Favorite Color',
+                fieldLabel: '${openBoldTag} Favorite Color ${closeBoldTag}',
                 boxLabel: 'Red',
                 name: 'fav-color',
                 inputValue: 'red'
@@ -103,9 +130,9 @@ Ext.define('KitchenSink.view.form.RadioGroupForm', {
             }]
         }]
     }, {
-        /*====================================================================
+        /* ====================================================================
          * RadioGroup examples
-         *====================================================================*/
+         *==================================================================== */
         // NOTE: These radio examples use the exact same options as the checkbox ones
         // above, so the comments will not be repeated.  Please see comments above for
         // additional explanation on some config options.
@@ -122,66 +149,71 @@ Ext.define('KitchenSink.view.form.RadioGroupForm', {
             xtype: 'textfield',
             name: 'txt-test4',
             fieldLabel: 'Alignment Test'
-        },{
+        }, {
             xtype: 'radiogroup',
             fieldLabel: 'Auto Layout',
             cls: 'x-check-group-alt',
+            name: 'rb-auto',
             items: [
-                {boxLabel: 'Item 1', name: 'rb-auto', inputValue: 1},
-                {boxLabel: 'Item 2', name: 'rb-auto', inputValue: 2, checked: true},
-                {boxLabel: 'Item 3', name: 'rb-auto', inputValue: 3},
-                {boxLabel: 'Item 4', name: 'rb-auto', inputValue: 4},
-                {boxLabel: 'Item 5', name: 'rb-auto', inputValue: 5}
+                { boxLabel: 'Item 1', inputValue: 1 },
+                { boxLabel: 'Item 2', inputValue: 2, checked: true },
+                { boxLabel: 'Item 3', inputValue: 3 },
+                { boxLabel: 'Item 4', inputValue: 4 },
+                { boxLabel: 'Item 5', inputValue: 5 }
             ]
-        },{
+        }, {
             xtype: 'radiogroup',
             fieldLabel: 'Single Column',
             columns: 1,
+            name: 'rb-col',
             items: [
-                {boxLabel: 'Item 1', name: 'rb-col', inputValue: 1},
-                {boxLabel: 'Item 2', name: 'rb-col', inputValue: 2, checked: true},
-                {boxLabel: 'Item 3', name: 'rb-col', inputValue: 3}
+                { boxLabel: 'Item 1', inputValue: 1 },
+                { boxLabel: 'Item 2', inputValue: 2, checked: true },
+                { boxLabel: 'Item 3', inputValue: 3 }
             ]
-        },{
+        }, {
             xtype: 'radiogroup',
             fieldLabel: 'Multi-Column (horizontal)',
             cls: 'x-check-group-alt',
+            name: 'rb-horiz-1',
             columns: 3,
             items: [
-                {boxLabel: 'Item 1', name: 'rb-horiz-1', inputValue: 1},
-                {boxLabel: 'Item 2', name: 'rb-horiz-1', inputValue: 2, checked: true},
-                {boxLabel: 'Item 3', name: 'rb-horiz-1', inputValue: 3},
-                {boxLabel: 'Item 4', name: 'rb-horiz-2', inputValue: 4},
-                {boxLabel: 'Item 5', name: 'rb-horiz-2', inputValue: 5}
+                { boxLabel: 'Item 1', inputValue: 1 },
+                { boxLabel: 'Item 2', inputValue: 2, checked: true },
+                { boxLabel: 'Item 3', inputValue: 3 },
+                { boxLabel: 'Item 4', inputValue: 4 },
+                { boxLabel: 'Item 5', inputValue: 5 }
             ]
-        },{
+        }, {
             xtype: 'radiogroup',
             fieldLabel: 'Multi-Column (vertical)',
+            name: 'rb-vert',
             columns: 3,
             vertical: true,
             items: [
-                {boxLabel: 'Item 1', name: 'rb-vert', inputValue: 1},
-                {boxLabel: 'Item 2', name: 'rb-vert', inputValue: 2, checked: true},
-                {boxLabel: 'Item 3', name: 'rb-vert', inputValue: 3},
-                {boxLabel: 'Item 4', name: 'rb-vert', inputValue: 4},
-                {boxLabel: 'Item 5', name: 'rb-vert', inputValue: 5}
+                { boxLabel: 'Item 1', inputValue: 1 },
+                { boxLabel: 'Item 2', inputValue: 2, checked: true },
+                { boxLabel: 'Item 3', inputValue: 3 },
+                { boxLabel: 'Item 4', inputValue: 4 },
+                { boxLabel: 'Item 5', inputValue: 5 }
             ]
-        },{
+        }, {
             xtype: 'radiogroup',
-            fieldLabel: 'Multi-Column<br />(custom widths)',
+            fieldLabel: 'Multi-Column${breakTag}(custom widths)',
             cls: 'x-check-group-alt',
             columns: [100, 100],
+            name: 'rb-custwidth',
             vertical: true,
             items: [
-                {boxLabel: 'Item 1', name: 'rb-custwidth', inputValue: 1},
-                {boxLabel: 'Item 2', name: 'rb-custwidth', inputValue: 2, checked: true},
-                {boxLabel: 'Item 3', name: 'rb-custwidth', inputValue: 3},
-                {boxLabel: 'Item 4', name: 'rb-custwidth', inputValue: 4},
-                {boxLabel: 'Item 5', name: 'rb-custwidth', inputValue: 5}
+                { boxLabel: 'Item 1', inputValue: 1 },
+                { boxLabel: 'Item 2', inputValue: 2, checked: true },
+                { boxLabel: 'Item 3', inputValue: 3 },
+                { boxLabel: 'Item 4', inputValue: 4 },
+                { boxLabel: 'Item 5', inputValue: 5 }
             ]
-        },{
+        }, {
             xtype: 'radiogroup',
-            fieldLabel: 'Custom Layout<br />(w/ validation)',
+            fieldLabel: 'Custom Layout${breakTag}(w/ validation)',
             allowBlank: false,
             msgTarget: 'side',
             autoFitErrors: false,
@@ -189,29 +221,29 @@ Ext.define('KitchenSink.view.form.RadioGroupForm', {
             layout: 'column',
             defaultType: 'container',
             items: [{
-                columnWidth: .25,
+                columnWidth: 0.25,
                 items: [
-                    {xtype: 'component', html: 'Heading 1', cls:'x-form-check-group-label'},
-                    {xtype: 'radiofield', boxLabel: 'Item 1', name: 'rb-cust', inputValue: 1},
-                    {xtype: 'radiofield', boxLabel: 'Item 2', name: 'rb-cust', inputValue: 2}
+                    { xtype: 'component', html: 'Heading 1', cls: 'x-form-check-group-label' },
+                    { xtype: 'radiofield', boxLabel: 'Item 1', name: 'rb-cust', inputValue: 1 },
+                    { xtype: 'radiofield', boxLabel: 'Item 2', name: 'rb-cust', inputValue: 2 }
                 ]
-            },{
-                columnWidth: .4,
+            }, {
+                columnWidth: 0.5,
                 items: [
-                    {xtype: 'component', html: 'Heading 2', cls:'x-form-check-group-label'},
-                    {xtype: 'radiofield', boxLabel: 'A long item just for fun', name: 'rb-cust', inputValue: 3}
+                    { xtype: 'component', html: 'Heading 2', cls: 'x-form-check-group-label' },
+                    { xtype: 'radiofield', boxLabel: 'A long item just for fun', name: 'rb-cust', inputValue: 3 }
                 ]
-            },{
-                columnWidth: .25,
+            }, {
+                columnWidth: 0.25,
                 items: [
-                    {xtype: 'component', html: 'Heading 3', cls:'x-form-check-group-label'},
-                    {xtype: 'radiofield', boxLabel: 'Item 4', name: 'rb-cust', inputValue: 4},
-                    {xtype: 'radiofield', boxLabel: 'Item 5', name: 'rb-cust', inputValue: 5}
+                    { xtype: 'component', html: 'Heading 3', cls: 'x-form-check-group-label' },
+                    { xtype: 'radiofield', boxLabel: 'Item 4', name: 'rb-cust', inputValue: 4 },
+                    { xtype: 'radiofield', boxLabel: 'Item 5', name: 'rb-cust', inputValue: 5 }
                 ]
             }]
         }]
     }],
-    
+
     buttons: [{
         text: 'Save',
         handler: 'onSaveFormClick'

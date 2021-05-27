@@ -1,24 +1,31 @@
-describe("Ext.Widget", function() {
+/* global Ext, spyOn, jasmine, expect */
 
-    var w;
+topSuite("Ext.Widget.modern",
+    [false, 'Ext.Container', 'Ext.app.ViewModel', 'Ext.app.ViewController'],
+function() {
+    var w, ct;
 
     function makeWidget(cfg) {
-        w = new Ext.Widget(cfg);
+        w = new Ext.Widget(Ext.apply({
+            renderTo: Ext.getBody()
+        }, cfg));
+
         return w;
     }
 
     afterEach(function() {
-        w = Ext.destroy(w);
+        w = ct = Ext.destroy(w, ct);
     });
 
     describe("view controllers", function() {
-        var Controller, spy
+        var Controller, spy;
+
         beforeEach(function() {
             // Suppress console warning about mapping being overridden
             spyOn(Ext.log, 'warn');
 
             spy = jasmine.createSpy();
-            
+
             Controller = Ext.define('spec.TestController', {
                 extend: 'Ext.app.ViewController',
                 alias: 'controller.test',
@@ -28,36 +35,39 @@ describe("Ext.Widget", function() {
                 someFn: function() {}
             });
         });
-        
+
         afterEach(function() {
             Ext.undefine('spec.TestController');
             spy = Controller = null;
             Ext.Factory.controller.instance.clearCache();
         });
-        
+
         describe("initializing", function() {
             it("should accept an alias string", function() {
                 makeWidget({
                     controller: 'test'
-                }); 
-                var controller = w.getController();   
+                });
+                var controller = w.getController();
+
                 expect(controller instanceof spec.TestController).toBe(true);
                 expect(controller.getView()).toBe(w);
             });
-            
+
             it("should accept a controller config", function() {
                 makeWidget({
                     controller: {
                         type: 'test'
                     }
-                });    
-                var controller = w.getController();   
+                });
+                var controller = w.getController();
+
                 expect(controller instanceof spec.TestController).toBe(true);
                 expect(controller.getView()).toBe(w);
-            }); 
-            
+            });
+
             it("should accept a controller instance", function() {
                 var controller = new spec.TestController();
+
                 makeWidget({
                     controller: controller
                 });
@@ -79,13 +89,14 @@ describe("Ext.Widget", function() {
                 expect(spy.callCount).toBe(1);
                 expect(spy.mostRecentCall.args[0]).toBe(w);
             });
-        });  
-        
+        });
+
         it("should destroy the controller when destroying the component", function() {
             makeWidget({
                 controller: 'test'
             });
             var controller = w.getController();
+
             spyOn(controller, 'destroy');
             w.destroy();
             expect(controller.destroy).toHaveBeenCalled();
@@ -104,12 +115,14 @@ describe("Ext.Widget", function() {
                             xtype: 'component'
                         }
                     });
+
                     expect(ct.items.first().lookupController(false)).toBeNull();
                     ct.destroy();
                 });
 
                 it("should return the controller attached to the component when it is at the root", function() {
                     var controller = new spec.TestController();
+
                     makeWidget({
                         controller: controller
                     });
@@ -118,12 +131,14 @@ describe("Ext.Widget", function() {
 
                 it("should return the controller attached to the component when it is in a hierarchy", function() {
                     var controller = new spec.TestController();
+
                     var ct = new Ext.container.Container({
                         items: {
                             xtype: 'component',
                             controller: controller
                         }
                     });
+
                     expect(ct.items.first().lookupController(false)).toBe(controller);
                     ct.destroy();
                 });
@@ -137,6 +152,7 @@ describe("Ext.Widget", function() {
                             xtype: 'component'
                         }
                     });
+
                     expect(ct.items.first().lookupController(false)).toBe(controller);
                     ct.destroy();
                 });
@@ -156,6 +172,7 @@ describe("Ext.Widget", function() {
                             }
                         }
                     });
+
                     expect(ct.down('#x').lookupController(false)).toBe(controller2);
                     ct.destroy();
                 });
@@ -173,12 +190,14 @@ describe("Ext.Widget", function() {
                             xtype: 'component'
                         }
                     });
+
                     expect(ct.items.first().lookupController(true)).toBeNull();
                     ct.destroy();
                 });
 
                 it("should not return the controller attached to the component when it is at the root", function() {
                     var controller = new spec.TestController();
+
                     makeWidget({
                         controller: controller
                     });
@@ -187,12 +206,14 @@ describe("Ext.Widget", function() {
 
                 it("should not return the controller attached to the component when it is in a hierarchy and no controllers exist above it", function() {
                     var controller = new spec.TestController();
+
                     var ct = new Ext.container.Container({
                         items: {
                             xtype: 'component',
                             controller: controller
                         }
                     });
+
                     expect(ct.items.first().lookupController(true)).toBeNull();
                     ct.destroy();
                 });
@@ -206,6 +227,7 @@ describe("Ext.Widget", function() {
                             xtype: 'component'
                         }
                     });
+
                     expect(ct.items.first().lookupController(true)).toBe(controller);
                     ct.destroy();
                 });
@@ -225,6 +247,7 @@ describe("Ext.Widget", function() {
                             }
                         }
                     });
+
                     expect(ct.down('#x').lookupController(true)).toBe(controller2);
                     ct.destroy();
                 });
@@ -232,6 +255,7 @@ describe("Ext.Widget", function() {
 
             it("should default to skipThis: false", function() {
                 var controller = new spec.TestController();
+
                 makeWidget({
                     controller: controller
                 });
@@ -282,10 +306,20 @@ describe("Ext.Widget", function() {
 
         it("should accept an object instance", function() {
             var vm = new spec.ViewModel();
+
             makeWidget({
                 viewModel: vm
             });
             expect(w.getViewModel()).toBe(vm);
+        });
+
+        it("should initialize if there are no binds/publishes", function() {
+            makeWidget({
+                viewModel: {
+                    type: 'test'
+                }
+            });
+            expect(called).toBe(true);
         });
 
         describe("calling initViewController", function() {
@@ -295,6 +329,7 @@ describe("Ext.Widget", function() {
 
             it("should call initViewController when creating an instance", function() {
                 var ctrl = new TestController();
+
                 spyOn(ctrl, 'initViewModel');
                 makeWidget({
                     controller: ctrl,
@@ -355,6 +390,7 @@ describe("Ext.Widget", function() {
         describe("session", function() {
             it("should attach the view model to the session", function() {
                 var session = new Ext.data.Session();
+
                 makeWidget({
                     session: session,
                     viewModel: {}
@@ -364,6 +400,7 @@ describe("Ext.Widget", function() {
 
             it("should attach the view model to a session higher up in the hierarchy", function() {
                 var session = new Ext.data.Session();
+
                 var ct = new Ext.container.Container({
                     session: session,
                     items: {
@@ -371,6 +408,7 @@ describe("Ext.Widget", function() {
                         viewModel: true
                     }
                 });
+
                 expect(ct.items.first().getViewModel().getSession()).toBe(session);
                 ct.destroy();
             });
@@ -387,8 +425,21 @@ describe("Ext.Widget", function() {
                         viewModel: {}
                     }
                 });
+
                 expect(ct.items.first().getViewModel().getSession()).toBe(session2);
                 ct.destroy();
+            });
+        });
+
+        describe("destruction", function() {
+            it("should destroy the viewModel when the component is destroyed", function() {
+                makeWidget({
+                    viewModel: {}
+                });
+                var vm = w.getViewModel();
+
+                w.destroy();
+                expect(vm.destroyed).toBe(true);
             });
         });
     });
@@ -401,6 +452,7 @@ describe("Ext.Widget", function() {
 
         it("should use a passed session", function() {
             var session = new Ext.data.Session();
+
             makeWidget({
                 session: session
             });
@@ -429,7 +481,9 @@ describe("Ext.Widget", function() {
             var session = new Ext.data.Session({
                 autoDestroy: false
             });
+
             var spy = spyOn(session, 'destroy').andCallThrough();
+
             makeWidget({
                 session: session
             });
@@ -448,8 +502,9 @@ describe("Ext.Widget", function() {
                         xtype: 'component'
                     }
                 });
+
                 expect(ct.items.first().lookupSession()).toBe(session);
-                
+
                 ct.destroy();
             });
 
@@ -465,8 +520,9 @@ describe("Ext.Widget", function() {
                 });
 
                 var child = ct.items.first().getSession();
+
                 expect(child.getParent()).toBe(session);
-                
+
                 ct.destroy();
             });
         });
@@ -513,6 +569,7 @@ describe("Ext.Widget", function() {
 
             function makeCls(cfg) {
                 w = new Cls(Ext.apply({
+                    renderTo: Ext.getBody()
                 }, cfg));
                 viewModel = w.getViewModel();
             }
@@ -687,6 +744,259 @@ describe("Ext.Widget", function() {
                     expect(viewModel.get('d')).toBe('baz');
                 });
             });
+        });
+
+        describe("on destruction", function() {
+            beforeEach(function() {
+                Ext.define('spec.BindCls', {
+                    extend: 'Ext.Component',
+                    xtype: 'bindcls',
+                    config: {
+                        test: null
+                    }
+                });
+            });
+
+            afterEach(function() {
+                Ext.undefine('spec.BindCls');
+            });
+
+            it("should remove bindings when children are destroyed", function() {
+                var ct = new Ext.Container({
+                    viewModel: {
+                        data: {
+                            foo: 1
+                        }
+                    },
+                    renderTo: Ext.getBody(),
+                    items: {
+                        xtype: 'bindcls',
+                        bind: {
+                            test: '{foo}'
+                        }
+                    }
+                }),
+vm = ct.getViewModel();
+
+                var c = ct.items.first();
+
+                spyOn(c, 'setTest');
+                vm.notify();
+                expect(c.setTest.callCount).toBe(1);
+                c.setTest.reset();
+                vm.set('foo', 2);
+                // The bind is queued up
+                c.destroy();
+                vm.notify();
+                expect(c.setTest).not.toHaveBeenCalled();
+
+                ct.destroy();
+            });
+        });
+    });
+
+    describe("inheritUi", function() {
+        var child;
+
+        beforeEach(function() {
+            Ext.define('spec.Thingy', {
+                extend: 'Ext.Widget',
+                xtype: 'thingy',
+                classCls: 'x-thingy'
+            });
+        });
+
+        afterEach(function() {
+            Ext.undefine('spec.Thingy');
+            child = Ext.destroy(child);
+        });
+
+        it("should not inherit ui from its container by default", function() {
+            ct = Ext.create({
+                xtype: 'container',
+                renderTo: Ext.getBody(),
+                ui: 'foo',
+                items: [{
+                    xtype: 'thingy'
+                }]
+            });
+
+            expect(ct.items.getAt(0).getUi()).toBe(null);
+            expect(ct.items.getAt(0)).not.toHaveCls('x-thingy-foo');
+        });
+
+        it("should inherit ui from its container when inheritUi is true", function() {
+            ct = Ext.create({
+                xtype: 'container',
+                renderTo: Ext.getBody(),
+                ui: 'foo',
+                items: [{
+                    xtype: 'thingy',
+                    inheritUi: true
+                }]
+            });
+
+            expect(ct.items.getAt(0).getUi()).toBe('foo');
+            expect(ct.items.getAt(0)).toHaveCls('x-thingy-foo');
+        });
+
+        it("should inherit multiple uis", function() {
+            ct = Ext.create({
+                xtype: 'container',
+                renderTo: Ext.getBody(),
+                ui: 'foo bar',
+                items: [{
+                    xtype: 'thingy',
+                    inheritUi: true
+                }]
+            });
+
+            expect(ct.items.getAt(0).getUi()).toBe('foo bar');
+            expect(ct.items.getAt(0)).toHaveCls('x-thingy-foo');
+            expect(ct.items.getAt(0)).toHaveCls('x-thingy-bar');
+        });
+
+        it("should leave the widget's own UI intact", function() {
+            ct = Ext.create({
+                xtype: 'container',
+                renderTo: Ext.getBody(),
+                ui: 'foo bar',
+                items: [{
+                    xtype: 'thingy',
+                    inheritUi: true,
+                    ui: 'baz'
+                }]
+            });
+
+            expect(ct.items.getAt(0).getUi()).toBe('baz foo bar');
+            expect(ct.items.getAt(0)).toHaveCls('x-thingy-foo');
+            expect(ct.items.getAt(0)).toHaveCls('x-thingy-bar');
+            expect(ct.items.getAt(0)).toHaveCls('x-thingy-baz');
+        });
+
+        it("should remove the container's UIs from the widget when the widget is removed", function() {
+            ct = Ext.create({
+                xtype: 'container',
+                renderTo: Ext.getBody(),
+                ui: 'foo bar',
+                items: [{
+                    xtype: 'thingy',
+                    inheritUi: true,
+                    ui: 'bar baz'
+                }]
+            });
+
+            w = ct.items.getAt(0);
+
+            expect(w.getUi()).toBe('bar baz foo');
+            expect(w).toHaveCls('x-thingy-foo');
+            expect(w).toHaveCls('x-thingy-bar');
+            expect(w).toHaveCls('x-thingy-baz');
+
+            ct.remove(w, false);
+
+            expect(w.getUi()).toBe('bar baz');
+            expect(w).not.toHaveCls('x-thingy-foo');
+            expect(w).toHaveCls('x-thingy-bar');
+            expect(w).toHaveCls('x-thingy-baz');
+        });
+
+        it("should continue to inherit the container's UI when the widget's UI changes", function() {
+            ct = Ext.create({
+                xtype: 'container',
+                renderTo: Ext.getBody(),
+                ui: 'foo bar',
+                items: [{
+                    xtype: 'thingy',
+                    inheritUi: true,
+                    ui: 'bar baz'
+                }]
+            });
+
+            w = ct.items.getAt(0);
+
+            w.setUi('cat hat');
+
+            expect(w.getUi()).toBe('cat hat foo bar');
+            expect(w).toHaveCls('x-thingy-foo');
+            expect(w).toHaveCls('x-thingy-bar');
+            expect(w).toHaveCls('x-thingy-cat');
+            expect(w).toHaveCls('x-thingy-hat');
+            expect(w).not.toHaveCls('x-thingy-baz');
+        });
+
+        it("should continue to inherit the container's UI when the widget's UI is nullified", function() {
+            ct = Ext.create({
+                xtype: 'container',
+                renderTo: Ext.getBody(),
+                ui: 'foo bar',
+                items: [{
+                    xtype: 'thingy',
+                    inheritUi: true,
+                    ui: 'bar baz'
+                }]
+            });
+
+            w = ct.items.getAt(0);
+
+            w.setUi(null);
+
+            expect(w.getUi()).toBe('foo bar');
+            expect(w).toHaveCls('x-thingy-foo');
+            expect(w).toHaveCls('x-thingy-bar');
+            expect(w).not.toHaveCls('x-thingy-baz');
+        });
+
+        it("should update the widget's UI when the container UI changes", function() {
+            ct = Ext.create({
+                xtype: 'container',
+                renderTo: Ext.getBody(),
+                ui: 'foo bar',
+                items: [{
+                    xtype: 'thingy',
+                    inheritUi: true,
+                    ui: 'bar baz'
+                }]
+            });
+
+            ct.setUi('who that');
+
+            expect(ct.items.getAt(0).getUi()).toBe('bar baz who that');
+            expect(ct.items.getAt(0)).not.toHaveCls('x-thingy-foo');
+            expect(ct.items.getAt(0)).toHaveCls('x-thingy-bar');
+            expect(ct.items.getAt(0)).toHaveCls('x-thingy-baz');
+            expect(ct.items.getAt(0)).toHaveCls('x-thingy-who');
+            expect(ct.items.getAt(0)).toHaveCls('x-thingy-that');
+        });
+
+        it("should inherit UI recursively when added to a container", function() {
+            ct = Ext.create({
+                xtype: 'container',
+                renderTo: Ext.getBody(),
+                ui: 'foo bar'
+            });
+
+            // widget inherits UI from its parent when "added", then when its parent
+            // is added, it inherits UI from its grandparent
+            child = Ext.create({
+                xtype: 'container',
+                instanceCls: 'x-child',
+                inheritUi: true,
+                items: [{
+                    xtype: 'thingy',
+                    inheritUi: true,
+                    ui: 'baz'
+                }]
+            });
+
+            ct.add(child);
+
+            expect(child.items.getAt(0).getUi()).toBe('baz foo bar');
+            expect(child.items.getAt(0)).toHaveCls('x-thingy-foo');
+            expect(child.items.getAt(0)).toHaveCls('x-thingy-bar');
+            expect(child.items.getAt(0)).toHaveCls('x-thingy-baz');
+            expect(child).toHaveCls('x-child-foo');
+            expect(child).toHaveCls('x-child-bar');
         });
     });
 

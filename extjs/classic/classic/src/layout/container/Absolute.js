@@ -2,8 +2,9 @@
  * This is a layout that inherits the anchoring of {@link Ext.layout.container.Anchor} and adds the
  * ability for x/y positioning using the standard x and y component config options.
  *
- * This class is intended to be extended or created via the {@link Ext.container.Container#layout layout}
- * configuration property.  See {@link Ext.container.Container#layout} for additional details.
+ * This class is intended to be extended or created via the
+ * {@link Ext.container.Container#layout layout} configuration property.
+ * See {@link Ext.container.Container#layout} for additional details.
  *
  *     @example
  *     Ext.create('Ext.form.Panel', {
@@ -60,49 +61,49 @@ Ext.define('Ext.layout.container.Absolute', {
     targetCls: Ext.baseCSSPrefix + 'abs-layout-ct',
     itemCls: Ext.baseCSSPrefix + 'abs-layout-item',
 
-    /**
-     * @cfg {Boolean} ignoreOnContentChange
-     * True indicates that changes to one item in this layout do not effect the layout in
-     * general. This may need to be set to false if the component is
-     * {@link Ext.Component#scrollable scrollable}.
-     */
-    ignoreOnContentChange: true,
-
     type: 'absolute',
 
     /**
      * @private
      */
-    adjustWidthAnchor: function(value, childContext) {
+    adjustWidthAnchor: function(width, childContext) {
         var padding = this.targetPadding,
             x = childContext.getStyle('left');
 
-        return value - x + padding.left;
+        return width - x + padding.left;
     },
 
     /**
      * @private
      */
-    adjustHeightAnchor: function(value, childContext) {
+    adjustHeightAnchor: function(height, childContext) {
         var padding = this.targetPadding,
             y = childContext.getStyle('top');
 
-        return value - y + padding.top;
+        return height - y + padding.top;
     },
 
-    isItemLayoutRoot: function (item) {
-        return this.ignoreOnContentChange || this.callParent(arguments);
-    },
-
-    isItemShrinkWrap: function (item) {
+    isItemShrinkWrap: function(item) {
         return true;
     },
 
-    beginLayout: function (ownerContext) {
+    onContentChange: function(comp, context) {
+        var ret = false;
+
+        // In a vast majority of cases we don't need to run the layout
+        // when the content changes.
+        if (comp.anchor && context && context.show) {
+            ret = this.callParent([comp, context]);
+        }
+
+        return ret;
+    },
+
+    beginLayout: function(ownerContext) {
         var me = this,
             target = me.getTarget();
 
-        me.callParent(arguments);
+        me.callParent([ownerContext]);
 
         // Do not set position: relative; when the absolute layout target is the body
         if (target.dom !== document.body) {
@@ -112,24 +113,17 @@ Ext.define('Ext.layout.container.Absolute', {
         me.targetPadding = ownerContext.targetContext.getPaddingInfo();
     },
 
-    isItemBoxParent: function (itemContext) {
+    isItemBoxParent: function(itemContext) {
         return true;
     },
 
-    onContentChange: function () {
-        if (this.ignoreOnContentChange) {
-            return false;
-        }
-        return this.callParent(arguments);
-    },
-
-    calculateContentSize: function (ownerContext, dimensions) {
+    calculateContentSize: function(ownerContext, dimensions) {
         var me = this,
-            containerDimensions = (dimensions || 0) | // jshint ignore:line
-                   ((ownerContext.widthModel.shrinkWrap ? 1 : 0) | // jshint ignore:line
+            containerDimensions = (dimensions || 0) |
+                   ((ownerContext.widthModel.shrinkWrap ? 1 : 0) |
                     (ownerContext.heightModel.shrinkWrap ? 2 : 0)),
-            calcWidth = (containerDimensions & 1) || undefined,// jshint ignore:line
-            calcHeight = (containerDimensions & 2) || undefined,// jshint ignore:line
+            calcWidth = (containerDimensions & 1) || undefined,
+            calcHeight = (containerDimensions & 2) || undefined,
             childItems = ownerContext.childItems,
             length = childItems.length,
             contentHeight = 0,
@@ -141,14 +135,17 @@ Ext.define('Ext.layout.container.Absolute', {
         if (calcWidth) {
             if (isNaN(props.contentWidth)) {
                 ++needed;
-            } else {
+            }
+            else {
                 calcWidth = undefined;
             }
         }
+
         if (calcHeight) {
             if (isNaN(props.contentHeight)) {
                 ++needed;
-            } else {
+            }
+            else {
                 calcHeight = undefined;
             }
         }
@@ -162,13 +159,14 @@ Ext.define('Ext.layout.container.Absolute', {
                 margins = childContext.getMarginInfo();
 
                 height += margins.bottom;
-                width  += margins.right;
+                width += margins.right;
 
                 contentHeight = Math.max(contentHeight, (child.y || 0) + height);
                 contentWidth = Math.max(contentWidth, (child.x || 0) + width);
 
                 if (isNaN(contentHeight) && isNaN(contentWidth)) {
                     me.done = false;
+
                     return;
                 }
             }
@@ -176,19 +174,15 @@ Ext.define('Ext.layout.container.Absolute', {
             if (calcWidth || calcHeight) {
                 targetPadding = ownerContext.targetContext.getPaddingInfo();
             }
+
             if (calcWidth && !ownerContext.setContentWidth(contentWidth + targetPadding.width)) {
                 me.done = false;
             }
+
+            // eslint-disable-next-line max-len
             if (calcHeight && !ownerContext.setContentHeight(contentHeight + targetPadding.height)) {
                 me.done = false;
             }
-
-            /* add a '/' to turn on this log ('//* enables, '/*' disables)
-            if (me.done) {
-                var el = ownerContext.targetContext.el.dom;
-                Ext.log(this.owner.id, '.contentSize: ', contentWidth, 'x', contentHeight,
-                    ' => scrollSize: ', el.scrollWidth, 'x', el.scrollHeight);
-            }/**/
         }
     }
 });

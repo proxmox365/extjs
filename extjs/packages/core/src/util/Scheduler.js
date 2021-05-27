@@ -68,13 +68,15 @@ Ext.define('Ext.util.Scheduler', {
      */
     suspendOnNotify: true,
 
-    constructor: function (config) {
+    constructor: function(config) {
         //<debug>
         if (Ext.util.Scheduler.instances) {
             Ext.util.Scheduler.instances.push(this);
-        } else {
+        }
+        else {
             Ext.util.Scheduler.instances = [ this ];
         }
+
         this.id = Ext.util.Scheduler.count = (Ext.util.Scheduler.count || 0) + 1;
         //</debug>
 
@@ -83,7 +85,7 @@ Ext.define('Ext.util.Scheduler', {
         this.items = new Ext.util.Bag();
     },
 
-    destroy: function () {
+    destroy: function() {
         var me = this,
             timer = me.timer;
 
@@ -91,6 +93,7 @@ Ext.define('Ext.util.Scheduler', {
             window.clearTimeout(timer);
             me.timer = null;
         }
+
         me.items.destroy();
         me.items = me.orderedItems = null;
 
@@ -109,7 +112,7 @@ Ext.define('Ext.util.Scheduler', {
      * @private
      * @since 5.0.0
      */
-    add: function (item) {
+    add: function(item) {
         var me = this,
             items = me.items;
 
@@ -119,7 +122,7 @@ Ext.define('Ext.util.Scheduler', {
 
         item.id = item.id || ++me.nextId;
         item.scheduler = me;
-        
+
         items.add(item);
 
         if (!me.sortMap) {
@@ -137,7 +140,7 @@ Ext.define('Ext.util.Scheduler', {
      * @private
      * @since 5.0.0
      */
-    remove: function (item) {
+    remove: function(item) {
         var me = this,
             items = me.items;
 
@@ -172,7 +175,7 @@ Ext.define('Ext.util.Scheduler', {
      * @private
      * @since 5.0.0
      */
-    sort: function () {
+    sort: function() {
         var me = this,
             items = me.items,
             sortMap = {},
@@ -195,6 +198,7 @@ Ext.define('Ext.util.Scheduler', {
         // We reference items.length since items can be added during this loop
         for (i = 0; i < items.length; ++i) {
             item = items[i];
+
             if (!sortMap[item.id]) {
                 me.sortItem(item);
             }
@@ -215,7 +219,7 @@ Ext.define('Ext.util.Scheduler', {
      * @return {Ext.util.Scheduler} This instance.
      * @since 5.0.0
      */
-    sortItem: function (item) {
+    sortItem: function(item) {
         var me = this,
             sortMap = me.sortMap,
             orderedItems = me.orderedItems,
@@ -235,9 +239,11 @@ Ext.define('Ext.util.Scheduler', {
         me.sortStack.push(item);
 
         if (sortMap[itemId] === 0) {
+            // eslint-disable-next-line vars-on-top
             for (var cycle = [], i = 0; i < me.sortStack.length; ++i) {
                 cycle[i] = me.sortStack[i].getFullName();
             }
+
             Ext.raise('Dependency cycle detected: ' + cycle.join('\n --> '));
         }
         //</debug>
@@ -277,14 +283,15 @@ Ext.define('Ext.util.Scheduler', {
      * @return {Ext.util.Scheduler} This instance.
      * @since 5.0.0
      */
-    sortItems: function (items) {
+    sortItems: function(items) {
         var me = this,
             sortItem = me.sortItem;
 
         if (items) {
             if (items instanceof Array) {
                 Ext.each(items, sortItem, me);
-            } else {
+            }
+            else {
                 Ext.Object.eachValue(items, sortItem, me);
             }
         }
@@ -292,11 +299,12 @@ Ext.define('Ext.util.Scheduler', {
         return me;
     },
 
-    applyPreSort: function (preSort) {
+    applyPreSort: function(preSort) {
         if (typeof preSort === 'function') {
             return preSort;
         }
 
+        // eslint-disable-next-line vars-on-top
         var parts = preSort.split(','),
             direction = [],
             length = parts.length,
@@ -308,7 +316,8 @@ Ext.define('Ext.util.Scheduler', {
 
             if ((c = s.charAt(0)) === '-') {
                 direction[i] = -1;
-            } else if (c !== '+') {
+            }
+            else if (c !== '+') {
                 c = 0;
             }
 
@@ -317,7 +326,7 @@ Ext.define('Ext.util.Scheduler', {
             }
         }
 
-        return function (lhs, rhs) {
+        return function(lhs, rhs) {
             var ret = 0,
                 i, prop, v1, v2;
 
@@ -342,7 +351,7 @@ Ext.define('Ext.util.Scheduler', {
      *
      * @since 5.0.0
      */
-    notify: function () {
+    notify: function() {
         var me = this,
             timer = me.timer,
             cyclesLeft = me.getCycleLimit(),
@@ -355,76 +364,79 @@ Ext.define('Ext.util.Scheduler', {
             me.timer = null;
         }
 
-        //<debug>
-        if (me.firing) {
-            Ext.raise('Notify cannot be called recursively');
-        }
-        //</debug>
+        // Only process the queue if we are not already notifying
+        // and there are notifications to deliver.
+        if (!me.firing && me.scheduledCount) {
+            if (suspend) {
+                Ext.suspendLayouts();
+            }
 
-        if (suspend) {
-            Ext.suspendLayouts();
-        }
-
-        while (me.scheduledCount) {
-            if (cyclesLeft) {
-                --cyclesLeft;
-            } else {
-                me.firing = null;
-                //<debug>
-                if (me.onCycleLimitExceeded) {
-                    me.onCycleLimitExceeded();
+            while (me.scheduledCount) {
+                if (cyclesLeft) {
+                    --cyclesLeft;
                 }
-                //</debug>
-                break;
-            }
+                else {
+                    me.firing = null;
 
-            if (!firedEvent) {
-                firedEvent = true;
-                if (globalEvents.hasListeners.beforebindnotify) {
-                    globalEvents.fireEvent('beforebindnotify', me);
+                    //<debug>
+                    if (me.onCycleLimitExceeded) {
+                        me.onCycleLimitExceeded();
+                    }
+                    //</debug>
+
+                    break;
                 }
-            }
 
-            ++me.passes;
+                if (!firedEvent) {
+                    firedEvent = true;
 
-            // We need to sort before we start firing because items can be added as we
-            // loop.
-            if (!(queue = me.orderedItems)) {
-                me.sort();
-                queue = me.orderedItems;
-            }
+                    if (globalEvents.hasListeners.beforebindnotify) {
+                        globalEvents.fireEvent('beforebindnotify', me);
+                    }
+                }
 
-            len = queue.length;
-            if (len) {
-                me.firing = me.items;
+                ++me.passes;
 
-                for (i = 0; i < len; ++i) {
-                    item = queue[i];
+                // We need to sort before we start firing because items can be added as we
+                // loop.
+                if (!(queue = me.orderedItems)) {
+                    me.sort();
+                    queue = me.orderedItems;
+                }
 
-                    if (item.scheduled) {
-                        item.scheduled = false;
-                        --me.scheduledCount;
-                        me.notifyIndex = i;
+                len = queue.length;
 
-                        //Ext.log('React: ' + item.getFullName());
-                        // This sequence allows the reaction to schedule items further
-                        // down the queue without a second pass but also to schedule an
-                        // item that is "upstream" or even itself.
-                        item.react();
+                if (len) {
+                    me.firing = me.items;
 
-                        if (!me.scheduledCount) {
-                            break;
+                    for (i = 0; i < len; ++i) {
+                        item = queue[i];
+
+                        if (item.scheduled) {
+                            item.scheduled = false;
+                            --me.scheduledCount;
+                            me.notifyIndex = i;
+
+                            // Ext.log('React: ' + item.getFullName());
+                            // This sequence allows the reaction to schedule items further
+                            // down the queue without a second pass but also to schedule an
+                            // item that is "upstream" or even itself.
+                            item.react();
+
+                            if (!me.scheduledCount) {
+                                break;
+                            }
                         }
                     }
                 }
             }
-        }
 
-        me.firing = null;
-        me.notifyIndex = -1;
+            me.firing = null;
+            me.notifyIndex = -1;
 
-        if (suspend) {
-            Ext.resumeLayouts(true);
+            if (suspend) {
+                Ext.resumeLayouts(true);
+            }
         }
 
         // The last thing we do is check for idle state transition (now that whatever
@@ -443,7 +455,7 @@ Ext.define('Ext.util.Scheduler', {
      * @private
      * @since 5.0.0
      */
-    onTick: function () {
+    onTick: function() {
         this.timer = null;
         this.notify();
     },
@@ -456,11 +468,11 @@ Ext.define('Ext.util.Scheduler', {
      * @private
      * @since 5.0.0
      */
-    scheduleItem: function (item) {
+    scheduleItem: function(item) {
         var me = this;
 
         ++me.scheduledCount;
-        //Ext.log('Schedule: ' + item.getFullName());
+        // Ext.log('Schedule: ' + item.getFullName());
 
         if (!me.timer && !me.firing) {
             me.scheduleTick();
@@ -473,11 +485,11 @@ Ext.define('Ext.util.Scheduler', {
      * @private
      * @since 5.0.0
      */
-    scheduleTick: function () {
+    scheduleTick: function() {
         var me = this;
 
         if (!me.destroyed && !me.timer) {
-            me.timer = Ext.Function.defer(me.onTick, me.getTickDelay(), me);
+            me.timer = Ext.defer(me.onTick, me.getTickDelay(), me);
         }
     },
 
@@ -489,7 +501,7 @@ Ext.define('Ext.util.Scheduler', {
      * @private
      * @since 5.0.0
      */
-    unscheduleItem: function (item) {
+    unscheduleItem: function(item) {
         if (this.scheduledCount) {
             --this.scheduledCount;
         }
@@ -510,7 +522,7 @@ Ext.define('Ext.util.Scheduler', {
      * busy state or from busy state, respectively.
      * @since 5.0.0
      */
-    adjustBusy: function (adjustment) {
+    adjustBusy: function(adjustment) {
         var me = this,
             busyCounter = me.busyCounter + adjustment;
 
@@ -523,7 +535,8 @@ Ext.define('Ext.util.Scheduler', {
                 me.lastBusyCounter = busyCounter;
                 me.fireEvent('busy', me);
             }
-        } else if (me.lastBusyCounter && !me.timer) {
+        }
+        else if (me.lastBusyCounter && !me.timer) {
             // If we are now not busy but were previously, defer this to make sure that
             // we don't quickly start with some other activity.
             me.scheduleTick();
@@ -535,7 +548,7 @@ Ext.define('Ext.util.Scheduler', {
      * @return {Boolean}
      * @since 5.0.0
      */
-    isBusy: function () {
+    isBusy: function() {
         return !this.isIdle();
     },
 
@@ -544,7 +557,7 @@ Ext.define('Ext.util.Scheduler', {
      * @return {Boolean}
      * @since 5.0.0
      */
-    isIdle: function () {
+    isIdle: function() {
         return !(this.busyCounter + this.lastBusyCounter);
     },
 
@@ -553,25 +566,29 @@ Ext.define('Ext.util.Scheduler', {
     debugHooks: {
         $enabled: false, // Disable by default
 
-        onCycleLimitExceeded: function () {
+        onCycleLimitExceeded: function() {
             Ext.raise('Exceeded cycleLimit ' + this.getCycleLimit());
         },
 
-        scheduleItem: function (item) {
+        scheduleItem: function(item) {
             if (!item) {
                 Ext.raise('scheduleItem: Invalid argument');
             }
-            Ext.log('Schedule item: ' + item.getFullName() + ' - ' + (this.scheduledCount+1));
+
+            Ext.log('Schedule item: ' + item.getFullName() + ' - ' + (this.scheduledCount + 1));
+
             if (item.order <= this.notifyIndex) {
                 Ext.log.warn('Suboptimal order: ' + item.order + ' < ' + this.notifyIndex);
             }
+
             this.callParent([item]);
         },
 
-        unscheduleItem: function (item) {
+        unscheduleItem: function(item) {
             if (!this.scheduledCount) {
                 Ext.raise('Invalid scheduleCount');
             }
+
             this.callParent([item]);
             Ext.log('Unschedule item: ' + item.getFullName() + ' - ' + this.scheduledCount);
         }

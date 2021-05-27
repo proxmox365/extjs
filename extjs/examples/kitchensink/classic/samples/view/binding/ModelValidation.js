@@ -11,17 +11,36 @@ Ext.define('KitchenSink.view.binding.ModelValidation', {
     //<example>
     otherContent: [{
         type: 'Model',
-        path: 'classic/samples/model/Customer.js'
+        path: 'app/model/Company.js'
     }],
 
     defaults: {
         labelWidth: 50
     },
     width: 300,
-    bodyPadding: 10,
+    bodyPadding: '${bodyPadding}',
     //</example>
 
-    title: 'Customer Details',
+    profiles: {
+        classic: {
+            width: 'auto',
+            bodyPadding: 10
+        },
+        neptune: {
+            width: 'auto',
+            bodyPadding: 10
+        },
+        graphite: {
+            width: 'auto',
+            bodyPadding: 10
+        },
+        'classic-material': {
+            width: 260,
+            bodyPadding: 20
+        }
+    },
+
+    title: 'Company Details',
 
     // This connects bound form fields to the associated model validators:
     modelValidation: true,
@@ -29,8 +48,8 @@ Ext.define('KitchenSink.view.binding.ModelValidation', {
     session: true,
     viewModel: {
         links: {
-            theCustomer: {
-                type: 'Customer',
+            theCompany: {
+                type: 'Company',
                 id: 1
             }
         }
@@ -40,6 +59,7 @@ Ext.define('KitchenSink.view.binding.ModelValidation', {
         xtype: 'textfield',
         fieldLabel: 'Name',
         msgTarget: 'side',
-        bind: '{theCustomer.name}'  // three-way: read, write, validate
+        width: '${width}',
+        bind: '{theCompany.name}'  // three-way: read, write, validate
     }]
 });

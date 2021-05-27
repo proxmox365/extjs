@@ -1,16 +1,12 @@
-describe("Ext.form.field.Base", function() {
+topSuite("Ext.form.field.Base", ['Ext.button.Button'], function() {
     var c, makeField;
-    
-    function expectAria(attr, value) {
-        jasmine.expectAriaAttr(c, attr, value);
-    }
-    
+
     function createField(cfg) {
         cfg = Ext.apply({
             ariaRole: 'foo',
-            renderTo: Ext.getBody(),
+            renderTo: Ext.getBody()
         }, cfg);
-        
+
         return c = new Ext.form.field.Base(cfg);
     }
 
@@ -128,7 +124,7 @@ describe("Ext.form.field.Base", function() {
             });
             c.setFieldLabel('Foo');
             c.render(Ext.getBody());
-            expect(c.labelEl.dom.firstChild).hasHTML('Foo');
+            expect(c.labelTextEl.dom).hasHTML('Foo');
         });
 
         it("should set a configured label", function() {
@@ -137,7 +133,7 @@ describe("Ext.form.field.Base", function() {
                 fieldLabel: 'Foo',
                 renderTo: Ext.getBody()
             });
-            expect(c.labelEl.dom.firstChild).hasHTML('Foo');
+            expect(c.labelTextEl.dom).hasHTML('Foo');
         });
 
         it("should not hide an empty label with hideEmptyLabel: false", function() {
@@ -174,7 +170,7 @@ describe("Ext.form.field.Base", function() {
                 fieldLabel: 'Foo'
             });
             c.setFieldLabel('Bar');
-            expect(c.labelEl.dom.firstChild).hasHTML('Bar');
+            expect(c.labelTextEl.dom).hasHTML('Bar');
         });
 
         it("should append the separator when explicitly set", function() {
@@ -184,7 +180,7 @@ describe("Ext.form.field.Base", function() {
                 fieldLabel: 'Foo'
             });
             c.setFieldLabel('Bar');
-            expect(c.labelEl.dom.firstChild).hasHTML('Bar:');
+            expect(c.labelTextEl.dom).hasHTML('Bar:');
         });
 
         it("should only append the separator if the label doesn't end with the separator when explicitly set", function() {
@@ -194,7 +190,7 @@ describe("Ext.form.field.Base", function() {
                 fieldLabel: 'Foo'
             });
             c.setFieldLabel('Bar:');
-            expect(c.labelEl.dom.firstChild).hasHTML('Bar:');
+            expect(c.labelTextEl.dom).hasHTML('Bar:');
         });
 
         it("should append the separator when implicitly set", function() {
@@ -203,7 +199,7 @@ describe("Ext.form.field.Base", function() {
                 renderTo: Ext.getBody(),
                 fieldLabel: 'Foo'
             });
-            expect(c.labelEl.dom.firstChild).hasHTML('Foo:');
+            expect(c.labelTextEl.dom).hasHTML('Foo:');
         });
 
         it("should only append the separator if the label doesn't end with the separator when implicitly set", function() {
@@ -212,7 +208,7 @@ describe("Ext.form.field.Base", function() {
                 renderTo: Ext.getBody(),
                 fieldLabel: 'Foo:'
             });
-            expect(c.labelEl.dom.firstChild).hasHTML('Foo:');
+            expect(c.labelTextEl.dom).hasHTML('Foo:');
         });
 
         it("should hide the label if an empty one is set with hideEmptyLabel: true", function() {
@@ -423,8 +419,47 @@ describe("Ext.form.field.Base", function() {
                 });
             });
         });
+
+        describe("validateOnBlur", function() {
+            var button;
+
+            beforeEach(function() {
+                makeDisableField({
+                    allowBlank: false
+                });
+
+                button = new Ext.button.Button({
+                    renderTo: document.body,
+                    text: 'foo'
+                });
+
+                focusAndWait(c);
+            });
+
+            afterEach(function() {
+                button = Ext.destroy(button);
+            });
+
+            it("should validate on blur by default", function() {
+                focusAndWait(button);
+
+                runs(function() {
+                    expect(spy).toHaveBeenCalled();
+                });
+            });
+
+            it("should not validate when validateOnBlur is false", function() {
+                c.validateOnBlur = false;
+
+                focusAndWait(button);
+
+                runs(function() {
+                    expect(spy).not.toHaveBeenCalled();
+                });
+            });
+        });
     });
-    
+
     describe("errors", function() {
         describe("enabling/disabling", function() {
             beforeEach(function() {
@@ -436,21 +471,21 @@ describe("Ext.form.field.Base", function() {
                     }
                 });
             });
-            
-            it("should remove any active errors during a disable", function(){
+
+            it("should remove any active errors during a disable", function() {
                 c.validate();
                 c.disable();
                 expect(c.hasActiveError()).toBe(false);
             });
-            
-            it("should should revalidate when enabled if invalid when disabled", function(){
+
+            it("should should revalidate when enabled if invalid when disabled", function() {
                 c.validate();
                 c.disable();
                 c.enable();
                 expect(c.hasActiveError()).toBe(true);
             });
-            
-            it("should should not revalidate when enabled if clearInvalid is called", function(){
+
+            it("should should not revalidate when enabled if clearInvalid is called", function() {
                 c.validate();
                 c.disable();
                 c.clearInvalid();
@@ -459,106 +494,119 @@ describe("Ext.form.field.Base", function() {
             });
         });
     });
-    
+
     describe("ARIA", function() {
         describe("ariaEl", function() {
             it("should be inputEl", function() {
                 createField();
-                
+
                 expect(c.ariaEl).toBe(c.inputEl);
             });
         });
-        
+
         describe("attributes", function() {
             describe("in general", function() {
                 it("should not be applied when !ariaRole", function() {
                     createField({ ariaRole: undefined });
-                    
+
                     expect(c.ariaEl.dom.hasAttribute('role')).toBe(false);
                 });
-                
+
                 it("should be applied when ariaRole is defined", function() {
                     createField();
-                    
-                    expectAria('role', 'foo');
+
+                    expect(c).toHaveAttr('role', 'foo');
                 });
             });
-            
+
             describe("aria-hidden", function() {
                 it("should be false when visible", function() {
                     createField();
-                    
-                    expectAria('aria-hidden', 'false');
+
+                    expect(c).toHaveAttr('aria-hidden', 'false');
                 });
-                
+
                 it("should be true when hidden", function() {
                     createField({ hidden: true });
-                    
-                    expectAria('aria-hidden', 'true');
+
+                    expect(c).toHaveAttr('aria-hidden', 'true');
                 });
             });
-            
+
             describe("aria-disabled", function() {
                 it("should be false when enabled", function() {
                     createField();
-                    
-                    expectAria('aria-disabled', 'false');
+
+                    expect(c).toHaveAttr('aria-disabled', 'false');
                 });
-                
+
                 it("should be true when disabled", function() {
                     createField({ disabled: true });
-                    
-                    expectAria('aria-disabled', 'true');
+
+                    expect(c).toHaveAttr('aria-disabled', 'true');
                 });
             });
-            
+
             describe("aria-readonly", function() {
                 it("should be false by default", function() {
                     createField();
-                    
-                    expectAria('aria-readonly', 'false');
+
+                    expect(c).toHaveAttr('aria-readonly', 'false');
                 });
-                
+
                 it("should be true when readOnly", function() {
                     createField({ readOnly: true });
-                    
-                    expectAria('aria-readonly', 'true');
+
+                    expect(c).toHaveAttr('aria-readonly', 'true');
                 });
             });
-            
+
             describe("aria-invalid", function() {
                 it("should be false by default", function() {
                     createField();
-                    
-                    expectAria('aria-invalid', 'false');
+
+                    expect(c).toHaveAttr('aria-invalid', 'false');
                 });
             });
-            
+
             describe("aria-label", function() {
                 it("should not exist by default", function() {
                     createField();
-                    
-                    expectAria('aria-label', null);
+
+                    expect(c).not.toHaveAttr('aria-label');
                 });
-                
+
                 it("should be rendered when set", function() {
                     createField({ ariaLabel: 'foo' });
-                    
-                    expectAria('aria-label', 'foo');
+
+                    expect(c).toHaveAttr('aria-label', 'foo');
                 });
             });
-            
-            describe("title", function() {
-                it("should be set to formatText", function() {
+
+            describe("aria-describedby", function() {
+                it("should point to ariaStatusEl by default", function() {
+                    createField();
+
+                    expect(c).toHaveAttr('aria-describedby', c.id + '-ariaStatusEl');
+                });
+
+                it("should point to ariaStatusEl and ariaHelpEl with ariaHelp", function() {
+                    createField({ ariaHelp: 'foo bar' });
+
+                    expect(c).toHaveAttr('aria-describedby', c.id + '-ariaStatusEl ' + c.id + '-ariaHelpEl');
+                });
+
+                it("should not be overridden when defined via config", function() {
                     createField({
-                        format: 'foo',
-                        formatText: '{0} bar'
+                        ariaAttributes: {
+                            'aria-describedby': 'throbbe'
+                        }
                     });
-                    
-                    expectAria('title', 'foo bar');
+
+                    expect(c).toHaveAttr('aria-describedby', 'throbbe');
                 });
             });
-            
+
             describe("via config", function() {
                 it("should set aria-foo", function() {
                     createField({
@@ -566,46 +614,46 @@ describe("Ext.form.field.Base", function() {
                             'aria-foo': 'bar'
                         }
                     });
-                    
-                    expectAria('aria-foo', 'bar');
+
+                    expect(c).toHaveAttr('aria-foo', 'bar');
                 });
             });
         });
-        
+
         describe("state", function() {
             beforeEach(function() {
                 createField();
             });
-            
+
             describe("aria-readonly", function() {
                 beforeEach(function() {
                     c.setReadOnly(true);
                 });
-                
+
                 it("should change to true", function() {
-                    expectAria('aria-readonly', 'true');
+                    expect(c).toHaveAttr('aria-readonly', 'true');
                 });
-                
+
                 it("should change to false", function() {
                     c.setReadOnly(false);
-                    
-                    expectAria('aria-readonly', 'false');
+
+                    expect(c).toHaveAttr('aria-readonly', 'false');
                 });
             });
-            
+
             describe("aria-invalid", function() {
                 beforeEach(function() {
                     c.markInvalid(['foo']);
                 });
-                
+
                 it("should change to true", function() {
-                    expectAria('aria-invalid', 'true');
+                    expect(c).toHaveAttr('aria-invalid', 'true');
                 });
-                
+
                 it("should change to false", function() {
                     c.clearInvalid();
-                    
-                    expectAria('aria-invalid', 'false');
+
+                    expect(c).toHaveAttr('aria-invalid', 'false');
                 });
             });
         });

@@ -12,113 +12,158 @@
  */
 Ext.define('KitchenSink.view.tree.TreeGrid', {
     extend: 'Ext.tree.Panel',
-    
+    xtype: 'tree-grid',
+    controller: 'tree-grid',
+
     requires: [
         'Ext.data.*',
         'Ext.grid.*',
         'Ext.tree.*',
-        'Ext.ux.CheckColumn',
-        'KitchenSink.model.tree.Task'
-    ],    
-    xtype: 'tree-grid',
-    
-    reserveScrollbar: true,
+        'Ext.grid.column.Check',
+        'Ext.grid.plugin.Exporter'
+    ],
+
     //<example>
-    exampleTitle: 'TreeGrid',
     otherContent: [{
+        type: 'Controller',
+        path: 'classic/samples/view/tree/TreeGridController.js'
+    }, {
         type: 'Model',
         path: 'classic/samples/model/tree/Task.js'
-    },{
+    }, {
         type: 'Data',
         path: 'data/tree/treegrid.json'
     }],
     profiles: {
         classic: {
             width: 500,
-            colWidth: 40
+            colWidth: 40,
+            exportOptionWidth: 124
         },
         neptune: {
             width: 600,
-            colWidth: 55
+            colWidth: 55,
+            exportOptionWidth: 124
+        },
+        graphite: {
+            width: 800,
+            colWidth: 75,
+            exportOptionWidth: 154
+        },
+        'classic-material': {
+            width: 800,
+            colWidth: 75,
+            exportOptionWidth: 154
         }
     },
     //</example>
-    
+
     title: 'Core Team Projects',
+    width: '${width}',
     height: 370,
+
+    reserveScrollbar: true,
     useArrows: true,
     rootVisible: false,
     multiSelect: true,
     singleExpand: true,
-    
-    initComponent: function() {
-        this.width = this.profileInfo.width;
-        
-        Ext.apply(this, {
-            store: new Ext.data.TreeStore({
-                model: KitchenSink.model.tree.Task,
-                proxy: {
-                    type: 'ajax',
-                    url: 'data/tree/treegrid.json'
+
+    store: {
+        type: 'tree',
+        model: 'KitchenSink.model.tree.Task',
+        folderSort: true,
+        proxy: {
+            type: 'ajax',
+            url: 'data/tree/treegrid.json'
+        }
+    },
+
+    columns: [{
+        xtype: 'treecolumn', // this is so we know which column will show the tree
+        text: 'Task',
+        dataIndex: 'task',
+
+        flex: 2,
+        sortable: true
+    }, {
+        text: 'Duration',
+        dataIndex: 'duration',
+
+        flex: 1,
+        sortable: true,
+        align: 'center',
+        formatter: 'this.formatHours'
+    }, {
+        text: 'Assigned To',
+        dataIndex: 'user',
+
+        flex: 1,
+        sortable: true
+    }, {
+        xtype: 'checkcolumn',
+        header: 'Done',
+        dataIndex: 'done',
+
+        width: '${colWidth}',
+        stopSelection: false,
+        menuDisabled: true
+    }, {
+        xtype: 'actioncolumn',
+        text: 'Edit',
+
+        width: '${colWidth}',
+        menuDisabled: true,
+        tooltip: 'Edit task',
+        align: 'center',
+        iconCls: 'tree-grid-edit-task',
+        handler: 'onEditRowAction',
+        isActionDisabled: 'isRowEditDisabled'
+    }],
+
+    header: {
+        itemPosition: 1, // after title before collapse tool
+        items: [{
+            ui: 'default-toolbar',
+            xtype: 'button',
+            cls: 'dock-tab-btn',
+            text: 'Export to ...',
+            menu: {
+                defaults: {
+                    handler: 'exportTo',
+                    width: '${exportOptionWidth}'
                 },
-                folderSort: true
-            }),
-            columns: [{
-                xtype: 'treecolumn', //this is so we know which column will show the tree
-                text: 'Task',
-                flex: 2,
-                sortable: true,
-                dataIndex: 'task'
-            },{
-                //we must use the templateheader component so we can use a custom tpl
-                xtype: 'templatecolumn',
-                text: 'Duration',
-                flex: 1,
-                sortable: true,
-                dataIndex: 'duration',
-                align: 'center',
-                //add in the custom tpl for the rows
-                tpl: Ext.create('Ext.XTemplate', '{duration:this.formatHours}', {
-                    formatHours: function(v) {
-                        if (v < 1) {
-                            return Math.round(v * 60) + ' mins';
-                        } else if (Math.floor(v) !== v) {
-                            var min = v - Math.floor(v);
-                            return Math.floor(v) + 'h ' + Math.round(min * 60) + 'm';
-                        } else {
-                            return v + ' hour' + (v === 1 ? '' : 's');
-                        }
+                items: [{
+                    text: 'Excel xlsx',
+                    cfg: {
+                        type: 'excel07',
+                        ext: 'xlsx'
                     }
-                })
-            },{
-                text: 'Assigned To',
-                flex: 1,
-                dataIndex: 'user',
-                sortable: true
-            }, {
-                xtype: 'checkcolumn',
-                header: 'Done',
-                dataIndex: 'done',
-                width: this.profileInfo.colWidth,
-                stopSelection: false,
-                menuDisabled: true
-            }, {
-                text: 'Edit',
-                width: this.profileInfo.colWidth,
-                menuDisabled: true,
-                xtype: 'actioncolumn',
-                tooltip: 'Edit task',
-                align: 'center',
-                iconCls: 'tree-grid-edit-task',
-                handler: function(grid, rowIndex, colIndex, actionItem, event, record, row) {
-                    Ext.Msg.alert('Editing' + (record.get('done') ? ' completed task' : '') , record.get('task'));
-                },
-                // Only leaf level tasks may be edited
-                isDisabled: function(view, rowIdx, colIdx, item, record) {
-                    return !record.data.leaf;
-                }
-            }]
-        });
-        this.callParent();
-    }
+                }, {
+                    text: 'Excel xml',
+                    cfg: {
+                        type: 'excel03',
+                        ext: 'xml'
+                    }
+                }, {
+                    text: 'CSV',
+                    cfg: {
+                        type: 'csv'
+                    }
+                }, {
+                    text: 'TSV',
+                    cfg: {
+                        type: 'tsv',
+                        ext: 'csv'
+                    }
+                }, {
+                    text: 'HTML',
+                    cfg: {
+                        type: 'html'
+                    }
+                }]
+            }
+        }]
+    },
+
+    plugins: 'gridexporter'
 });

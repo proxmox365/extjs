@@ -6,6 +6,9 @@
  * but different data types in your trees. The key to this is the `typeProperty` config on
  * the Proxy's Reader.
  *
+ * A custom renderer is used to set the `glyph` property in the cell `metaData` to change
+ * the icon depending upon the node type.
+ *
  * The toolbar is aware of the type of the selected node and knows what kind of new entity
  * to add.
  */
@@ -18,20 +21,35 @@ Ext.define('KitchenSink.view.tree.HeterogeneousTree', {
     exampleTitle: 'Heterogeneous Geographical Tree',
     otherContent: [{
         type: 'Store',
-        path: 'classic/samples/store/GeoData.js'
-    },{
+        path: 'app/store/GeoData.js'
+    }, {
         type: 'Model',
-        path: 'classic/samples/model/tree/Territory.js'
-    },{
+        path: 'app/model/tree/Territory.js'
+    }, {
         type: 'Model',
-        path: 'classic/samples/model/tree/Country.js'
-    },{
+        path: 'app/model/tree/Country.js'
+    }, {
         type: 'Model',
-        path: 'classic/samples/model/tree/City.js'
-    },{
+        path: 'app/model/tree/City.js'
+    }, {
         type: 'Data',
-        path: 'classic/samples/data/GeoData.js'
+        path: 'app/data/GeoData.js'
     }],
+
+    profiles: {
+        classic: {
+            width: 'auto'
+        },
+        neptune: {
+            width: 'auto'
+        },
+        graphite: {
+            width: 'auto'
+        },
+        'classic-material': {
+            width: 150
+        }
+    },
     //</example>
     store: 'GeoData',
     rootVisible: false,
@@ -41,29 +59,32 @@ Ext.define('KitchenSink.view.tree.HeterogeneousTree', {
     width: 650,
     height: 400,
     reserveScrollbar: true,
+    cls: 'heterogeneous-tree',
     columns: [{
         xtype: 'treecolumn',
         text: 'Name',
         dataIndex: 'name',
         flex: 1,
-        sortable: true
-    }, {
-        text: 'Type',
-        renderer: function(v, cellValues, record) {
-            return record.entityName;
+        sortable: true,
+        renderer: function(v, metaData, record) {
+            metaData.glyph = record.glyph;
+
+            return v;
         }
     }, {
         xtype: 'actioncolumn',
-        iconCls: 'heterogeneous-tree-area-info',
-        width: 25,
+        glyph: 'xf05a@\'Font Awesome 5 Free\'',
+        width: 30,
         getTip: function(value, meta, rec, rowIdx, colIdx, store, view) {
             // Go up from the view to the owning TreePanel
             var panel = view.up('');
+
             return panel.getActionTip.apply(panel, arguments);
         },
         handler: function(view) {
             // Go up from the view to the owning TreePanel
             var panel = view.up('');
+
             panel.onDrillAction.apply(panel, arguments);
         }
     }],
@@ -74,12 +95,14 @@ Ext.define('KitchenSink.view.tree.HeterogeneousTree', {
             selectionchange: function(selModel, selection) {
                 // Go up from the view to the owning TreePanel
                 var panel = selModel.view.up('');
+
                 panel.onSelectionChange.apply(panel, arguments);
             }
         },
         onKeyEnter: function() {
             // Go up from the view to the owning TreePanel
             var panel = this.view.up('');
+
             panel.down('#new-name').focus();
         }
     },
@@ -87,16 +110,19 @@ Ext.define('KitchenSink.view.tree.HeterogeneousTree', {
     bbar: [{
         xtype: 'textfield',
         itemId: 'new-name',
+        width: '${width}',
         enableKeyEvents: true,
         listeners: {
             keydown: function(inputField, e) {
                 // Go up from the view to the owning TreePanel
                 var panel = inputField.up('treepanel');
+
                 if (e.keyCode === Ext.EventObject.ENTER) {
                     if (!panel.down('#add-button').isDisabled()) {
                         panel.addClick();
                     }
-                } else if (e.keyCode === Ext.EventObject.TAB && e.shiftKey) {
+                }
+                else if (e.keyCode === Ext.EventObject.TAB && e.shiftKey) {
                     e.stopEvent();
                     panel.view.focusRow(panel.selModel.getSelection()[0] || 0);
                 }
@@ -108,6 +134,7 @@ Ext.define('KitchenSink.view.tree.HeterogeneousTree', {
         handler: function(button) {
             // Go up from the view to the owning TreePanel
             var panel = button.up('treepanel');
+
             panel.addClick();
         }
     }],
@@ -122,32 +149,37 @@ Ext.define('KitchenSink.view.tree.HeterogeneousTree', {
         if (value) {
             if (store.getNodeById(value)) {
                 Ext.Msg.alert('Error', 'A node with this name already exists.');
+
                 return;
             }
+
             node = {
                 name: value
             };
 
-            if (target.isRoot() ) {
-                //Nothing selected -- adding new Territory
+            if (target.isRoot()) {
+                // Nothing selected -- adding new Territory
                 node.children = [];
                 node.mtype = 'Territory';
-            } else if (target instanceof KitchenSink.model.tree.Territory) {
+            }
+            else if (target instanceof KitchenSink.model.tree.Territory) {
                 // Programatically added - must not try to load over Ajax
                 node.children = [];
                 node.mtype = 'Country';
-            } else if (target instanceof KitchenSink.model.tree.Country) {
+            }
+            else if (target instanceof KitchenSink.model.tree.Country) {
             // Adding to the Country level - that is our leaf level
                 node.leaf = true;
                 node.mtype = 'City';
             }
-            
+
             node = target.appendChild(node);
 
             // User might want to see what they've just added!
             if (!target.isExpanded()) {
                 target.expand(false);
             }
+
             this.selModel.select(node);
             inputField.reset();
         }
@@ -159,18 +191,22 @@ Ext.define('KitchenSink.view.tree.HeterogeneousTree', {
 
         if (selection.length) {
             selectedNode = selection[0];
+
             if (selectedNode instanceof KitchenSink.model.tree.Territory) {
                 this.addClass = KitchenSink.model.tree.Country;
                 button.setText('Add Country');
                 button.enable();
-            } else if (selectedNode instanceof KitchenSink.model.tree.Country) {
+            }
+            else if (selectedNode instanceof KitchenSink.model.tree.Country) {
                 this.addClass = KitchenSink.model.tree.City;
                 button.setText('Add City');
                 button.enable();
-            } else {
+            }
+            else {
                 button.disable();
             }
-        } else {
+        }
+        else {
             this.addClass = KitchenSink.model.tree.Territory;
             button.setText('Add Territory');
             button.enable();
@@ -179,6 +215,7 @@ Ext.define('KitchenSink.view.tree.HeterogeneousTree', {
 
     getActionTip: function(value, meta, rec, rowIdx, colIdx, store, view) {
         var dataType;
+
         switch (Ext.ClassManager.getName(rec)) {
             case "KitchenSink.model.tree.Territory":
                 dataType = 'territory';
@@ -189,11 +226,13 @@ Ext.define('KitchenSink.view.tree.HeterogeneousTree', {
             case "KitchenSink.model.tree.City":
                 dataType = 'city';
         }
+
         return 'Click for info on ' + dataType;
     },
 
     onDrillAction: function(view, rowIndex, colIndex, row, event, rec) {
         var dataType;
+
         switch (Ext.ClassManager.getName(rec)) {
             case "KitchenSink.model.tree.Territory":
                 dataType = 'territory';
@@ -204,6 +243,7 @@ Ext.define('KitchenSink.view.tree.HeterogeneousTree', {
             case "KitchenSink.model.tree.City":
                 dataType = 'city';
         }
+
         Ext.Msg.alert('Action', 'Drill into ' + dataType + ' details');
     }
 });

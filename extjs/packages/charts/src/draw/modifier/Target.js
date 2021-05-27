@@ -8,31 +8,33 @@
  * The Target modifier figures out which updaters have to be called
  * for the changed set of attributes and makes the sprite and its instances (if any)
  * call them.
- *
  */
 Ext.define('Ext.draw.modifier.Target', {
     requires: ['Ext.draw.Matrix'],
     extend: 'Ext.draw.modifier.Modifier',
     alias: 'modifier.target',
     statics: {
+        /**
+         * @private
+         */
         uniqueId: 0
     },
 
-    /**
-     * @inheritdoc
-     */
-    prepareAttributes: function (attr) {
-        var previous = this.getPrevious();
-        if (previous) {
-            previous.prepareAttributes(attr);
+    prepareAttributes: function(attr) {
+        if (this._lower) {
+            this._lower.prepareAttributes(attr);
         }
+
         attr.attributeId = 'attribute-' + Ext.draw.modifier.Target.uniqueId++;
+
         if (!attr.hasOwnProperty('canvasAttributes')) {
             attr.bbox = {
-                plain: {dirty: true},
-                transform: {dirty: true}
+                plain: { dirty: true },
+                transform: { dirty: true }
             };
+
             attr.dirty = true;
+
             /*
             Maps updaters that have to be called to the attributes that triggered the update.
             It is basically a reversed `triggers` map (see Ext.draw.sprite.AttributeDefinition),
@@ -43,7 +45,9 @@ Ext.define('Ext.draw.modifier.Target', {
             but a flag indicating that the attribute should be applied directly to a canvas
             context.
             */
+
             attr.pendingUpdaters = {};
+
             /*
             Holds the attributes that triggered the canvas update (attr.pendingUpdaters.canvas).
             Canvas attributes are applied directly to a canvas context
@@ -62,10 +66,10 @@ Ext.define('Ext.draw.modifier.Target', {
      * @param {Object} attr The source attributes.
      * @param {Object} changes The modifier changes.
      */
-    applyChanges: function (attr, changes) {
-
+    applyChanges: function(attr, changes) {
         Ext.apply(attr, changes);
 
+        // eslint-disable-next-line vars-on-top
         var sprite = this.getSprite(),
             pendingUpdaters = attr.pendingUpdaters,
             triggers = sprite.self.def.getTriggers(),
@@ -75,9 +79,11 @@ Ext.define('Ext.draw.modifier.Target', {
 
         for (name in changes) {
             hasChanges = true;
+
             if ((updaters = triggers[name])) {
                 sprite.scheduleUpdaters(attr, updaters, [name]);
             }
+
             if (attr.template && changes.removeFromInstance && changes.removeFromInstance[name]) {
                 delete attr[name];
             }
@@ -91,6 +97,7 @@ Ext.define('Ext.draw.modifier.Target', {
         if (pendingUpdaters.canvas) {
             canvasAttributes = pendingUpdaters.canvas;
             delete pendingUpdaters.canvas;
+
             for (i = 0, ln = canvasAttributes.length; i < ln; i++) {
                 name = canvasAttributes[i];
                 attr.canvasAttributes[name] = attr[name];
@@ -101,15 +108,18 @@ Ext.define('Ext.draw.modifier.Target', {
         // then spread the pending updaters to the instances (template's children).
         if (attr.hasOwnProperty('children')) {
             instances = attr.children;
+
             for (i = 0, ln = instances.length; i < ln; i++) {
                 instance = instances[i];
                 Ext.apply(instance.pendingUpdaters, pendingUpdaters);
+
                 if (canvasAttributes) {
                     for (j = 0; j < canvasAttributes.length; j++) {
                         name = canvasAttributes[j];
                         instance.canvasAttributes[name] = instance[name];
                     }
                 }
+
                 sprite.callUpdaters(instance);
             }
         }
@@ -118,22 +128,29 @@ Ext.define('Ext.draw.modifier.Target', {
         sprite.callUpdaters(attr);
     },
 
-    /**
-     * @inheritdoc
-     */
-    popUp: function (attr, changes) {
+    popUp: function(attr, changes) {
         this.applyChanges(attr, changes);
     },
 
-    /**
-     * @inheritdoc
-     */
-    pushDown: function (attr, changes) {
-        var previous = this.getPrevious();
-        if (previous) {
-            changes = previous.pushDown(attr, changes);
+    pushDown: function(attr, changes) {
+        // Modifier chain looks like this:
+        // sprite.modifiers.target <---> postFx <---> sprite.modifiers.animation <---> preFx
+
+        // There can be any number of postFx and preFx modifiers, the difference between them
+        // is that:
+        // `preFx` modifier changes are animated.
+        // `postFx` modifier changes are not.
+
+        // preFx modifiers include Highlight (Draw) and Callout (Charts).
+        // There are no postFx modifiers at the moment.
+
+        if (this._lower) {
+            // Without any postFx modifiers, `lower` is going to be Animation.
+            changes = this._lower.pushDown(attr, changes);
         }
+
         this.applyChanges(attr, changes);
+
         return changes;
     }
 });

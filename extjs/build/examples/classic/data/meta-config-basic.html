@@ -3,7 +3,7 @@
 <head>
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=10, user-scalable=yes">
     <title>Test meta config and metachange event support</title>
     <link rel="stylesheet" type="text/css" href="../shared/examples.css" />
 
@@ -46,11 +46,6 @@
             }
         });
 
-        var rowEditing = Ext.create('Ext.grid.plugin.RowEditing', {
-            clicksToMoveEditor: 1,
-            autoCancel: false
-        });
-
         var grid = Ext.create('Ext.grid.Panel', {
             width: 800,
             height: 300,
@@ -64,7 +59,12 @@
                     metaStore.load();
                 }
             }],
-            plugins: rowEditing
+            plugins: {
+                rowediting: {
+                    clicksToMoveEditor: 1,
+                    autoCancel: false
+                }
+            }
         });
     });
     </script>

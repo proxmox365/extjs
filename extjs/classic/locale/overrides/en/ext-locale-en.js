@@ -19,17 +19,28 @@ Ext.onReady(function() {
         };
 
         Ext.Date.monthNumbers = {
+            January: 0,
             Jan: 0,
+            February: 1,
             Feb: 1,
+            March: 2,
             Mar: 2,
+            April: 3,
             Apr: 3,
             May: 4,
+            June: 5,
             Jun: 5,
+            July: 6,
             Jul: 6,
+            August: 7,
             Aug: 7,
+            September: 8,
             Sep: 8,
+            October: 9,
             Oct: 9,
+            November: 10,
             Nov: 10,
+            December: 11,
             Dec: 11
         };
 
@@ -44,8 +55,11 @@ Ext.onReady(function() {
         };
 
         Ext.Date.parseCodes.S.s = "(?:st|nd|rd|th)";
+
+        Ext.Date.firstDayOfWeek = 0;
+        Ext.Date.weekendDays = [6, 0];
     }
-    
+
     if (Ext.util && Ext.util.Format) {
         Ext.apply(Ext.util.Format, {
             thousandSeparator: ',',
@@ -357,7 +371,7 @@ Ext.define("Ext.locale.en.window.MessageBox", {
         cancel: "Cancel",
         yes: "Yes",
         no: "No"
-    }    
+    }
 });
 
 Ext.define("Ext.locale.en.grid.filters.Filters", {
@@ -374,9 +388,9 @@ Ext.define("Ext.locale.en.grid.filters.filter.Boolean", {
 Ext.define("Ext.locale.en.grid.filters.filter.Date", {
     override: "Ext.grid.filters.filter.Date",
     fields: {
-        lt: {text: 'Before'},
-        gt: {text: 'After'},
-        eq: {text: 'On'}
+        lt: { text: 'Before' },
+        gt: { text: 'After' },
+        eq: { text: 'On' }
     },
     // Defaults to Ext.Date.defaultFormat
     dateFormat: null
@@ -397,7 +411,19 @@ Ext.define("Ext.locale.en.grid.filters.filter.String", {
     emptyText: "Enter Filter Text..."
 });
 
+Ext.define("Ext.locale.en.view.MultiSelectorSearch", {
+    override: 'Ext.view.MultiSelectorSearch',
+    searchText: 'Search...'
+});
+
+Ext.define("Ext.locale.en.view.MultiSelector", {
+    override: 'Ext.view.MultiSelector',
+    emptyText: 'Nothing selected',
+    removeRowTip: 'Remove this item',
+    addToolText: 'Search for items to add'
+});
+
 // This is needed until we can refactor all of the locales into individual files
-Ext.define("Ext.locale.en.Component", {	
+Ext.define("Ext.locale.en.Component", {
     override: "Ext.Component"
 });

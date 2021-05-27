@@ -25,6 +25,7 @@ Ext.define('Ext.dom.Underlay', {
     },
 
     /**
+     * @method
      * @protected
      * Called before the underlay is shown, immediately after its element is retrieved
      * from the pool
@@ -56,13 +57,17 @@ Ext.define('Ext.dom.Underlay', {
     hide: function() {
         var me = this,
             el = me.el;
-        
+
         if (el) {
-            el.hide();
-            me.getPool().checkIn(el);
+            if (el.dom) {
+                el.hide();
+                me.getPool().checkIn(el);
+            }
+
             me.el = null;
-            me.hidden = true;
         }
+
+        me.hidden = true;
     },
 
     /**
@@ -159,6 +164,7 @@ Ext.define('Ext.dom.Underlay', {
         el.setStyle('position', me.fixed ? 'fixed' : '');
 
         dom = el.dom;
+
         if (dom.nextSibling !== insertionTarget) {
             // inserting the underlay as the previous sibling of the target ensures that
             // it will show behind the target, as long as its z-index is less than or equal
@@ -170,5 +176,4 @@ Ext.define('Ext.dom.Underlay', {
         me.realign();
         me.hidden = false;
     }
-    
 });

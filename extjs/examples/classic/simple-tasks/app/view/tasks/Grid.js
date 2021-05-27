@@ -21,16 +21,19 @@ Ext.define('SimpleTasks.view.tasks.Grid', {
 
     viewConfig: {
         plugins: {
-            ptype: 'gridviewdragdrop',
-            ddGroup: 'task',
-            dragText: 'Drag task to change list',
-            enableDrop: false
+            gridviewdragdrop: {
+                ddGroup: 'task',
+                dragText: 'Drag task to change list',
+                enableDrop: false
+            }
         },
-        getRowClass: function(record, rowIndex, rowParams, store){
+        getRowClass: function(record, rowIndex, rowParams, store) {
             var due = record.get('due');
-            if(record.get('done')) {
+
+            if (record.get('done')) {
                 return 'tasks-completed-task';
-            } else if(due && (due < Ext.Date.clearTime(new Date()))) {
+            }
+            else if (due && (due < Ext.Date.clearTime(new Date()))) {
                 return 'tasks-overdue-task';
             }
         }
@@ -135,7 +138,7 @@ Ext.define('SimpleTasks.view.tasks.Grid', {
                     editor: {
                         xtype: 'treepicker',
                         displayField: 'name',
-                        store: Ext.create('SimpleTasks.store.Lists', {storeId: 'Lists-TaskGrid' })
+                        store: Ext.create('SimpleTasks.store.Lists', { storeId: 'Lists-TaskGrid' })
                     },
                     renderer: me.renderList
                 },
@@ -225,11 +228,12 @@ Ext.define('SimpleTasks.view.tasks.Grid', {
      * Handles a "checkchange" event on the "done" column
      * @private
      * @param {SimpleTasks.ux.StatusColumn} column
+     * @param {Ext.data.Model} record
      * @param {Number} rowIndex
      * @param {Boolean} checked
      */
-    handleCheckChange: function(column, rowIndex, checked) {
-        this.fireEvent('recordedit', this.store.getAt(rowIndex));
+    handleCheckChange: function(column, record, rowIndex, checked) {
+        this.fireEvent('recordedit', record);
     },
 
     /**
@@ -280,32 +284,39 @@ Ext.define('SimpleTasks.view.tasks.Grid', {
             todayTime = today.getTime(),
             dueDateTime;
 
-        if(!date) {
+        if (!date) {
             return '(No Date)';
         }
+
         dueDateTime = Ext.Date.clearTime(date).getTime();
-        if(dueDateTime === todayTime) {
+
+        if (dueDateTime === todayTime) {
             return 'Today';
         }
-        if(dueDateTime > todayTime) {
-            if(dueDateTime === Ext.Date.add(today, Ext.Date.DAY, 1).getTime()) {
+
+        if (dueDateTime > todayTime) {
+            if (dueDateTime === Ext.Date.add(today, Ext.Date.DAY, 1).getTime()) {
                 // due date is current date + 1 day
                 return 'Tomorrow';
             }
-            if(dueDateTime < Ext.Date.add(today, Ext.Date.DAY, 7).getTime()) {
+
+            if (dueDateTime < Ext.Date.add(today, Ext.Date.DAY, 7).getTime()) {
                 // if the due date is less than one week in the future, return the day of the week.
                 return Ext.Date.format(date, 'l');
             }
-        } else {
-            if(dueDateTime === Ext.Date.add(today, Ext.Date.DAY, -1).getTime()) {
+        }
+        else {
+            if (dueDateTime === Ext.Date.add(today, Ext.Date.DAY, -1).getTime()) {
                 // due date is current date - 1 day.
                 return 'Yesterday';
             }
-            if(dueDateTime > Ext.Date.add(today, Ext.Date.DAY, -7).getTime()) {
+
+            if (dueDateTime > Ext.Date.add(today, Ext.Date.DAY, -7).getTime()) {
                 // if the due date is less than one week past, return 'Last' + the day of the week.
-                return 'Last '+ Ext.Date.format(date, 'l');
+                return 'Last ' + Ext.Date.format(date, 'l');
             }
         }
+
         return date.getFullYear() === today.getFullYear() ? Ext.Date.format(date, 'D m/d') : Ext.Date.format(date, 'D m/d/Y');
     }
 

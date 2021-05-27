@@ -6,29 +6,50 @@
 Ext.define('KitchenSink.view.binding.Associations', {
     extend: 'Ext.panel.Panel',
     alias: 'widget.binding-associations',
-    width: 500,
+    width: '${width}',
     height: 300,
+    profiles: {
+        classic: {
+            width: 500,
+            flexValue: 0
+        },
+        neptune: {
+            width: 500,
+            flexValue: 0
+        },
+        graphite: {
+            width: 600,
+            flexValue: 1
+        },
+        'classic-material': {
+            width: 600,
+            flexValue: 1
+        }
+    },
     referenceHolder: true,
-    layout: 'hbox',
+    layout: {
+        type: 'hbox',
+        align: 'stretch'
+    },
     //<example>
     otherContent: [{
         type: 'Model',
-        path: 'classic/samples/model/Customer.js'
-    },{
+        path: 'app/model/Company.js'
+    }, {
         type: 'Model',
-        path: 'classic/samples/model/Order.js'
-    },{
+        path: 'app/model/Order.js'
+    }, {
         type: 'Data',
-        path: 'classic/samples/data/Customer.js'
-    },{
+        path: 'app/data/Company.js'
+    }, {
         type: 'Data',
-        path: 'classic/samples/data/Order.js'
+        path: 'app/data/Order.js'
     }],
     //</example>
     viewModel: {
         stores: {
             customers: {
-                model: 'Customer',
+                model: 'Company',
                 autoLoad: true
             }
         }
@@ -44,7 +65,7 @@ Ext.define('KitchenSink.view.binding.Associations', {
         columns: [{
             text: 'Name', dataIndex: 'name', flex: 1
         }, {
-            text: 'Phone', dataIndex: 'phone'
+            text: 'Phone', dataIndex: 'phone', flex: '${flexValue}'
         }]
     }, {
         title: 'Orders',

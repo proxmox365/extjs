@@ -1,3 +1,7 @@
+/**
+ * @class Ext.list.TreeItem
+ */
+
 @function add-if ($value1, $value2) {
     @if $value1 == null or $value2 == null {
         @return null;
@@ -83,13 +87,18 @@
     $item-text-font-size: null,
     $item-text-overflow: null,
 
+    $item-icon-over-transition: null,
+    $item-text-over-transition: null,
+    $item-expander-over-transition: null,
+
     $row-indicator-selected-color: null,
     $row-indicator-selected-over-color: null, 
     $row-indicator-over-color: null,
     $row-indicator-width: null,
     $row-selected-background-color: null,
     $row-selected-over-background-color: null,
-    $row-over-background-color: null
+    $row-over-background-color: null,
+    $row-over-transition: null
 ) {
     .#{$prefix}treelist-toolstrip {
         background-color: $toolstrip-background-color;
@@ -170,6 +179,15 @@
     .#{$prefix}treelist-item-tool,
     .#{$prefix}treelist-item-expander {
         text-align: center;
+
+        // Loading status may use a background image.
+        background-repeat: no-repeat;
+        background-position: 0 center;
+    }
+
+    .#{$prefix}treelist-item-loading .#{$prefix}treelist-item-icon {
+        background-image: theme-background-image('tree/loading', 'gif');
+        color: transparent;
     }
 
     .#{$prefix}treelist-item-icon,
@@ -212,11 +230,19 @@
     }
 
     .#{$prefix}treelist-item-expander:after {
-        @include font-icon($item-expander-glyph, $pseudo: false);
+        @include font-icon(
+            $item-expander-glyph,
+            $pseudo: false,
+            $line-height: $item-line-height
+        );
     }
 
     .#{$prefix}treelist-item-expanded > * > * > .#{$prefix}treelist-item-expander:after {
-        @include font-icon($item-expander-expanded-glyph, $pseudo: false);
+        @include font-icon(
+            $item-expander-expanded-glyph, 
+            $pseudo: false, $line-height: 
+            $item-line-height
+        );
     }
 
     $text-indent: $item-text-icon-gap;
@@ -226,7 +252,7 @@
 
     .#{$prefix}treelist-item-text {
         color: $item-text-color;
-        margin-left: add-if($item-icon-width, $text-indent);;
+        margin-left: add-if($item-icon-width, $text-indent);
         margin-right: $item-expander-width;
         font-size: $item-text-font-size;
         line-height: $item-line-height;
@@ -237,6 +263,7 @@
                 margin-right: $item-expander-width-big;
             }
         }
+
         text-overflow: $item-text-overflow;
     }
 
@@ -279,10 +306,10 @@
         }
 
         > .#{$prefix}treelist-container {
-            margin-left: -$item-icon-width;
+            margin-left: -$padding-left;
             @if $enable-big {
                 .x-big & {
-                    margin-left: -$item-icon-width-big;
+                    margin-left: -$padding-left;
                 }
             }
         }
@@ -292,6 +319,7 @@
         }
 
         > * .#{$prefix}treelist-row {
+            cursor: pointer;
             padding-left: 0;
         }
 
@@ -324,37 +352,38 @@
         @include font-icon($item-expander-glyph, $pseudo: false);
     }
 
-    &.#{$prefix}treelist-highlight-path {
-        .#{$prefix}treelist-item-over > * {
+    .#{$prefix}treelist-highlight-path {
+        .#{$prefix}treelist-item-over > * > * {
             > .#{$prefix}treelist-item-icon {
                 color: $item-icon-over-color;
-                transition: color 0.5s;
+                transition: $item-icon-over-transition;
             }
             > .#{$prefix}treelist-item-text {
                 color: $item-text-over-color;
-                transition: color 0.5s;
+                transition: $item-text-over-transition;
             }
             > .#{$prefix}treelist-item-expander {
                 color: $item-expander-over-color;
-                transition: color 0.5s;
+                transition: $item-expander-over-transition;
             }
         }
     }
 
     .#{$prefix}treelist-row-over {
         background-color: $row-over-background-color;
+        transition: $row-over-transition;
 
         > * > .#{$prefix}treelist-item-icon {
             color: $item-icon-over-color;
-            transition: color 0.5s;
+            transition: $item-icon-over-transition;
         }
         > * > .#{$prefix}treelist-item-text {
             color: $item-text-over-color;
-            transition: color 0.5s;
+            transition: $item-text-over-transition;
         }
         > * > .#{$prefix}treelist-item-expander {
             color: $item-expander-over-color;
-            transition: color 0.5s;
+            transition: $item-expander-over-transition;
         }
     }
 
@@ -379,17 +408,17 @@
         }
 
         .#{$prefix}treelist-item-hide-icon > * > * > .#{$prefix}treelist-item-text {
-            margin-left: add-if($item-expander-width, $text-indent);
+            margin-left: add-if($item-expander-width, $text-indent / 2);
             @if $enable-big {
                 .x-big & {
-                    margin-left: add-if($item-expander-width-big, $text-indent);
+                    margin-left: add-if($item-expander-width-big, $text-indent / 2);
                 }
             }
         }
     }
 
     .#{$prefix}treelist-item-hide-icon > * > * > .#{$prefix}treelist-item-text {
-        margin-left: $text-indent;
+        margin-left: $text-indent / 2;
     }
 }
 
@@ -446,13 +475,18 @@
     $item-text-font-size: null,
     $item-text-overflow: null,
 
+    $item-icon-over-transition: null,
+    $item-text-over-transition: null,
+    $item-expander-over-transition: null,
+
     $row-indicator-selected-color: null,
     $row-indicator-selected-over-color: null, 
     $row-indicator-over-color: null,
     $row-indicator-width: null,
     $row-selected-background-color: null,
     $row-selected-over-background-color: null,
-    $row-over-background-color: null
+    $row-over-background-color: null,
+    $row-over-transition: null
 ) {
     // Sass will remove any styles (margin or padding) that have null values. Further,
     // it will remove empty rulesets... so we don't need to conditionalize these rules
@@ -518,13 +552,18 @@
             $item-text-font-size: $item-text-font-size,
             $item-text-overflow: $item-text-overflow,
 
+            $item-icon-over-transition: $item-icon-over-transition,
+            $item-text-over-transition: $item-text-over-transition,
+            $item-expander-over-transition: $item-expander-over-transition,
+
             $row-indicator-selected-color: $row-indicator-selected-color,
             $row-indicator-selected-over-color: $row-indicator-selected-over-color, 
             $row-indicator-over-color: $row-indicator-over-color,
             $row-indicator-width: $row-indicator-width,
             $row-selected-background-color: $row-selected-background-color,
             $row-selected-over-background-color: $row-selected-over-background-color,
-            $row-over-background-color: $row-over-background-color
+            $row-over-background-color: $row-over-background-color,
+            $row-over-transition: $row-over-transition
         );
     }
 }
@@ -568,6 +607,7 @@
 .#{$prefix}treelist-item,
 .#{$prefix}treelist-container,
 .#{$prefix}treelist-root-container {
+    position: relative;
     overflow: hidden;
     list-style: none;
     padding: 0;
@@ -597,7 +637,7 @@
 }
 
 .#{$prefix}treelist-item-text {
-    cursor: default;
+    cursor: pointer;
     white-space: nowrap;
     overflow: hidden;
 }
@@ -665,11 +705,20 @@
     $item-text-font-size: $treelist-item-text-font-size,
     $item-text-overflow: $treelist-item-text-overflow,
 
+    $item-icon-over-transition: $item-icon-over-transition,
+    $item-text-over-transition: $item-text-over-transition,
+    $item-expander-over-transition: $item-expander-over-transition,
+
     $row-indicator-selected-color: $treelist-row-indicator-selected-color,
     $row-indicator-selected-over-color: $treelist-row-indicator-selected-over-color, 
     $row-indicator-over-color: $treelist-row-indicator-over-color,
     $row-indicator-width: $treelist-row-indicator-width,
     $row-selected-background-color: $treelist-row-selected-background-color,
     $row-selected-over-background-color: $treelist-row-selected-over-background-color,
-    $row-over-background-color: $treelist-row-over-background-color
+    $row-over-background-color: $treelist-row-over-background-color,
+    $row-over-transition: $treelist-row-over-transition
 );
+
+@if $treelist-nav-ui != null {
+    @include treelist-ui(map-merge((ui: nav), $treelist-nav-ui)...);
+}

@@ -1,17 +1,16 @@
-describe("Ext.util.Bag", function() {
-
+topSuite("Ext.util.Bag", function() {
     var bag, a, b, c, d;
 
-    function makeBag() {    
+    function makeBag() {
         return new Ext.util.Bag();
     }
 
     beforeEach(function() {
-        bag = makeBag();        
-        a = {id: 'a'};
-        b = {id: 'b'};
-        c = {id: 'c'};
-        d = {id: 'd'};
+        bag = makeBag();
+        a = { id: 'a' };
+        b = { id: 'b' };
+        c = { id: 'c' };
+        d = { id: 'd' };
     });
 
     afterEach(function() {
@@ -66,6 +65,10 @@ describe("Ext.util.Bag", function() {
             it("should return the added item", function() {
                 expect(bag.add(a)).toBe(a);
             });
+
+            it("should retrun an array if more than one item was added", function() {
+                expect(bag.add([a, b])).toEqual([a, b]);
+            });
         });
 
         describe("an existing item", function() {
@@ -88,7 +91,8 @@ describe("Ext.util.Bag", function() {
             });
 
             it("should replace an item with the same key", function() {
-                var newB = {id: 'b'};
+                var newB = { id: 'b' };
+
                 bag.add(newB);
 
                 expect(bag.length).toBe(3);
@@ -101,7 +105,8 @@ describe("Ext.util.Bag", function() {
             });
 
             it("should return the old item", function() {
-                var newB = {id: 'b'};
+                var newB = { id: 'b' };
+
                 expect(bag.add(b)).toBe(b);
                 expect(bag.add(newB)).toBe(b);
             });
@@ -165,6 +170,7 @@ describe("Ext.util.Bag", function() {
                 bag.add(a);
 
                 var other = bag.clone();
+
                 expect(other.generation).toBe(0);
 
                 other.clear();
@@ -247,7 +253,7 @@ describe("Ext.util.Bag", function() {
 
                 expect(bag.length).toBe(3);
                 expect(bag.getCount()).toBe(3);
-                expect(bag.getAt(3)).toBeNull()
+                expect(bag.getAt(3)).toBeNull();
                 expect(bag.getByKey('d')).toBeNull();
             });
 
@@ -261,7 +267,7 @@ describe("Ext.util.Bag", function() {
 
                 expect(other.length).toBe(3);
                 expect(other.getCount()).toBe(3);
-                expect(other.getAt(3)).toBeNull()
+                expect(other.getAt(3)).toBeNull();
                 expect(other.getByKey('d')).toBeNull();
             });
         });
@@ -294,7 +300,7 @@ describe("Ext.util.Bag", function() {
             });
 
             it("should return false for an item with a matching key but not the same reference", function() {
-                expect(bag.contains({id: 'b'})).toBe(false);
+                expect(bag.contains({ id: 'b' })).toBe(false);
             });
         });
     });
@@ -446,21 +452,25 @@ describe("Ext.util.Bag", function() {
                     expect(bag.getAt(2)).toBeNull();
                     expect(bag.getAt(3)).toBeNull();
                 });
+
+                it("should return an array if more than one item is removed", function() {
+                    expect(bag.remove([a, b, c, d])).toEqual([a, b, c, d]);
+                });
             });
 
             describe("item not in the collection", function() {
                 it("should return null", function() {
-                    expect(bag.remove({id: 'z'})).toBeNull();
+                    expect(bag.remove({ id: 'z' })).toBeNull();
                 });
 
                 it("should not modify the length", function() {
-                    bag.remove({id: 'z'});
+                    bag.remove({ id: 'z' });
                     expect(bag.length).toBe(4);
                     expect(bag.getCount()).toBe(4);
                 });
 
                 it("should not modify the generation", function() {
-                    bag.remove({id: 'z'});
+                    bag.remove({ id: 'z' });
                     expect(bag.generation).toBe(4);
                 });
             });
@@ -542,17 +552,17 @@ describe("Ext.util.Bag", function() {
 
             describe("item not in the collection", function() {
                 it("should return null", function() {
-                    expect(bag.removeByKey({id: 'z'})).toBeNull();
+                    expect(bag.removeByKey({ id: 'z' })).toBeNull();
                 });
 
                 it("should not modify the length", function() {
-                    bag.removeByKey({id: 'z'});
+                    bag.removeByKey({ id: 'z' });
                     expect(bag.length).toBe(4);
                     expect(bag.getCount()).toBe(4);
                 });
 
                 it("should not modify the generation", function() {
-                    bag.removeByKey({id: 'z'});
+                    bag.removeByKey({ id: 'z' });
                     expect(bag.generation).toBe(4);
                 });
             });
@@ -567,6 +577,7 @@ describe("Ext.util.Bag", function() {
             if (a === b) {
                 return 0;
             }
+
             return a < b ? -1 : 1;
         }
 
@@ -608,7 +619,8 @@ describe("Ext.util.Bag", function() {
             });
 
             it("should not attempt to maintain the sort", function() {
-                var e = {id: 'e'};
+                var e = { id: 'e' };
+
                 // Reverse order
                 bag.sort(function(a, b) {
                     a = a.id;
@@ -617,6 +629,7 @@ describe("Ext.util.Bag", function() {
                     if (a === b) {
                         return 0;
                     }
+
                     return a < b ? 1 : -1;
                 });
 

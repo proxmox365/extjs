@@ -5,6 +5,7 @@ Ext.define('KitchenSink.view.CodePreview', {
     ],
 
     xtype: 'codePreview',
+    bodyCls: 'content-panel-body',
 
     // The code must be read in LTR
     bodyPadding: 5,
@@ -17,9 +18,16 @@ Ext.define('KitchenSink.view.CodePreview', {
     showTitle: true,
 
     initComponent: function() {
-        if (this.showTitle) {
-            this.title = 'Details';
+        var me = this;
+
+        if (me.showTitle) {
+            me.title = 'Details' +
+                '<div class="tier tier-premium" ' +
+                    'data-qtip="Uses features that require Ext JS Premium">Premium</div>' +
+                '<div class="tier tier-pro" ' +
+                    'data-qtip="Uses features that require Ext JS Professional">Pro</div>';
         }
-        this.callParent(arguments);
+
+        me.callParent();
     }
 });

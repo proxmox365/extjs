@@ -1,14 +1,7 @@
 Ext.define('KitchenSink.view.tablet.NavigationBar', {
     extend: 'Ext.TitleBar',
     xtype: 'tabletnavigationbar',
+    titleAlign: 'left',
 
-    config: {
-        ui: 'dark'
-    },
-
-    platformConfig: {
-        blackberry: {
-            ui: 'light'
-        }
-    }
+    ui: 'dark'
 });

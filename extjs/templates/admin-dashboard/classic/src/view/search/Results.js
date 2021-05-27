@@ -66,6 +66,7 @@ Ext.define('Admin.view.search.Results', {
             title: 'User Results',
             routeId: 'user',
             bind: '{usersResults}',
+            scrollable: false,
             columns: [
                 {
                     xtype: 'gridcolumn',
@@ -115,11 +116,11 @@ Ext.define('Admin.view.search.Results', {
                     items: [
                         {
                             xtype: 'button',
-                            iconCls: 'x-fa fa-pencil'
+                            iconCls: 'x-fa fa-pencil-alt'
                         },
                         {
                             xtype: 'button',
-                            iconCls: 'x-fa fa-close'
+                            iconCls: 'x-fa fa-times'
                         },
                         {
                             xtype: 'button',
@@ -152,6 +153,7 @@ Ext.define('Admin.view.search.Results', {
             title: 'Messages',
             routeId: 'messages',
             bind: '{inboxResults}',
+            scrollable: false,
             columns: [
                 {
                     xtype: 'gridcolumn',
@@ -159,7 +161,7 @@ Ext.define('Admin.view.search.Results', {
                         if(value) {
                             return '<span class="x-fa fa-heart"></span>';
                         }
-                        return '<span class="x-fa fa-heart-o"></span>';
+                        return '<span class="x-fa fa-heart inactive"></span>';
 
                     },
                     width: 45,

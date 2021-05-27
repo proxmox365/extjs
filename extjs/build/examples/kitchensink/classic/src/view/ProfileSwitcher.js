@@ -1,22 +1,12 @@
 Ext.define('KitchenSink.view.ProfileSwitcher', {
     extend: 'Ext.Component',
     xtype: 'profileSwitcher',
-    cls: 'ks-profile-switcher',
+    cls: ['ks-profile-switcher', 'x-fa', 'fa-bars'],
 
     readProfileInfo: function() {
-        var profile = location.href.match(/profile=([\w\-]+)/),
-            locale = location.href.match(/locale=([\w\-]+)/);
-
-        profile = (profile && profile[1]) || (Ext.platformTags.phone ? 'modern-neptune' : 'triton');
-        locale = locale && locale[1] || 'en';
-
-        if (!Ext.profileName && !!profile) {
-            var m = profile.match(/^([\w\-]+)-(?:he)$/);
-            Ext.profileName = m ? m[1] : profile;
-        }
-
-        this.profile = profile;
-        this.locale = locale;
+        // These come from index.html
+        this.profile = KitchenSink.profileName;
+        this.locale = KitchenSink.locale;
     },
 
     setQueryParam: function(name, value, preserveHash) {
@@ -26,9 +16,11 @@ Ext.define('KitchenSink.view.ProfileSwitcher', {
         query[name] = value;
 
         queryString = Ext.Object.toQueryString(query);
+
         if (preserveHash) {
             location.search = queryString;
-        } else {
+        }
+        else {
             window.location = location.pathname + '?' + queryString;
         }
     },
@@ -43,34 +35,36 @@ Ext.define('KitchenSink.view.ProfileSwitcher', {
                 crisp: 'Crisp',
                 'crisp-touch': 'Crisp Touch',
                 classic: 'Classic',
-                gray: 'Gray'
-            },
-            modernProfiles = {
-                'modern-triton': 'Modern Triton',
-                'modern-neptune': 'Modern Neptune',
-                blackberry: 'Blackberry',
-                cupertino: 'Cupertino',
-                mountainview: 'Mountain View',
-                windows: 'Windows'
+                gray: 'Gray',
+                aria: 'ARIA',
+                graphite: 'Graphite',
+                'classic-material': 'Classic Material'
             },
             menu, profileId;
 
         me.readProfileInfo();
 
         function makeItem(value, text, paramName) {
+            var checked;
+
             paramName = paramName || "profile";
 
-            var checked = value === (paramName === "profile" ? me.profile : me.locale);
+            checked = value === (
+                paramName === "profile"
+                    ? me.profile
+                    : me.locale
+            );
 
             return {
                 text: text,
                 group: (paramName === 'profile' ? 'profilegroup' : 'localegroup'),
                 checked: checked,
-                handler: function () {
+                handler: function() {
                     if (!checked) {
-                        if(paramName === 'profile') {
+                        if (paramName === 'profile') {
                             me.setQueryParam('profile', value, value in classicProfiles);
-                        } else {
+                        }
+                        else {
                             me.setQueryParam('locale', value);
                         }
                     }
@@ -83,15 +77,16 @@ Ext.define('KitchenSink.view.ProfileSwitcher', {
         }
 
         menuItems.push('-');
-
-        for (profileId in modernProfiles) {
-            menuItems.push(makeItem(profileId, modernProfiles[profileId]));
-        }
-
-        menuItems.push('-');
-
         menuItems.push(makeItem('en', 'English', 'locale'));
         menuItems.push(makeItem('he', 'Hebrew', 'locale'));
+
+        menuItems.push('-', {
+            text: 'Modern Toolkit',
+            iconCls: 'x-fa fa-external-link-alt',
+            handler: function() {
+                window.location = location.pathname + '?modern';
+            }
+        });
 
         menu = new Ext.menu.Menu({
             items: menuItems
@@ -99,7 +94,7 @@ Ext.define('KitchenSink.view.ProfileSwitcher', {
 
         this.on({
             scope: this,
-            click: function (e) {
+            click: function(e) {
                 menu.showBy(this);
             },
             element: 'el'

@@ -3,10 +3,15 @@
  * @private
  */
 Ext.define('Ext.data.LocalStore', {
-	extend: 'Ext.Mixin',
+    extend: 'Ext.Mixin',
+
+    requires: ['Ext.data.Group'],
 
     mixinConfig: {
-        id: 'localstore'
+        id: 'localstore',
+        after: {
+            fireGroupChangeEvent: 'onGrouperChange'
+        }
     },
 
     config: {
@@ -43,18 +48,31 @@ Ext.define('Ext.data.LocalStore', {
      * Note that if this Store is sorted, the new Model instances will be inserted
      * at the correct point in the Store to maintain the sort order.
      *
-     * @param {Ext.data.Model[]/Ext.data.Model.../Object[]/Object...} model An array of Model instances
-     * or Model configuration objects, or variable number of Model instance or config arguments.
-     * @return {Ext.data.Model[]} The model instances that were added
+     * @param {Ext.data.Model[]/Ext.data.Model.../Object[]/Object...} record An array of
+     * records or configuration objects, or variable number of record or config arguments.
+     * @return {Ext.data.Model[]} The record instances that were added.
      */
-    add: function(arg) {
-        return this.insert(this.getCount(), arguments.length === 1 ? arg : arguments);
+    add: function(record) {
+        return this.insert(this.getCount(), arguments.length === 1 ? record : arguments);
     },
 
     constructDataCollection: function() {
-        return new Ext.util.Collection({
-            rootProperty: 'data'
+        var result = new Ext.util.Collection({
+            //<debug>
+            id: this.getId() + '-data',
+            //</debug>
+            rootProperty: 'data',
+            groupConfig: {
+                xclass: 'Ext.data.Group',
+                store: this
+            }
         });
+
+        // Add this store as an observer immediately so that we are informed of any
+        // synchronous autoLoad which may occur in this event.
+        result.addObserver(this);
+
+        return result;
     },
 
     /**
@@ -71,6 +89,7 @@ Ext.define('Ext.data.LocalStore', {
             Model = this.getModel();
             record = new Model(record, session);
         }
+
         return record;
     },
 
@@ -80,28 +99,75 @@ Ext.define('Ext.data.LocalStore', {
 
     createSortersCollection: function() {
         var sorters = this.getData().getSorters();
+
         sorters.setSorterConfigure(this.addFieldTransform, this);
+
         return sorters;
     },
 
+    /**
+     * Get the summary record for this store. See {@link Ext.data.Model#summary}.
+     * @return {Ext.data.Model}
+     * @since 6.5.0
+     */
+    getSummaryRecord: function() {
+        var me = this,
+            summaryRecord = me.summaryRecord,
+            data = me.getData(),
+            generation = data.generation,
+            T;
+
+        if (!summaryRecord) {
+            T = me.getModel().getSummaryModel();
+            me.summaryRecord = summaryRecord = new T();
+        }
+
+        if (!summaryRecord.isRemote && summaryRecord.summaryGeneration !== generation) {
+            summaryRecord.calculateSummary(data.items);
+            summaryRecord.summaryGeneration = generation;
+        }
+
+        return summaryRecord;
+    },
+
+    onCollectionBeginUpdate: function() {
+        this.beginUpdate();
+    },
+
+    onCollectionEndUpdate: function() {
+        this.endUpdate();
+    },
+
     // When the collection informs us that it has sorted, this LocalStore must react.
-    // AbstractStore#onSorterEndUpdate does the correct thing (fires a refresh) if remote sorting is false
+    // AbstractStore#onSorterEndUpdate does the correct thing (fires a refresh) if remote sorting
+    // is false
     onCollectionSort: function() {
         this.onSorterEndUpdate();
     },
 
     // When the collection informs us that it has filtered, this LocalStore must react.
-    // AbstractStore#onFilterEndUpdate does the correct thing (fires a refresh) if remote sorting is false
+    // AbstractStore#onFilterEndUpdate does the correct thing (fires a refresh) if remote sorting
+    // is false
     onCollectionFilter: function() {
         this.onFilterEndUpdate();
+    },
+
+    onGrouperChange: function(grouper) {
+        this.callObservers('GrouperChange', [ grouper ]);
     },
 
     notifySorterChange: function() {
         this.getData().onSorterChange();
     },
-    
+
     forceLocalSort: function() {
-        this.getData().onSortChange();
+        var sorters = this.getSorters();
+
+        // Sorter collection must inform all interested parties.
+        // We cannot just tell our data Collection to react - there
+        // may be GroupCollections hooked into the endUpdate call.
+        sorters.beginUpdate();
+        sorters.endUpdate();
     },
 
     // Inherit docs
@@ -114,41 +180,88 @@ Ext.define('Ext.data.LocalStore', {
      *
      * When store is filtered, only loops over the filtered records.
      *
-     * @param {Function} fn The function to call. The {@link Ext.data.Model Record} is passed as the first parameter.
-     * Returning `false` aborts and exits the iteration.
-     * @param {Object} [scope] The scope (this reference) in which the function is executed.
+     * @param {Function} fn The function to call. The {@link Ext.data.Model Record} is passed
+     * as the first parameter. Returning `false` aborts and exits the iteration.
+     * @param {Object} [scope] The scope (`this` reference) in which the function is executed.
      * Defaults to the current {@link Ext.data.Model record} in the iteration.
+     * @param {Object/Boolean} [includeOptions] An object which contains options which
+     * modify how the store is traversed. Or simply the `filtered` option.
+     * @param {Boolean} [includeOptions.filtered] Pass `true` to include filtered out
+     * nodes in the iteration.
      */
-    each: function(fn, scope) {
-        var data = this.data.items,
-            len = data.length,
-            record, i;
+    each: function(fn, scope, includeOptions) {
+        var data = this.getData(),
+            bypassFilters = includeOptions,
+            len, record, i;
+
+        if (typeof includeOptions === 'object') {
+            bypassFilters = includeOptions.filtered;
+        }
+
+        if (bypassFilters && data.filtered) {
+            data = data.getSource();
+        }
+
+        data = data.items.slice(0); // safe for re-entrant calls
+        len = data.length;
 
         for (i = 0; i < len; ++i) {
             record = data[i];
+
             if (fn.call(scope || record, record, i, len) === false) {
                 break;
             }
         }
     },
-    
+
     /**
      * Collects unique values for a particular dataIndex from this store.
      *
-     * @param {String} dataIndex The property to collect
-     * @param {Boolean} [allowNull] Pass true to allow null, undefined or empty string values
-     * @param {Boolean} [bypassFilter] Pass true to collect from all records, even ones which are filtered.
+     * Note that the `filtered` option can also be passed as a separate parameter for
+     * compatibility with previous versions.
+     *
+     *     var store = Ext.create('Ext.data.Store', {
+     *         fields: ['name'],
+     *         data: [{
+     *             name: 'Larry'
+     *         }, {
+     *             name: 'Darryl'
+     *         }, {
+     *             name: 'Darryl'
+     *         }]
+     *     });
+     *
+     *     store.collect('name');
+     *     // returns ["Larry", "Darryl"]
+     *
+     * @param {String} property The property to collect
+     * @param {Object} [includeOptions] An object which contains options which modify how
+     * the store is traversed. For compatibility, this argument may be the `allowNull`
+     * value itself. If so, the next argument is the `filtered` value.
+     * @param {Boolean} [includeOptions.allowNull] Pass true to allow null, undefined or
+     * empty string values.
+     * @param {Boolean} [includeOptions.filtered] Pass `true` to collect from all records,
+     * even ones which are filtered.
+     * @param {Boolean} [filtered] This argument only applies when the legacy call form
+     * is used and `includeOptions` is actually the `allowNull` value.
+     *
      * @return {Object[]} An array of the unique values
      */
-    collect: function(dataIndex, allowNull, bypassFilter) {
+    collect: function(property, includeOptions, filtered) {
         var me = this,
+            allowNull = includeOptions,
             data = me.getData();
-        
-        if (bypassFilter === true && data.filtered) {
+
+        if (typeof includeOptions === 'object') {
+            filtered = includeOptions.filtered;
+            allowNull = includeOptions.allowNull;
+        }
+
+        if (filtered && data.filtered) {
             data = data.getSource();
         }
 
-        return data.collect(dataIndex, 'data', allowNull);
+        return data.collect(property, 'data', allowNull);
     },
 
     /**
@@ -162,10 +275,11 @@ Ext.define('Ext.data.LocalStore', {
      */
     getById: function(id) {
         var data = this.getData();
-        
+
         if (data.filtered) {
             data = data.getSource();
         }
+
         return data.get(id) || null;
     },
 
@@ -189,6 +303,7 @@ Ext.define('Ext.data.LocalStore', {
                 data.setExtraKeys(keyCfg);
                 data.$hasExtraKeys = true;
             }
+
             data = data.getSource();
         }
 
@@ -204,8 +319,9 @@ Ext.define('Ext.data.LocalStore', {
      * Returns the complete unfiltered collection.
      * @private
      */
-    getDataSource: function () {
+    getDataSource: function() {
         var data = this.getData();
+
         return data.getSource() || data;
     },
 
@@ -224,7 +340,7 @@ Ext.define('Ext.data.LocalStore', {
     /**
      * Get the index within the store of the Record with the passed id.
      *
-     * Like #indexOf, this method is effected by filtering.
+     * Like #indexOf, this method is affected by filtering.
      *
      * @param {String} id The id of the Record to find.
      * @return {Number} The index of the Record. Returns -1 if not found.
@@ -238,36 +354,39 @@ Ext.define('Ext.data.LocalStore', {
      * See also {@link #method-add}.
      *
      * @param {Number} index The start index at which to insert the passed Records.
-     * @param {Ext.data.Model/Ext.data.Model[]/Object/Object[]} records An `Ext.data.Model` instance, the
-     * data needed to populate an instance or an array of either of these.
+     * @param {Ext.data.Model/Ext.data.Model[]/Object/Object[]} records An `Ext.data.Model`
+     * instance, the data needed to populate an instance or an array of either of these.
      * 
      * @return {Ext.data.Model[]} records The added records
      */
     insert: function(index, records) {
         var me = this,
             len, i;
-        
+
         if (records) {
             if (!Ext.isIterable(records)) {
                 records = [records];
-            } else {
+            }
+            else {
                 records = Ext.Array.clone(records);
             }
+
             len = records.length;
         }
-        
+
         if (!len) {
             return [];
         }
-        
+
         for (i = 0; i < len; ++i) {
             records[i] = me.createModel(records[i]);
         }
-        
+
         me.getData().insert(index, records);
+
         return records;
     },
-    
+
     /**
      * Query all the cached records in this Store using a filtering function. The specified function
      * will be called with each record in this Store. If the function returns `true` the record is
@@ -312,7 +431,8 @@ Ext.define('Ext.data.LocalStore', {
     query: function(property, value, anyMatch, caseSensitive, exactMatch) {
         var data = this.getData();
 
-        return (data.getSource() || data).createFiltered(property, value, anyMatch, caseSensitive, exactMatch);
+        return (data.getSource() || data).createFiltered(property, value, anyMatch, caseSensitive,
+                                                         exactMatch);
     },
 
     /**
@@ -360,6 +480,7 @@ Ext.define('Ext.data.LocalStore', {
      */
     sum: function(field, grouped) {
         var data = this.getData();
+
         return (grouped && this.isGrouped()) ? data.sumByGroup(field) : data.sum(field);
     },
 
@@ -376,6 +497,7 @@ Ext.define('Ext.data.LocalStore', {
      */
     count: function(grouped) {
         var data = this.getData();
+
         return (grouped && this.isGrouped()) ? data.countByGroup() : data.count();
     },
 
@@ -393,6 +515,7 @@ Ext.define('Ext.data.LocalStore', {
      */
     min: function(field, grouped) {
         var data = this.getData();
+
         return (grouped && this.isGrouped()) ? data.minByGroup(field) : data.min(field);
     },
 
@@ -410,6 +533,7 @@ Ext.define('Ext.data.LocalStore', {
      */
     max: function(field, grouped) {
         var data = this.getData();
+
         return (grouped && this.isGrouped()) ? data.maxByGroup(field) : data.max(field);
     },
 
@@ -427,6 +551,7 @@ Ext.define('Ext.data.LocalStore', {
      */
     average: function(field, grouped) {
         var data = this.getData();
+
         return (grouped && this.isGrouped()) ? data.averageByGroup(field) : data.average(field);
     },
 
@@ -448,7 +573,7 @@ Ext.define('Ext.data.LocalStore', {
     aggregate: function(fn, scope, grouped, field) {
         var me = this,
             groups, len, out, group, i;
-        
+
         if (grouped && me.isGrouped()) {
             groups = me.getGroups().items;
             len = groups.length;
@@ -458,26 +583,28 @@ Ext.define('Ext.data.LocalStore', {
                 group = groups[i];
                 out[group.getGroupKey()] = me.getAggregate(fn, scope || me, group.items, field);
             }
+
             return out;
-        } else {
+        }
+        else {
             return me.getAggregate(fn, scope, me.getData().items, field);
         }
     },
 
-    getAggregate: function(fn, scope, records, field){
+    getAggregate: function(fn, scope, records, field) {
         var values = [],
             len = records.length,
             i;
 
-        //TODO EXTJSIV-12307 - not the right way to call fn
+        // TODO EXTJSIV-12307 - not the right way to call fn
         for (i = 0; i < len; ++i) {
             values[i] = records[i].get(field);
         }
-        
+
         return fn.call(scope || this, records, values);
     },
 
-    addObserver: function (observer) {
+    addObserver: function(observer) {
         var observers = this.observers;
 
         if (!observers) {
@@ -486,29 +613,33 @@ Ext.define('Ext.data.LocalStore', {
 
         observers.add(observer);
     },
-    
-    removeObserver: function (observer) {
+
+    removeObserver: function(observer) {
         var observers = this.observers;
 
         if (observers) {
             observers.remove(observer);
         }
     },
-    
+
     callObservers: function(action, args) {
         var observers = this.observers,
             len, items, i, methodName, item;
-        
+
         if (observers) {
             items = observers.items;
+
             if (args) {
                 args.unshift(this);
-            } else {
+            }
+            else {
                 args = [this];
             }
+
             for (i = 0, len = items.length; i < len; ++i) {
                 item = items[i];
                 methodName = 'onSource' + action;
+
                 if (item[methodName]) {
                     item[methodName].apply(item, args);
                 }
@@ -542,10 +673,12 @@ Ext.define('Ext.data.LocalStore', {
 
         for (i = 0, len = data.length; i < len; ++i) {
             record = data[i];
+
             if (fn.call(scope, record) === true) {
                 matches.push(record);
             }
         }
+
         return matches;
     },
 
@@ -570,10 +703,12 @@ Ext.define('Ext.data.LocalStore', {
 
         for (i = 0, len = data.length; i < len; ++i) {
             record = data[i];
+
             if (record.get(field) === value) {
                 matches.push(record);
             }
         }
+
         return matches;
     },
 
@@ -589,7 +724,6 @@ Ext.define('Ext.data.LocalStore', {
                     rootProperty: ''
                 }
             };
-         }
+        }
     }
-
 });

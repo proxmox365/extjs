@@ -1,51 +1,52 @@
-describe("Ext.view.NodeCache", function () {
-
+topSuite("Ext.view.NodeCache", ['Ext.grid.Panel'], function() {
     var grid, store, view, rows,
         synchronousLoad = true,
         proxyStoreLoad = Ext.data.ProxyStore.prototype.load,
-        loadStore;
-
-    beforeEach(function () {
-        // Override so that we can control asynchronous loading
-        loadStore = Ext.data.ProxyStore.prototype.load = function() {
+        loadStore = function() {
             proxyStoreLoad.apply(this, arguments);
+
             if (synchronousLoad) {
                 this.flushLoad.apply(this, arguments);
             }
+
             return this;
         };
 
-        store = Ext.create('Ext.data.Store', {
-            fields      : ['name'],
-            autoDestroy : true,
+    beforeEach(function() {
+        // Override so that we can control asynchronous loading
+        Ext.data.ProxyStore.prototype.load = loadStore;
 
-            data : {
-                'items' : [
-                    { 'name' : 'Lisa' },
-                    { 'name' : 'Bart' },
-                    { 'name' : 'Homer' },
-                    { 'name' : 'Marge' }
+        store = Ext.create('Ext.data.Store', {
+            fields: ['name'],
+            autoDestroy: true,
+
+            data: {
+                'items': [
+                    { 'name': 'Lisa' },
+                    { 'name': 'Bart' },
+                    { 'name': 'Homer' },
+                    { 'name': 'Marge' }
                 ]
             },
 
-            proxy : {
-                type   : 'memory',
-                reader : {
-                    type : 'json',
+            proxy: {
+                type: 'memory',
+                reader: {
+                    type: 'json',
                     rootProperty: 'items'
                 }
             }
         });
 
         grid = Ext.create('Ext.grid.Panel', {
-            store    : store,
-            height   : 100,
-            width    : 100,
-            renderTo : Ext.getBody(),
-            columns  : [
+            store: store,
+            height: 100,
+            width: 100,
+            renderTo: Ext.getBody(),
+            columns: [
                 {
-                    text      : 'Name',
-                    dataIndex : 'name'
+                    text: 'Name',
+                    dataIndex: 'name'
                 }
             ]
         });
@@ -53,7 +54,7 @@ describe("Ext.view.NodeCache", function () {
         rows = view.all;
     });
 
-    afterEach(function () {
+    afterEach(function() {
         // Undo the overrides.
         Ext.data.ProxyStore.prototype.load = proxyStoreLoad;
 
@@ -61,16 +62,16 @@ describe("Ext.view.NodeCache", function () {
     });
 
     // EXTJSIV-9765
-    it("Store rejectChanges() should not break NodeCache insert()", function () {
-        //have to create a scoped function that because Jasmine expect() changes our scope.
+    it("Store rejectChanges() should not break NodeCache insert()", function() {
+        // have to create a scoped function that because Jasmine expect() changes our scope.
         var scopedFn = function() {
             store.rejectChanges();
         };
 
         var count = store.getCount();
 
-        store.removeAt(count-1);
-        store.removeAt(count-2);
+        store.removeAt(count - 1);
+        store.removeAt(count - 2);
 
         expect(scopedFn).not.toThrow();
 

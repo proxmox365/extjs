@@ -1,35 +1,44 @@
-describe("Ext.tree.Panel", function(){
-    
-    var TreeItem = Ext.define(null, {
-        extend: 'Ext.data.TreeModel',
-        fields: ['id', 'text', 'secondaryId'],
-        proxy: {
-            type: 'memory'
-        }
-    }),
-    tree, view, makeTree, testNodes, store, rootNode,
+topSuite("Ext.tree.Panel", [
+    'Ext.grid.Panel',
+    'Ext.app.ViewModel',
+    'Ext.app.ViewController',
+    'Ext.grid.column.Widget'
+], function() {
+    var itNotTouch = jasmine.supportsTouch ? xit : it,
+        TreeItem = Ext.define(null, {
+            extend: 'Ext.data.TreeModel',
+            fields: ['id', 'text', 'secondaryId'],
+            proxy: {
+                type: 'memory'
+            }
+        }),
+        tree, view, makeTree, testNodes, store, rootNode,
         synchronousLoad = true,
         treeStoreLoad = Ext.data.TreeStore.prototype.load,
-        loadStore;
-    
+        loadStore = function() {
+            treeStoreLoad.apply(this, arguments);
+
+            if (synchronousLoad) {
+                this.flushLoad.apply(this, arguments);
+            }
+
+            return this;
+        };
+
     function spyOnEvent(object, eventName, fn) {
         var obj = {
-            fn: fn || Ext.emptyFn
-        },
-        spy = spyOn(obj, "fn");
+                fn: fn || Ext.emptyFn
+            },
+            spy = spyOn(obj, "fn");
+
         object.addListener(eventName, obj.fn);
+
         return spy;
     }
 
     beforeEach(function() {
         // Override so that we can control asynchronous loading
-        loadStore = Ext.data.TreeStore.prototype.load = function() {
-            treeStoreLoad.apply(this, arguments);
-            if (synchronousLoad) {
-                this.flushLoad.apply(this, arguments);
-            }
-            return this;
-        };
+        Ext.data.TreeStore.prototype.load = loadStore;
 
         MockAjaxManager.addMethods();
         testNodes = [{
@@ -103,7 +112,7 @@ describe("Ext.tree.Panel", function(){
                 leaf: true
             }]
         }];
-        
+
         makeTree = function(nodes, cfg, storeCfg, rootCfg) {
             cfg = cfg || {};
             Ext.applyIf(cfg, {
@@ -127,55 +136,346 @@ describe("Ext.tree.Panel", function(){
             rootNode = tree.getRootNode();
         };
     });
-    
-    afterEach(function(){
+
+    afterEach(function() {
         // Undo the overrides.
         Ext.data.TreeStore.prototype.load = treeStoreLoad;
 
         Ext.destroy(tree);
-        tree = makeTree = null;
+        tree = view = makeTree = testNodes = store = rootNode = null;
         MockAjaxManager.removeMethods();
     });
-    
-    describe('Checkbox tree nodes', function() {
+
+    describe("widget column", function() {
+        it("should not garbage collect a widget after being collapsed", function() {
+            makeTree([{
+                id: 'a',
+                text: 'A',
+                expanded: true,
+                children: [{
+                    id: 'b',
+                    text: 'B'
+                }]
+            }], {
+                rootVisible: false,
+                columns: [{
+                    xtype: 'treecolumn',
+                    dataIndex: 'text'
+                }, {
+                    xtype: 'widgetcolumn',
+                    dataIndex: 'text',
+                    widget: {
+                        xtype: 'component'
+                    }
+                }]
+            });
+            var col = tree.getColumnManager().getColumns()[1],
+                widget = col.getWidget(rootNode.firstChild.firstChild);
+
+            rootNode.firstChild.collapse();
+            Ext.dom.GarbageCollector.collect();
+            expect(widget.el.destroyed).toBe(false);
+        });
+    });
+
+    describe("scrolling", function() {
+        function expectScroll(vertical, horizontal) {
+            var dom = tree.getView().getEl().dom;
+
+            // In Mac OS X, scrollbars can be invisible until user hovers mouse cursor
+            // over the scrolled area. This is hard to test so we just assume that
+            // in Mac browsers scrollbars can have 0 width.
+            if (vertical !== undefined) {
+                if (vertical) {
+                    if (Ext.isMac) {
+                        expect(dom.scrollHeight).toBeGreaterThanOrEqual(dom.clientHeight);
+                    }
+                    else {
+                        expect(dom.scrollHeight).toBeGreaterThan(dom.clientHeight);
+                    }
+                }
+                else {
+                    expect(dom.scrollHeight).toBeLessThanOrEqual(dom.clientHeight);
+                }
+            }
+
+            if (horizontal !== undefined) {
+                if (horizontal) {
+                    if (Ext.isMac) {
+                        expect(dom.scrollWidth).toBeGreaterThanOrEqual(dom.clientWidth);
+                    }
+                    else {
+                        expect(dom.scrollWidth).toBeGreaterThan(dom.clientWidth);
+                    }
+                }
+                else {
+                    expect(dom.scrollWidth).toBeLessThanOrEqual(dom.clientWidth);
+                }
+            }
+        }
+
+        function makeNodes(n) {
+            var nodes = [],
+                i;
+
+            for (i = 1; i <= n; ++i) {
+                nodes.push({
+                    text: 'Node' + i
+                });
+            }
+
+            return nodes;
+        }
+
+        describe("with no columns definition", function() {
+            it("should not show scrollbars when not required", function() {
+                makeTree([{
+                    text: 'Foo'
+                }], {
+                    width: 400,
+                    height: 400
+                }, null, {
+                    expanded: true
+                });
+                expectScroll(false, false);
+            });
+
+            it("should show a vertical scrollbar when required", function() {
+                makeTree(makeNodes(50), {
+                    width: 400,
+                    height: 200
+                }, null, {
+                    expanded: true
+                });
+                expectScroll(true, false);
+            });
+
+            it("should show a horizontal scrollbar when required", function() {
+                makeTree([{
+                    text: 'A really long node that causes horizontal scroll'
+                }], {
+                    width: 200,
+                    height: 200
+                }, null, {
+                    expanded: true
+                });
+                expectScroll(false, true);
+                expect(view.getScrollable().getX()).toBe(true);
+            });
+
+            it("should show a scrollbar in both directions", function() {
+                var nodes = makeNodes(50);
+
+                nodes.unshift({
+                    text: 'A really long node that causes horizontal scroll'
+                });
+                makeTree(nodes, {
+                    width: 200,
+                    height: 400
+                }, null, {
+                    expanded: true
+                });
+                expectScroll(true, true);
+            });
+        });
+    });
+
+    describe("Checkbox tree nodes", function() {
         var eventRec,
             record,
             row,
-            checkbox;
+            checkbox,
+            spy;
+
+        function clickCheckboxId(id) {
+            var checkbox = view.getRow(store.getById(id)).querySelector(view.checkboxSelector, true);
+
+            jasmine.fireMouseEvent(checkbox, 'click');
+        }
+
+        function getCheckedCount() {
+            var checkedNodes = [];
+
+            store.getRootNode().cascade(function(node) {
+                if (node.get('checked') === true) {
+                    checkedNodes.push(node);
+                }
+            });
+
+            return checkedNodes.length;
+        }
 
         beforeEach(function() {
             eventRec = null;
+            spy = jasmine.createSpy('spy');
             makeTree(testNodes, {
                 listeners: {
                     checkchange: function(rec) {
                         eventRec = rec;
+                        spy(rec);
                     }
                 }
             });
-            store.getRoot().cascadeBy(function(r) {
+            store.getRoot().cascade(function(r) {
                 r.set('checked', false);
             });
             tree.expandAll();
             record = store.getAt(1);
-            row = Ext.get(view.getRow(record));
-            checkbox = row.down(view.checkboxSelector, true);
+            row = view.getRow(record);
+            checkbox = row.querySelector(view.checkboxSelector);
         });
 
-        it('should fire the checkchange event', function() {
-            jasmine.fireMouseEvent(checkbox, 'click');
-            expect(eventRec).toBe(record);
-            expect(record.get('checked')).toBe(true);
-        });
-        it('should veto checkchange if false is returned from a beforecheckchange handler', function() {
-            tree.on({
-                beforecheckchange: function(rec) {
-                    eventRec = rec;
-                    return false;
-                }
+        describe("checkchange event", function() {
+            it("should fire the checkchange event", function() {
+                jasmine.fireMouseEvent(checkbox, 'click');
+                expect(eventRec).toBe(record);
+                expect(record.get('checked')).toBe(true);
+
+                // Test that the default checkPropagation: 'none' is honoured.
+                expect(getCheckedCount()).toBe(1);
             });
-            jasmine.fireMouseEvent(checkbox, 'click');
-            expect(eventRec).toBe(record);
-            expect(record.get('checked')).toBe(false);
+
+            it("should veto checkchange if false is returned from a beforecheckchange handler", function() {
+                tree.on({
+                    beforecheckchange: function(rec) {
+                        eventRec = rec;
+
+                        return false;
+                    }
+                });
+                jasmine.fireMouseEvent(checkbox, 'click');
+                expect(eventRec).toBe(record);
+                expect(record.get('checked')).toBe(false);
+            });
+
+            describe("with checkPropagation", function() {
+                it("should sync parent node's check state with state of children on child check change when checkPropagation:'up'", function() {
+                    tree.checkPropagation = 'up';
+
+                    // Both parent nodes start unchecked
+                    expect(store.getById('I').get('checked')).toBe(false);
+                    expect(store.getById('J').get('checked')).toBe(false);
+
+                    clickCheckboxId('K');
+
+                    // K's parent node J should be checked now. K is the sole child.
+                    expect(store.getById('J').get('checked')).toBe(true);
+                    expect(store.getById('I').get('checked')).toBe(false);
+
+                    clickCheckboxId('L');
+
+                    // All leaf nodes below I and J are now checked, so I and J should be
+                    expect(store.getById('J').get('checked')).toBe(true);
+                    expect(store.getById('I').get('checked')).toBe(true);
+
+                    // B only gets checked when both D and C are checked
+                    expect(store.getById('B').get('checked')).toBe(false);
+                    clickCheckboxId('D');
+                    expect(store.getById('B').get('checked')).toBe(false);
+                    clickCheckboxId('C');
+                    expect(store.getById('B').get('checked')).toBe(true);
+
+                    // Now reverse that process and uncheck B
+                    clickCheckboxId('D');
+                    expect(store.getById('B').get('checked')).toBe(false);
+                    clickCheckboxId('C');
+                    expect(store.getById('B').get('checked')).toBe(false);
+
+                    // And finally, clicking a parent, should NOT propagate the checked
+                    // state downwards with checkPropagation:'up'
+                    clickCheckboxId('B');
+                    expect(store.getById('C').get('checked')).toBe(false);
+                    expect(store.getById('D').get('checked')).toBe(false);
+                });
+                it("should propagate a parent's checked state to child nodes when checkPropagation:'down'", function() {
+                    tree.checkPropagation = 'down';
+
+                    // Start with none checked
+                    expect(getCheckedCount()).toBe(0);
+
+                    clickCheckboxId('A');
+                    expect(store.getById('B').get('checked')).toBe(true);
+                    expect(store.getById('C').get('checked')).toBe(true);
+                    expect(store.getById('D').get('checked')).toBe(true);
+                    expect(store.getById('E').get('checked')).toBe(true);
+                    expect(store.getById('F').get('checked')).toBe(true);
+                    expect(store.getById('G').get('checked')).toBe(true);
+                    expect(store.getById('H').get('checked')).toBe(true);
+
+                    // Just A and its descendants should be checked.
+                    expect(getCheckedCount()).toBe(8);
+                });
+                it("should propagate checked state both ways when checkPropagation:'both'", function() {
+                    tree.checkPropagation = 'both';
+
+                    // Start with none checked
+                    expect(getCheckedCount()).toBe(0);
+
+                    clickCheckboxId('A');
+                    expect(store.getById('B').get('checked')).toBe(true);
+                    expect(store.getById('C').get('checked')).toBe(true);
+                    expect(store.getById('D').get('checked')).toBe(true);
+                    expect(store.getById('E').get('checked')).toBe(true);
+                    expect(store.getById('F').get('checked')).toBe(true);
+                    expect(store.getById('G').get('checked')).toBe(true);
+                    expect(store.getById('H').get('checked')).toBe(true);
+
+                    // Just A and its descendants should be checked.
+                    expect(getCheckedCount()).toBe(8);
+
+                    // And one more click should go back to zero
+                    clickCheckboxId('A');
+                    expect(getCheckedCount()).toBe(0);
+
+                    // Should propagate up to F
+                    clickCheckboxId('H');
+                    expect(store.getById('F').get('checked')).toBe(true);
+                    expect(store.getById('G').get('checked')).toBe(true);
+                    expect(getCheckedCount()).toBe(3);
+
+                    // This should restore the whole 'A' subtree to checkedness
+                    clickCheckboxId('E');
+                    clickCheckboxId('D');
+                    clickCheckboxId('C');
+
+                    expect(store.getById('B').get('checked')).toBe(true);
+                    expect(store.getById('C').get('checked')).toBe(true);
+                    expect(store.getById('D').get('checked')).toBe(true);
+                    expect(store.getById('E').get('checked')).toBe(true);
+                    expect(store.getById('F').get('checked')).toBe(true);
+                    expect(store.getById('G').get('checked')).toBe(true);
+                    expect(store.getById('H').get('checked')).toBe(true);
+
+                    // Just A and its descendants should be checked.
+                    expect(getCheckedCount()).toBe(8);
+                });
+
+                it("should fire the checkevent only once when it has a parent and it's not changing the parent's status", function() {
+                    tree.checkPropagation = 'both';
+                    clickCheckboxId('C');
+
+                    // needs to be waits because we are waiting for something not to happen
+                    waits(100);
+
+                    runs(function() {
+                        expect(spy.callCount).toBe(1);
+                    });
+                });
+
+                it("should fire the checkevent an additional time if changing the parent's status", function() {
+                    tree.checkPropagation = 'both';
+                    clickCheckboxId('C');
+                    clickCheckboxId('D');
+
+                    waitsFor(function() {
+                        return spy.callCount === 3;
+                    });
+
+                    runs(function() {
+                        expect(spy.mostRecentCall.args[0].getId()).toBe('B');
+                    });
+                });
+            });
         });
     });
 
@@ -187,13 +487,13 @@ describe("Ext.tree.Panel", function(){
 
             rootNode.childNodes[0].set('cls', 'foobar');
             rootNode.expand();
-            expect(view.all.item(1).down('td').hasCls('foobar')).toBe(true);
+            expect(view.all.item(1).down('td', true)).toHaveCls('foobar');
 
             // The cls is applied to the TD, so the row will have to be created. Cannot use in-cell updating
             rootNode.childNodes[0].set('cls', 'bletch');
             expect(createRowSpy).toHaveBeenCalled();
-            expect(view.all.item(1).down('td').hasCls('foobar')).toBe(false);
-            expect(view.all.item(1).down('td').hasCls('bletch')).toBe(true);
+            expect(view.all.item(1).down('td', true)).not.toHaveCls('foobar');
+            expect(view.all.item(1).down('td', true)).toHaveCls('bletch');
         });
     });
 
@@ -209,6 +509,53 @@ describe("Ext.tree.Panel", function(){
                     expanded: true
                 });
             }).not.toThrow();
+        });
+
+        describe("with invisible root", function() {
+            it("should expand the root node by default", function() {
+                makeTree(null, {
+                    rootVisible: false
+                });
+
+                expect(rootNode.isExpanded()).toBe(true);
+            });
+
+            it("should skip root.expand() when root is loaded", function() {
+                spyOn(TreeItem.prototype, 'expand').andCallThrough();
+                spyOn(Ext.data.TreeStore.prototype, 'onNodeExpand').andCallThrough();
+
+                makeTree(null, {
+                    rootVisible: false
+                }, null, {
+                    // Pretend that the root node is loaded
+                    loaded: true
+                });
+
+                expect(rootNode.expand).not.toHaveBeenCalled();
+                expect(rootNode.data.expanded).toBe(true);
+                expect(store.onNodeExpand).toHaveBeenCalled();
+            });
+
+            it("should not expand the root node when store.autoLoad === false", function() {
+                makeTree(null, {
+                    rootVisible: false
+                }, {
+                    autoLoad: false
+                });
+
+                expect(rootNode.isExpanded()).toBe(false);
+            });
+
+            it("should not expand the root node when store has pending load", function() {
+                makeTree(null, {
+                    rootVisible: false
+                }, {
+                    // Pretend that we're loading the store
+                    loading: true
+                });
+
+                expect(rootNode.isExpanded()).toBe(false);
+            });
         });
     });
 
@@ -241,15 +588,17 @@ describe("Ext.tree.Panel", function(){
 
         it("should preserve events", function() {
             var spy = jasmine.createSpy();
+
             var root2 = {
                 expanded: true,
                 children: testNodes
             };
+
             makeTree();
             tree.on({
-                beforeitemcollapse: spy, 
-                beforeitemexpand: spy, 
-                itemcollapse: spy, 
+                beforeitemcollapse: spy,
+                beforeitemexpand: spy,
+                itemcollapse: spy,
                 itemexpand: spy
             });
             tree.setRootNode(root2);
@@ -262,13 +611,9 @@ describe("Ext.tree.Panel", function(){
         });
     });
 
-    describe('Binding to a TreeStore', function() {
-        it('should bind to a TreeStore in the ViewModel', function() {
-            tree = new Ext.panel.Panel({
-                renderTo: document.body,
-                height: 400,
-                width: 600,
-                layout: 'fit',
+    describe("Binding to a TreeStore", function() {
+        it("should bind to a TreeStore in the ViewModel", function() {
+            makeTree(testNodes, {
                 viewModel: {
                     stores: {
                         nodes: {
@@ -284,30 +629,58 @@ describe("Ext.tree.Panel", function(){
                         }
                     }
                 },
-                items: {
-                    xtype: 'treepanel',
-                    bind: {
-                        store: '{nodes}'
-                    }
-                }
+                store: null,
+                bind: '{nodes}'
             });
-            var treepanel = tree.down('treepanel');
 
-            // The provided default root node has no children
-            expect(treepanel.getRootNode().childNodes.length).toBe(0);
+            tree.getViewModel().notify();
 
-            // Wait until the "nodes" store has been bound
-            waitsFor(function() {
-                return treepanel.getRootNode().childNodes.length === 3 && treepanel.getView().all.getCount() === 4;
-            }, 'new store to be bound to');
+            expect(tree.getRootNode().childNodes.length).toBe(3);
+            expect(tree.getView().all.getCount()).toBe(4);
+        });
+
+        it("should bind to a TreeStore in the ViewModel with locked columns", function() {
+            makeTree(testNodes, {
+                viewModel: {
+                    stores: {
+                        nodes: {
+                            type: 'tree',
+                            model: TreeItem,
+                            root: {
+                                secondaryId: 'root',
+                                id: 'root',
+                                text: 'Root',
+                                children: testNodes,
+                                expanded: true
+                            }
+                        }
+                    }
+                },
+                store: null,
+                bind: '{nodes}',
+                columns: [{
+                    dataIndex: 'text',
+                    locked: true,
+                    xtype: 'treecolumn',
+                    width: 100
+                }, {
+                    dataIndex: 'secondaryId',
+                    flex: 1
+                }]
+            });
+
+            tree.getViewModel().notify();
+
+            expect(tree.getRootNode().childNodes.length).toBe(3);
+            expect(tree.getView().all.getCount()).toBe(4);
         });
     });
 
     describe("mouse click to expand/collapse", function() {
-        function makeAutoTree(animate, data) {
-            makeTree(data, {
+        function makeAutoTree(animate, data, cfg) {
+            makeTree(data, Ext.apply({
                 animate: animate
-            }, null, {
+            }, cfg), null, {
                 expanded: true
             });
         }
@@ -325,7 +698,7 @@ describe("Ext.tree.Panel", function(){
                     cellClickSpy = jasmine.createSpy(),
                     itemClickSpy = jasmine.createSpy(),
                     height = tree.getHeight(),
-                    expander = view.getCell(1, 0).down(view.expanderSelector),
+                    expander = view.getCell(1, 0).querySelector(view.expanderSelector),
                     cell10 = new Ext.grid.CellContext(view).setPosition(1, 0);
 
                 // Focus must be on the tree cell upon expand
@@ -350,14 +723,16 @@ describe("Ext.tree.Panel", function(){
                 });
             });
         });
-        
+
     });
-    
+
     describe("auto height with expand/collapse", function() {
-        function makeAutoTree(animate, data) {
-            makeTree(data, {
-                animate: animate
-            }, null, {
+        function makeAutoTree(animate, data, cfg) {
+            makeTree(data, Ext.apply({
+                animate: animate,
+                expandDuration: 100,
+                collapseDuration: 100
+            }, cfg), null, {
                 expanded: true
             });
         }
@@ -404,6 +779,57 @@ describe("Ext.tree.Panel", function(){
                     expect(tree.getHeight()).toBeLessThan(height);
                 });
             });
+
+            it("should not scroll up when collapse/expand nodes", function() {
+                var spy = jasmine.createSpy(),
+                    rec, node, expander, scrollable, y, initialY;
+
+                makeAutoTree(true, [{
+                    secondaryId: 'root',
+                    id: 'a',
+                    text: 'Root',
+                    expanded: true,
+                    children: [
+                        { id: 'a', expanded: true },
+                        { id: 'b', leaf: true },
+                        { id: 'c', leaf: true },
+                        { id: 'd', leaf: true },
+                        { id: 'e', leaf: true },
+                        { id: 'f', leaf: true },
+                        { id: 'g', leaf: true },
+                        { id: 'h', leaf: true },
+                        { id: 'i', leaf: true },
+                        { id: 'j', leaf: true },
+                        { id: 'k', expanded: false, children: [{ id: 'l', leaf: true }] }
+                    ]
+                }], {
+                    maxWidth: 400,
+                    maxHeight: 100
+                });
+
+                scrollable = view.getScrollable();
+                rec = store.getById('k');
+                node = view.getNodeByRecord(rec);
+                expander = node.querySelector('.x-tree-expander');
+
+                scrollable.scrollTo(0, Infinity);
+                initialY = scrollable.getPosition().y;
+
+                jasmine.fireMouseEvent(expander, 'click');
+
+                tree.on('afteritemexpand', spy);
+
+                waitsFor(function() {
+                    return spy.callCount;
+                });
+
+                runs(function() {
+                    y = scrollable.getPosition().y;
+
+                    expect(y).not.toBe(0);
+                    expect(y).toBe(initialY);
+                });
+            });
         });
 
         describe("with animate: false", function() {
@@ -417,6 +843,7 @@ describe("Ext.tree.Panel", function(){
                 }]);
 
                 var height = tree.getHeight();
+
                 tree.getRootNode().firstChild.expand();
                 expect(tree.getHeight()).toBeGreaterThan(height);
             });
@@ -431,13 +858,14 @@ describe("Ext.tree.Panel", function(){
                 }]);
 
                 var height = tree.getHeight();
+
                 tree.getRootNode().firstChild.collapse();
                 expect(tree.getHeight()).toBeLessThan(height);
             });
         });
     });
 
-    describe('collapsing when collapse zone overflows the rendered zone', function() {
+    describe("collapsing when collapse zone overflows the rendered zone", function() {
         beforeEach(function() {
             for (var i = 0; i < 100; i++) {
                 testNodes[0].children.push({
@@ -445,6 +873,7 @@ describe("Ext.tree.Panel", function(){
                     id: 'extra-node-' + i
                 });
             }
+
             testNodes[0].expanded = true;
 
             makeTree(testNodes, {
@@ -459,7 +888,7 @@ describe("Ext.tree.Panel", function(){
         it("should collapse correctly, leaving the collapsee's siblings visible", function() {
             // Collapse node "A".
             tree.getRootNode().childNodes[0].collapse();
-            
+
             // We now should have "Root", and nodes "A", "I" and "M"
             // https://sencha.jira.com/browse/EXTJS-13908
             expect(tree.getView().all.getCount()).toBe(4);
@@ -469,6 +898,7 @@ describe("Ext.tree.Panel", function(){
     describe("sortchange", function() {
         it("should only fire a single sortchange event", function() {
             var spy = jasmine.createSpy();
+
             makeTree(testNodes, {
                 columns: [{
                     xtype: 'treecolumn',
@@ -483,9 +913,9 @@ describe("Ext.tree.Panel", function(){
         });
     });
 
-    describe('reconfigure', function() {
+    describe("reconfigure", function() {
         beforeEach(function() {
-            makeTree(testNodes, {
+            makeTree(Ext.clone(testNodes), {
                 rootVisible: false,
                 singleExpand: true,
                 height: 200
@@ -493,7 +923,7 @@ describe("Ext.tree.Panel", function(){
                 expanded: true
             });
         });
-        it('should preserve singleExpand:true', function() {
+        it("should preserve singleExpand:true", function() {
             // Expand childNodes[0]
             rootNode.childNodes[0].expand();
             expect(rootNode.childNodes[0].isExpanded()).toBe(true);
@@ -538,7 +968,7 @@ describe("Ext.tree.Panel", function(){
         });
     });
 
-    describe('autoexpand collapsed ancestors', function() {
+    describe("autoexpand collapsed ancestors", function() {
         beforeEach(function() {
             makeTree(testNodes, {
                 height: 250
@@ -556,7 +986,7 @@ describe("Ext.tree.Panel", function(){
     });
 
     describe("removeAll", function() {
-        beforeEach(function(){
+        beforeEach(function() {
             makeTree(testNodes, {
                 height: 100
             });
@@ -585,7 +1015,7 @@ describe("Ext.tree.Panel", function(){
     });
 
     describe("Getting owner tree", function() {
-        beforeEach(function(){
+        beforeEach(function() {
             makeTree(testNodes);
         });
         it("should find the owner tree", function() {
@@ -597,7 +1027,7 @@ describe("Ext.tree.Panel", function(){
     });
 
     describe("updating row attributes", function() {
-        beforeEach(function(){
+        beforeEach(function() {
             makeTree(testNodes);
         });
 
@@ -606,7 +1036,7 @@ describe("Ext.tree.Panel", function(){
                 rootCls = rootRow.className;
 
             rootNode.set('qtip', 'Foo');
-            
+
             // Class should not change
             expect(rootRow.className).toBe(rootCls);
 
@@ -626,82 +1056,93 @@ describe("Ext.tree.Panel", function(){
         it("should remove the expanded class on collapse", function() {
             var view = tree.getView(),
                 cls = view.expandedCls;
-                
+
             rootNode.expand();
             expect(view.getRow(rootNode)).toHaveCls(cls);
             rootNode.collapse();
             expect(view.getRow(rootNode)).not.toHaveCls(cls);
-        })
+        });
     });
-    
-    describe("expandPath/selectPath", function(){
-        describe("expandPath", function(){
+
+    describe("expandPath/selectPath", function() {
+        describe("expandPath", function() {
             var expectedSuccess, expectedNode;
+
             beforeEach(function() {
                 expectedSuccess = false;
                 makeTree(testNodes);
             });
 
-            describe("callbacks", function(){
-               
+            describe("callbacks", function() {
+
                 describe("empty path", function() {
                     it("should fire the callback with success false & a null node", function() {
-                        tree.expandPath('', null, null, function(success, node){
+                        tree.expandPath('', null, null, function(success, node) {
                             expectedSuccess = success;
                             expectedNode = node;
                         });
                         expect(expectedSuccess).toBe(false);
                         expect(expectedNode).toBeNull();
                     });
-                    
-                    it("should default the scope to the tree", function(){
+
+                    it("should default the scope to the tree", function() {
                         var scope;
-                        tree.expandPath('', null, null, function(){
+
+                        tree.expandPath('', null, null, function() {
                             scope = this;
                         });
                         expect(scope).toBe(tree);
                     });
-                    
-                    it("should use any specified scope", function(){
-                        var o = {}, scope;
-                        tree.expandPath('', null, null, function(){
+
+                    it("should use any specified scope", function() {
+                        var o = {},
+                            scope;
+
+                        tree.expandPath('', null, null, function() {
                             scope = this;
                         }, o);
-                        expect(scope).toBe(o);
-                    });
-                });
-                
-                describe("invalid root", function() {
-                    it("should fire the callback with success false & the root", function() {
-                        tree.expandPath('/NOTROOT', null, null, function(success, node){
-                            expectedSuccess = success;
-                            expectedNode = node;
-                        });
-                        expect(expectedSuccess).toBe(false);
-                        expect(expectedNode).toBe(tree.getRootNode());
-                    });
-                    
-                    it("should default the scope to the tree", function(){
-                        var scope;
-                        tree.expandPath('/NOTROOT', null, null, function(){
-                            scope = this;
-                        });
-                        expect(scope).toBe(tree);
-                    });
-                    
-                    it("should use any specified scope", function(){
-                        var o = {}, scope;
-                        tree.expandPath('/NOTROOT', null, null, function(){
-                            scope = this;
-                        }, o);
+
                         expect(scope).toBe(o);
                     });
                 });
 
-                describe("fully successful expand", function(){
-                    describe('Old API', function() {
-                        it("should fire the callback with success true and the last node", function(){
-                            tree.expandPath('/root/A/B', null, null, function(success, lastExpanded){
+                describe("invalid root", function() {
+                    it("should fire the callback with success false & the root", function() {
+                        tree.expandPath('/NOTROOT', null, null, function(success, node) {
+                            expectedSuccess = success;
+                            expectedNode = node;
+                        });
+
+                        expect(expectedSuccess).toBe(false);
+                        expect(expectedNode).toBe(tree.getRootNode());
+                    });
+
+                    it("should default the scope to the tree", function() {
+                        var scope;
+
+                        tree.expandPath('/NOTROOT', null, null, function() {
+                            scope = this;
+                        });
+
+                        expect(scope).toBe(tree);
+                    });
+
+                    it("should use any specified scope", function() {
+                        var o = {},
+                            scope;
+
+                        tree.expandPath('/NOTROOT', null, null, function() {
+                            scope = this;
+                        }, o);
+
+                        expect(scope).toBe(o);
+                    });
+                });
+
+                describe("fully successful expand", function() {
+                    describe("Old API", function() {
+                        it("should fire the callback with success true and the last node", function() {
+                            tree.expandPath('/root/A/B', null, null, function(success, lastExpanded) {
                                 expectedSuccess = success;
                                 expectedNode = lastExpanded;
                             });
@@ -712,21 +1153,26 @@ describe("Ext.tree.Panel", function(){
 
                         it("should default the scope to the tree", function() {
                             var scope;
+
                             tree.expandPath('/root/A/B', null, null, function(success, lastExpanded) {
                                 scope = this;
                             });
+
                             expect(scope).toBe(tree);
                         });
 
-                        it("should use any specified scope", function(){
-                            var o = {}, scope;
+                        it("should use any specified scope", function() {
+                            var o = {},
+                                scope;
+
                             tree.expandPath('/root/A/B', null, null, function(success, lastExpanded) {
                                 scope = this;
                             }, o);
+
                             expect(scope).toBe(o);
                         });
 
-                        it('should be able to start from any existing node', function() {
+                        it("should be able to start from any existing node", function() {
                             tree.expandPath('G', null, null, function(success, lastExpanded) {
                                 expectedSuccess = success;
                                 expectedNode = lastExpanded;
@@ -736,10 +1182,10 @@ describe("Ext.tree.Panel", function(){
                             expect(view.all.getCount()).toBe(9);
                         });
                     });
-                    describe('New API', function() {
+                    describe("New API", function() {
                         var lastHtmlNode;
 
-                        it("should fire the callback with success true and the last node", function(){
+                        it("should fire the callback with success true and the last node", function() {
                             tree.expandPath('/root/A/B', {
                                 callback: function(success, lastExpanded, lastNode) {
                                     expectedSuccess = success;
@@ -761,20 +1207,24 @@ describe("Ext.tree.Panel", function(){
 
                         it("should default the scope to the tree", function() {
                             var scope;
+
                             tree.expandPath('/root/A/B', {
                                 callback: function(success, lastExpanded) {
                                     scope = this;
                                 }
                             });
+
                             waitsFor(function() {
                                 return scope === tree;
                             });
                         });
 
-                        it("should use any specified scope", function(){
-                            var o = {}, scope;
+                        it("should use any specified scope", function() {
+                            var o = {},
+                                scope;
+
                             tree.expandPath('/root/A/B', {
-                                callback: 
+                                callback:
                                     function(success, lastExpanded) {
                                     scope = this;
                                 },
@@ -785,9 +1235,9 @@ describe("Ext.tree.Panel", function(){
                             });
                         });
 
-                        it('should be able to start from any existing node', function() {
+                        it("should be able to start from any existing node", function() {
                             tree.expandPath('G', {
-                                callback: function(success , lastExpanded) {
+                                callback: function(success, lastExpanded) {
                                     expectedSuccess = success;
                                     expectedNode = lastExpanded;
                                 }
@@ -802,67 +1252,71 @@ describe("Ext.tree.Panel", function(){
                         });
                     });
                 });
-                
-                describe("partial expand", function(){
-                    it("should fire the callback with success false and the last successful node", function(){
-                        tree.expandPath('/root/A/FAKE', null, null, function(success, node){
+
+                describe("partial expand", function() {
+                    it("should fire the callback with success false and the last successful node", function() {
+                        tree.expandPath('/root/A/FAKE', null, null, function(success, node) {
                             expectedSuccess = success;
                             expectedNode = node;
                         });
                         expect(expectedSuccess).toBe(false);
                         expect(expectedNode).toBe(tree.getStore().getById('A'));
                     });
-                    
-                    it("should default the scope to the tree", function(){
+
+                    it("should default the scope to the tree", function() {
                         var scope;
-                        tree.expandPath('/root/A/FAKE', null, null, function(){
+
+                        tree.expandPath('/root/A/FAKE', null, null, function() {
                             scope = this;
                         });
                         expect(scope).toBe(tree);
                     });
-                    
-                    it("should use any specified scope", function(){
-                        var o = {}, scope;
-                        tree.expandPath('/root/A/FAKE', null, null, function(){
+
+                    it("should use any specified scope", function() {
+                        var o = {},
+                            scope;
+
+                        tree.expandPath('/root/A/FAKE', null, null, function() {
                             scope = this;
                         }, o);
+
                         expect(scope).toBe(o);
                     });
                 });
             });
-            
-            describe("custom field", function(){
-                it("should default the field to the idProperty", function(){
+
+            describe("custom field", function() {
+                it("should default the field to the idProperty", function() {
                     tree.expandPath('/root/M');
-                    expect(tree.getStore().getById('M').isExpanded()).toBe(true);    
+                    expect(tree.getStore().getById('M').isExpanded()).toBe(true);
                 });
-                
-                it("should accept a custom field from the model", function(){ 
+
+                it("should accept a custom field from the model", function() {
                     tree.expandPath('/root/AA/FF/GG', 'secondaryId');
                     expect(tree.getStore().getById('G').isExpanded()).toBe(true);
                 });
             });
-            
-            describe("custom separator", function(){
-                it("should default the separator to /", function(){
-                    tree.expandPath('/root/A');    
+
+            describe("custom separator", function() {
+                it("should default the separator to /", function() {
+                    tree.expandPath('/root/A');
                     expect(tree.getStore().getById('A').isExpanded()).toBe(true);
-                });  
-                
-                it("should accept a custom separator", function(){
-                    tree.expandPath('|root|A|B', null, '|');    
+                });
+
+                it("should accept a custom separator", function() {
+                    tree.expandPath('|root|A|B', null, '|');
                     expect(tree.getStore().getById('B').isExpanded()).toBe(true);
                 });
             });
-            
-            describe("various path tests", function(){
-                it("should expand the root node", function(){
+
+            describe("various path tests", function() {
+                it("should expand the root node", function() {
                     tree.expandPath('/root');
-                    expect(tree.getRootNode().isExpanded()).toBe(true);    
+                    expect(tree.getRootNode().isExpanded()).toBe(true);
                 });
-                
-                it("should fire success if the ending node is a leaf", function(){
-                    tree.expandPath('/root/I/L', null, null, function(success, node){
+
+                it("should fire success if the ending node is a leaf", function() {
+                    tree.expandPath('/root/I/L', null, null, function(success, node) {
                         expectedSuccess = success;
                         expectedNode = node;
                     });
@@ -870,183 +1324,240 @@ describe("Ext.tree.Panel", function(){
                     expect(expectedNode).toBe(tree.getStore().getById('L'));
                 });
             });
-            
-        });
-        
-        describe("selectPath", function(){
-            var isSelected = function(id){
-                var node = tree.getStore().getById(id);
-                return tree.getSelectionModel().isSelected(node);
-            }; 
 
-            var expectedSuccess, expectedNode;
+        });
+
+        describe("selectPath", function() {
+            var isSelected = function(id) {
+                var node = tree.getStore().getById(id);
+
+                return tree.getSelectionModel().isSelected(node);
+            };
+
+            var spy = jasmine.createSpy(),
+                expectedSuccess;
+
             beforeEach(function() {
                 expectedSuccess = false;
+                spy.reset();
                 makeTree(testNodes);
             });
-            
-            describe("callbacks", function(){
-               
+
+            describe("callbacks", function() {
+
                 describe("empty path", function() {
                     it("should fire the callback with success false & a null node", function() {
-                        var expectedSuccess, expectedNode;
-                        tree.selectPath('', null, null, function(success, node){
-                            expectedSuccess = success;
-                            expectedNode = node;
+                        tree.selectPath('', null, null, spy);
+
+                        waitsForSpy(spy);
+                        runs(function() {
+                            expect(spy.mostRecentCall.args[0]).toBe(false);
+                            expect(spy.mostRecentCall.args[1]).toBeNull();
                         });
-                        expect(expectedSuccess).toBe(false);
-                        expect(expectedNode).toBeNull();
                     });
-                    
-                    it("should default the scope to the tree", function(){
-                        var scope;
-                        tree.selectPath('', null, null, function(){
-                            scope = this;
+
+                    it("should default the scope to the tree", function() {
+                        tree.selectPath('', null, null, spy);
+
+                        waitsForSpy(spy);
+                        runs(function() {
+                            expect(spy.mostRecentCall.scope).toBe(tree);
                         });
-                        expect(scope).toBe(tree);
                     });
-                    
-                    it("should use any specified scope", function(){
-                        var o = {}, scope;
-                        tree.selectPath('', null, null, function(){
-                            scope = this;
-                        }, o);
-                        expect(scope).toBe(o);
+
+                    it("should use any specified scope", function() {
+                        var o = {};
+
+                        tree.selectPath('', null, null, spy, o);
+
+                        waitsForSpy(spy);
+                        runs(function() {
+                            expect(spy.mostRecentCall.scope).toBe(o);
+                        });
                     });
                 });
-                
+
                 describe("root", function() {
                     it("should fire the callback with success true & the root", function() {
-                        var expectedSuccess, expectedNode;
-                        tree.selectPath('/root', null, null, function(success, node){
-                            expectedSuccess = success;
-                            expectedNode = node;
+                        tree.selectPath('/root', null, null, spy);
+
+                        waitsForSpy(spy);
+                        runs(function() {
+                            expect(spy.mostRecentCall.args[0]).toBe(true);
+                            expect(spy.mostRecentCall.args[1]).toBe(tree.getRootNode());
                         });
-                        expect(expectedSuccess).toBe(true);
-                        expect(expectedNode).toBe(tree.getRootNode());
                     });
-                    
-                    it("should default the scope to the tree", function(){
-                        var scope;
-                        tree.selectPath('/root', null, null, function(){
-                            scope = this;
+
+                    it("should default the scope to the tree", function() {
+                        tree.selectPath('/root', null, null, spy);
+
+                        waitsForSpy(spy);
+                        runs(function() {
+                            expect(spy.mostRecentCall.scope).toBe(tree);
                         });
-                        expect(scope).toBe(tree);
                     });
-                    
-                    it("should use any specified scope", function(){
-                        var o = {}, scope;
-                        tree.selectPath('/root', null, null, function(){
-                            scope = this;
-                        }, o);
-                        expect(scope).toBe(o);
+
+                    it("should use any specified scope", function() {
+                        var o = {};
+
+                        tree.selectPath('/root', null, null, spy, o);
+
+                        waitsForSpy(spy);
+                        runs(function() {
+                            expect(spy.mostRecentCall.scope).toBe(o);
+                        });
                     });
                 });
-                
-                describe("fully successful expand", function(){                    
-                    it("should fire the callback with success true and the last node", function(){
-                        var expectedSuccess, expectedNode;
-                        tree.selectPath('/root/A/B', null, null, function(success, node){
-                            expectedSuccess = success;
-                            expectedNode = node;
+
+                describe("fully successful expand", function() {
+                    it("should fire the callback with success true and the last node", function() {
+                        tree.selectPath('/root/A/B', null, null, spy);
+
+                        waitsForSpy(spy);
+                        runs(function() {
+                            expect(spy.mostRecentCall.args[0]).toBe(true);
+                            expect(spy.mostRecentCall.args[1]).toBe(tree.getStore().getById('B'));
                         });
-                        expect(expectedSuccess).toBe(true);
-                        expect(expectedNode).toBe(tree.getStore().getById('B'));
                     });
-                    
-                    it("should default the scope to the tree", function(){
-                        var scope;
-                        tree.selectPath('/root/A/B', null, null, function(){
-                            scope = this;
+
+                    it("should default the scope to the tree", function() {
+                        tree.selectPath('/root/A/B', null, null, spy);
+
+                        waitsForSpy(spy);
+                        runs(function() {
+                            expect(spy.mostRecentCall.scope).toBe(tree);
                         });
-                        expect(scope).toBe(tree);
                     });
-                    
-                    it("should use any specified scope", function(){
-                        var o = {}, scope;
-                        tree.selectPath('/root/A/B', null, null, function(){
-                            scope = this;
-                        }, o);
-                        expect(scope).toBe(o);
+
+                    it("should use any specified scope", function() {
+                        var o = {};
+
+                        tree.selectPath('/root/A/B', null, null, spy, o);
+
+                        waitsForSpy(spy);
+                        runs(function() {
+                            expect(spy.mostRecentCall.scope).toBe(o);
+                        });
                     });
                 });
-                
-                describe("partial expand", function(){
-                    it("should fire the callback with success false and the last successful node", function(){
+
+                describe("partial expand", function() {
+                    it("should fire the callback with success false and the last successful node", function() {
                         var expectedSuccess, expectedNode;
-                        tree.selectPath('/root/A/FAKE', null, null, function(success, node){
+
+                        tree.selectPath('/root/A/FAKE', null, null, function(success, node) {
                             expectedSuccess = success;
                             expectedNode = node;
                         });
                         expect(expectedSuccess).toBe(false);
                         expect(expectedNode).toBe(tree.getStore().getById('A'));
                     });
-                    
-                    it("should default the scope to the tree", function(){
+
+                    it("should default the scope to the tree", function() {
                         var scope;
-                        tree.selectPath('/root/A/FAKE', null, null, function(){
+
+                        tree.selectPath('/root/A/FAKE', null, null, function() {
                             scope = this;
                         });
                         expect(scope).toBe(tree);
                     });
-                    
-                    it("should use any specified scope", function(){
-                        var o = {}, scope;
-                        tree.selectPath('/root/A/FAKE', null, null, function(){
+
+                    it("should use any specified scope", function() {
+                        var o = {},
+                            scope;
+
+                        tree.selectPath('/root/A/FAKE', null, null, function() {
                             scope = this;
                         }, o);
                         expect(scope).toBe(o);
                     });
                 });
             });
-            
-            describe("custom field", function(){
-                it("should default the field to the idProperty", function(){
-                    tree.selectPath('/root/M');
-                    expect(isSelected('M')).toBe(true);    
+
+            describe("custom field", function() {
+                it("should default the field to the idProperty", function() {
+                    tree.selectPath('/root/M', null, null, spy);
+
+                    waitsForSpy(spy);
+                    runs(function() {
+                        expect(isSelected('M')).toBe(true);
+                    });
                 });
-                
-                it("should accept a custom field from the model", function(){ 
-                    tree.selectPath('/root/AA/FF/GG', 'secondaryId');
-                    expect(isSelected('G')).toBe(true);   
-                });
-            });
-            
-            describe("custom separator", function(){
-                it("should default the separator to /", function(){
-                    tree.selectPath('/root/A');    
-                    expect(isSelected('A')).toBe(true);   
-                });  
-                
-                it("should accept a custom separator", function(){
-                    tree.selectPath('|root|A|B', null, '|');    
-                    expect(isSelected('B')).toBe(true);   
+
+                it("should accept a custom field from the model", function() {
+                    tree.selectPath('/root/AA/FF/GG', 'secondaryId', null, spy);
+
+                    waitsForSpy(spy);
+                    runs(function() {
+                        expect(isSelected('G')).toBe(true);
+                    });
                 });
             });
-            
-            describe("various paths", function(){
-                it("should be able to select the root", function(){
-                    tree.selectPath('/root');
-                    expect(isSelected('root')).toBe(true);    
-                });  
-                
-                it("should select a leaf node", function(){
-                    tree.selectPath('/root/I/L');
-                    expect(isSelected('L')).toBe(true);
+
+            describe("custom separator", function() {
+                it("should default the separator to /", function() {
+                    tree.selectPath('/root/A', null, null, spy);
+
+                    waitsForSpy(spy);
+                    runs(function() {
+                        expect(isSelected('A')).toBe(true);
+                    });
                 });
-                
-                it("should not select a node if the full path isn't resolved", function(){
-                    tree.selectPath('/root/I/FAKE');
-                    expect(tree.getSelectionModel().getSelection().length).toBe(0);
+
+                it("should accept a custom separator", function() {
+                    tree.selectPath('|root|A|B', null, '|', spy);
+
+                    waitsForSpy(spy);
+                    runs(function() {
+                        expect(isSelected('B')).toBe(true);
+                    });
+                });
+            });
+
+            describe("various paths", function() {
+                it("should be able to select the root", function() {
+                    tree.selectPath('/root', null, null, spy);
+
+                    waitsForSpy(spy);
+                    runs(function() {
+                        expect(isSelected('root')).toBe(true);
+                    });
+                });
+
+                it("should select a leaf node", function() {
+                    tree.selectPath('/root/I/L', null, null, spy);
+
+                    waitsForSpy(spy);
+                    runs(function() {
+                        expect(isSelected('L')).toBe(true);
+                    });
+                });
+
+                it("should not select a node if the full path isn't resolved", function() {
+                    tree.selectPath('/root/I/FAKE', null, null, spy);
+
+                    waitsForSpy(spy);
+                    runs(function() {
+                        expect(tree.getSelectionModel().getSelection().length).toBe(0);
+                    });
                 });
             });
         });
 
         describe("special cases", function() {
+            var spy = jasmine.createSpy();
+
+            beforeEach(function() {
+                spy.reset();
+            });
+
             it("should be able to select a path where the values are numeric", function() {
-                var NumericModel = Ext.define(null, {
+                Ext.define(null, {
                     extend: 'Ext.data.TreeModel',
-                    fields: [{name: 'id', type: 'int'}]
+                    fields: [{
+                        name: 'id',
+                        type: 'int'
+                    }]
                 });
 
                 makeTree([{
@@ -1074,8 +1585,43 @@ describe("Ext.tree.Panel", function(){
                     id: -1
                 });
 
-                tree.selectPath('2/3/4');
-                expect(tree.getSelectionModel().isSelected(store.getNodeById(4)));
+                tree.selectPath('2/3/4', null, null, spy);
+                waitsForSpy(spy);
+                runs(function() {
+                    var selection = tree.getSelectionModel().getSelection();
+
+                    expect(selection.length).toBe(1);
+                    expect(selection[0]).toBe(store.getNodeById(4));
+                });
+            });
+
+            // https://sencha.jira.com/browse/EXTJS-16667
+            it("should be able to select absolute path with numeric ids", function() {
+                tree = Ext.create('Ext.tree.Panel', {
+                    renderTo: Ext.getBody(),
+                    store: {
+                        type: 'tree',
+                        root: {
+                            id: 0,
+                            text: 'root',
+                            expanded: true,
+                            children: [{
+                                id: 1,
+                                text: 'child1'
+                            }]
+                        }
+                    }
+                });
+
+                tree.selectPath('/0/1', null, null, spy);
+
+                waitsForSpy(spy);
+                runs(function() {
+                    var selection = tree.getSelectionModel().getSelection();
+
+                    expect(selection.length).toBe(1);
+                    expect(selection[0]).toBe(tree.getStore().getNodeById(1));
+                });
             });
 
             it("should be able to select a path when subclassing Ext.tree.Panel", function() {
@@ -1099,35 +1645,38 @@ describe("Ext.tree.Panel", function(){
                         }
                     })
                 });
-                tree.selectPath('/root/A/B/C');
-                expect(tree.getSelectionModel().isSelected(store.getNodeById('C')));
+                tree.selectPath('/root/A/B/C', null, null, spy);
 
+                waitsForSpy(spy);
+                runs(function() {
+                    expect(tree.getSelectionModel().isSelected(store.getNodeById('C')));
+                });
             });
         });
-        
+
     });
-    
-    describe("expand/collapse", function(){
+
+    describe("expand/collapse", function() {
         var startingLayoutCounter;
 
-        beforeEach(function(){
+        beforeEach(function() {
             makeTree(testNodes);
             startingLayoutCounter = tree.layoutCounter;
         });
-        
-        describe("expandAll", function(){
-            
-            describe("callbacks", function(){
-                it("should pass the direct child nodes of the root", function(){
+
+        describe("expandAll", function() {
+
+            describe("callbacks", function() {
+                it("should pass the direct child nodes of the root", function() {
                     var expectedNodes,
                         callCount = 0,
                         store = tree.getStore();
-                        
+
                     tree.expandAll(function(nodes) {
                         expectedNodes = nodes;
                         callCount++;
                     });
-                    
+
                     expect(callCount).toEqual(1);
                     expect(expectedNodes[0]).toBe(store.getById('A'));
                     expect(expectedNodes[1]).toBe(store.getById('I'));
@@ -1136,211 +1685,358 @@ describe("Ext.tree.Panel", function(){
                     // Only one layout should have taken place
                     expect(tree.layoutCounter).toBe(startingLayoutCounter + 1);
                 });
-                
+
                 it("should default the scope to the tree", function() {
                     var expectedScope;
-                    tree.expandAll(function(){
+
+                    tree.expandAll(function() {
                         expectedScope = this;
-                    });    
+                    });
                     expect(expectedScope).toBe(tree);
                 });
-                
+
                 it("should use a passed scope", function() {
-                    var o = {}, expectedScope;
-                    tree.expandAll(function(){
+                    var o = {},
+                        expectedScope;
+
+                    tree.expandAll(function() {
                         expectedScope = this;
-                    }, o);    
+                    }, o);
+
                     expect(expectedScope).toBe(o);
                 });
             });
-            
-            it("should expand all nodes", function(){
+
+            it("should expand all nodes", function() {
                 tree.expandAll();
-                Ext.Array.forEach(tree.store.getRange(), function(node){
+                Ext.Array.forEach(tree.store.getRange(), function(node) {
                     if (!node.isLeaf()) {
                         expect(node.isExpanded()).toBe(true);
                     }
                 });
             });
-            
-            it("should continue down the tree even if some nodes are expanded", function(){
+
+            it("should continue down the tree even if some nodes are expanded", function() {
                 var store = tree.getStore();
+
                 store.getNodeById('A').expand();
                 store.getNodeById('I').expand();
                 tree.expandAll();
-                Ext.Array.forEach(tree.store.getRange(), function(node){
+                Ext.Array.forEach(tree.store.getRange(), function(node) {
                     if (!node.isLeaf()) {
                         expect(node.isExpanded()).toBe(true);
                     }
                 });
             });
-            
+
         });
-        
-        describe("collapseAll", function(){
-            describe("callbacks", function(){
-                
-                it("should pass the direct child nodes of the root", function(){
+
+        describe("collapseAll", function() {
+            describe("callbacks", function() {
+
+                it("should pass the direct child nodes of the root", function() {
                     var expectedNodes,
                         store = tree.getStore();
-                        
+
                     tree.collapseAll(function(nodes) {
                         expectedNodes = nodes;
                     });
-                    
+
                     expect(expectedNodes[0]).toBe(store.getNodeById('A'));
                     expect(expectedNodes[1]).toBe(store.getNodeById('I'));
                     expect(expectedNodes[2]).toBe(store.getNodeById('M'));
                 });
-                
+
                 it("should default the scope to the tree", function() {
                     var expectedScope;
-                    tree.collapseAll(function(){
+
+                    tree.collapseAll(function() {
                         expectedScope = this;
-                    });    
+                    });
                     expect(expectedScope).toBe(tree);
                 });
-                
+
                 it("should use a passed scope", function() {
-                    var o = {}, expectedScope;
-                    tree.expandAll(function(){
+                    var o = {},
+                        expectedScope;
+
+                    tree.expandAll(function() {
                         expectedScope = this;
-                    }, o);    
+                    }, o);
                     expect(expectedScope).toBe(o);
                 });
             });
-            
-            it("should collapse all nodes", function(){
+
+            it("should collapse all nodes", function() {
                 tree.expandAll();
                 tree.collapseAll();
-                Ext.Array.forEach(tree.store.getRange(), function(node){
+                Ext.Array.forEach(tree.store.getRange(), function(node) {
                     if (!node.isLeaf()) {
                         expect(node.isExpanded()).toBe(false);
                     }
                 });
             });
-            
-            it("should collapse all nodes all the way down the tree", function(){
+
+            it("should collapse all nodes all the way down the tree", function() {
                 tree.expandPath('/root/A/B/C');
                 tree.getRootNode().collapse();
                 tree.collapseAll();
-                Ext.Array.forEach(tree.store.getRange(), function(node){
+                Ext.Array.forEach(tree.store.getRange(), function(node) {
                     if (!node.isLeaf()) {
                         expect(node.isExpanded()).toBe(false);
                     }
                 });
             });
+
+            it("should collapse all filtered nodes using animation", function() {
+                var animWait = function() {
+                    var fxQueue = Ext.fx.Manager.fxQueue,
+                        activeAnimations = 0,
+                        targetId, queue, i, len;
+
+                    for (targetId in fxQueue) {
+                        queue = fxQueue[targetId];
+                        activeAnimations += queue.length;
+                    }
+
+                    return activeAnimations === 0;
+                };
+
+                Ext.destroy(tree);
+                tree = null;
+
+                makeTree(testNodes, {
+                    animate: true, rootVisible: false
+                });
+
+                tree.expandAll();
+
+                waitsFor(animWait, 'expanding animations to finish');
+
+                runs(function() {
+                    tree.store.addFilter([{ property: 'secondaryId', operator: 'like', value: 'M' }]);
+                    expect(function() {
+                        tree.collapseAll();
+                    }).not.toThrow();
+                });
+
+                // collapse animations need to finish before exiting and destroying the component
+                waitsFor(animWait, 'collapsing animations to finish');
+            });
         });
-        
-        describe("expand", function(){
-            describe("callbacks", function(){
-               it("should pass the nodes directly under the expanded node", function(){
+
+        describe("expand", function() {
+            describe("callbacks", function() {
+               it("should pass the nodes directly under the expanded node", function() {
                    var expectedNodes,
                         store = tree.getStore();
-                        
-                   tree.expandNode(tree.getRootNode(), false, function(nodes){
+
+                   tree.expandNode(tree.getRootNode(), false, function(nodes) {
                        expectedNodes = nodes;
                    });
-                   
+
                    expect(expectedNodes[0]).toBe(store.getNodeById('A'));
                    expect(expectedNodes[1]).toBe(store.getNodeById('I'));
                    expect(expectedNodes[2]).toBe(store.getNodeById('M'));
                });
-               
-               it("should default the scope to the tree", function(){
+
+               it("should default the scope to the tree", function() {
                    var expectedScope;
-                   tree.expandNode(tree.getRootNode(), false, function(){
+
+                   tree.expandNode(tree.getRootNode(), false, function() {
                        expectedScope = this;
                    });
                    expect(expectedScope).toBe(tree);
                });
-               
-               it("should use a passed scope", function(){
-                   var o = {}, expectedScope;
-                   tree.expandNode(tree.getRootNode(), false, function(){
+
+               it("should use a passed scope", function() {
+                   var o = {},
+                        expectedScope;
+
+                   tree.expandNode(tree.getRootNode(), false, function() {
                        expectedScope = this;
                    }, o);
                    expect(expectedScope).toBe(o);
                });
             });
-            
-            describe("deep", function(){
-                it("should only expand a single level if deep is not specified", function(){
+
+            describe("deep", function() {
+                it("should only expand a single level if deep is not specified", function() {
                     var store = tree.getStore();
+
                     tree.expandNode(tree.getRootNode());
                     expect(store.getNodeById('A').isExpanded()).toBe(false);
-                    expect(store.getNodeById('I').isExpanded()).toBe(false);  
-                    expect(store.getNodeById('M').isExpanded()).toBe(false);      
-                });  
-                
-                it("should expand all nodes underneath the expanded node if deep is set", function(){
+                    expect(store.getNodeById('I').isExpanded()).toBe(false);
+                    expect(store.getNodeById('M').isExpanded()).toBe(false);
+                });
+
+                it("should expand all nodes underneath the expanded node if deep is set", function() {
                     var store = tree.getStore();
+
                     tree.expandPath('/root/A');
                     tree.expandNode(store.getNodeById('A'), true);
                     expect(store.getNodeById('B').isExpanded()).toBe(true);
-                    expect(store.getNodeById('F').isExpanded()).toBe(true);  
-                    expect(store.getNodeById('G').isExpanded()).toBe(true);      
-                });  
+                    expect(store.getNodeById('F').isExpanded()).toBe(true);
+                    expect(store.getNodeById('G').isExpanded()).toBe(true);
+                });
+            });
+
+            describe('expanded nodes', function() {
+                var ModelProxy, resp1, resp2, resp3;
+
+                beforeEach(function() {
+                    var responses = [
+                        {
+                            id: 'root',
+                            text: 'Root',
+                            children: [{
+                                id: 2,
+                                text: 'node1',
+                                expanded: false
+                            }]
+                        },
+                        [{
+                            id: 3,
+                            text: 'child1',
+                            expanded: false
+                        }, {
+                            id: 4,
+                            text: 'child2',
+                            expanded: true
+                        }],
+                        [{
+                            id: 5,
+                            text: 'child2.1',
+                            expanded: false
+                        }, {
+                            id: 6,
+                            text: 'child2.2',
+                            expanded: false
+                        }]
+                    ];
+
+                    resp1 = responses[0];
+                    resp2 = responses[1];
+                    resp3 = responses[2];
+                    tree.destroy();
+                    ModelProxy = Ext.define(null, {
+                        extend: 'Ext.data.TreeModel',
+                        fields: ['id', 'text', 'secondaryId'],
+                        proxy: {
+                            type: 'ajax',
+                            url: 'fakeUrl'
+                        }
+                    });
+                });
+
+                afterEach(function() {
+                    ModelProxy = Ext.destroy(ModelProxy);
+                });
+
+                it('should expand nodes in the correct order', function() {
+                    var store, root;
+
+                    makeTree(null, null, {
+                        model: ModelProxy
+                    });
+                    store = tree.getStore();
+                    root = store.getRoot();
+
+                    // expand root and load response
+                    root.expand();
+                    Ext.Ajax.mockComplete({
+                        status: 200,
+                        responseText: Ext.encode(resp1)
+                    });
+
+                    // expand node1 and load response
+                    store.getNodeById(2).expand();
+                    Ext.Ajax.mockComplete({
+                        status: 200,
+                        responseText: Ext.encode(resp2)
+                    });
+
+                    // immediately load response for expanded child2
+                    Ext.Ajax.mockComplete({
+                        status: 200,
+                        responseText: Ext.encode(resp3)
+                    });
+
+                    Ext.Array.forEach(view.getNodes(), function(node, index) {
+                        var id = view.getRecord(node).getId();
+
+                        // each node, except for root, should have an ID that increments to
+                        // the index count
+                        if (id !== 'root') {
+                            expect(id).toEqual(++index);
+                        }
+                    });
+                });
             });
         });
-        
-        describe("collapse", function(){
-            describe("callbacks", function(){
-               it("should pass the nodes directly under the expanded node", function(){
+
+        describe("collapse", function() {
+            describe("callbacks", function() {
+               it("should pass the nodes directly under the expanded node", function() {
                    var expectedNodes,
                        store = tree.getStore();
-                        
-                   tree.collapseNode(tree.getRootNode(), false, function(nodes){
+
+                   tree.collapseNode(tree.getRootNode(), false, function(nodes) {
                        expectedNodes = nodes;
-                   });              
+                   });
                    expect(expectedNodes[0]).toBe(store.getNodeById('A'));
                    expect(expectedNodes[1]).toBe(store.getNodeById('I'));
                    expect(expectedNodes[2]).toBe(store.getNodeById('M'));
                });
-               
-               it("should default the scope to the tree", function(){
+
+               it("should default the scope to the tree", function() {
                    var expectedScope;
-                   tree.collapseNode(tree.getRootNode(), false, function(){
+
+                   tree.collapseNode(tree.getRootNode(), false, function() {
                        expectedScope = this;
                    });
                    expect(expectedScope).toBe(tree);
                });
-               
-               it("should use a passed scope", function(){
-                   var o = {}, expectedScope;
-                   tree.collapseNode(tree.getRootNode(), false, function(){
+
+               it("should use a passed scope", function() {
+                   var o = {},
+                       expectedScope;
+
+                   tree.collapseNode(tree.getRootNode(), false, function() {
                        expectedScope = this;
                    }, o);
                    expect(expectedScope).toBe(o);
                });
             });
-            
-            describe("deep", function(){
-                it("should only collapse a single level if deep is not specified", function(){
+
+            describe("deep", function() {
+                it("should only collapse a single level if deep is not specified", function() {
                     var store = tree.getStore();
+
                     tree.expandAll();
                     tree.collapseNode(tree.getRootNode());
                     expect(store.getNodeById('A').isExpanded()).toBe(true);
-                    expect(store.getNodeById('I').isExpanded()).toBe(true);  
-                    expect(store.getNodeById('M').isExpanded()).toBe(true);      
-                });  
-                
-                it("should expand all nodes underneath the expanded node if deep is set", function(){
+                    expect(store.getNodeById('I').isExpanded()).toBe(true);
+                    expect(store.getNodeById('M').isExpanded()).toBe(true);
+                });
+
+                it("should expand all nodes underneath the expanded node if deep is set", function() {
                     var store = tree.getStore();
+
                     tree.expandPath('/root/A');
                     tree.expandNode(store.getNodeById('A'), true);
                     tree.collapseNode(store.getNodeById('A'), true);
                     expect(store.getNodeById('B').isExpanded()).toBe(false);
-                    expect(store.getNodeById('F').isExpanded()).toBe(false);  
-                    expect(store.getNodeById('G').isExpanded()).toBe(false);      
-                });  
+                    expect(store.getNodeById('F').isExpanded()).toBe(false);
+                    expect(store.getNodeById('G').isExpanded()).toBe(false);
+                });
             });
         });
     });
-    
+
     describe("animations", function() {
         var enableFx = Ext.enableFx;
-        
+
         beforeEach(function() {
             makeTree = function(nodes, cfg) {
                 cfg = cfg || {};
@@ -1359,29 +2055,29 @@ describe("Ext.tree.Panel", function(){
                 tree = new Ext.tree.Panel(cfg);
             };
         });
-        
+
         afterEach(function() {
             Ext.enableFx = enableFx;
         });
-        
+
         it("should enable animations when Ext.enableFx is true", function() {
             Ext.enableFx = true;
-            
+
             makeTree();
-            
+
             expect(tree.enableAnimations).toBeTruthy();
         });
-        
+
         it("should disable animations when Ext.enableFx is false", function() {
             Ext.enableFx = false;
-            
+
             makeTree();
-            
+
             expect(tree.enableAnimations).toBeFalsy();
         });
     });
-    
-    describe('event order', function() {
+
+    describe("event order", function() {
         it("should fire 'beforeitemexpand' before 'beforeload'", function() {
             var order = 0,
                 beforeitemexpandOrder,
@@ -1410,11 +2106,11 @@ describe("Ext.tree.Panel", function(){
                         beforeitemexpandOrder = order;
                         order++;
                     },
-                    beforeload : function() {
+                    beforeload: function() {
                         beforeloadOrder = order;
                         order++;
-                    },  
-                    load : function() {
+                    },
+                    load: function() {
                         loadOrder = order;
                     }
                 }
@@ -1426,7 +2122,7 @@ describe("Ext.tree.Panel", function(){
                 status: 200,
                 responseText: Ext.encode(testNodes)
             });
-            
+
             // The order of events expected: beforeitemexpand, beforeload, load.
             expect(beforeitemexpandOrder).toBe(0);
             expect(beforeloadOrder).toBe(1);
@@ -1473,7 +2169,7 @@ describe("Ext.tree.Panel", function(){
             rec = store.getNodeById('I');
             tree.getView().getNavigationModel().setPosition(rec);
             store.getNodeById('A').expand();
-            expect(view.getCell(rec, view.getVisibleColumnManager().getColumns()[0])).toHaveCls(focusedItemCls);
+            expect(view.getCell(rec, view.getVisibleColumnManager().getColumns()[0]), true).toHaveCls(focusedItemCls);
         });
 
         it("should update the selected classes when rows are collapsed", function() {
@@ -1486,8 +2182,16 @@ describe("Ext.tree.Panel", function(){
 
             expect(view.getNodeByRecord(store.getNodeById('M'))).toHaveCls(selectedItemCls);
         });
+
+        itNotTouch("should add the expanderIconOverCls class when mouseover the expander icon", function() {
+            var cell00 = view.getCell(0, 0);
+
+            expect(cell00).not.toHaveCls(view.expanderIconOverCls);
+            jasmine.fireMouseEvent(cell00.querySelector(view.expanderSelector), 'mouseover');
+            expect(cell00).toHaveCls(view.expanderIconOverCls);
+        });
     });
-    
+
     describe("renderer", function() {
         var CustomTreeColumnNoScope = Ext.define(null, {
                 extend: 'Ext.tree.Column',
@@ -1517,7 +2221,7 @@ describe("Ext.tree.Panel", function(){
                 }
             });
 
-        describe('String renderer in a column subclass', function() {
+        describe("String renderer in a column subclass", function() {
             it("should be able to use a named renderer in the column with no scope", function() {
                 tree = new Ext.tree.Panel({
                     animate: false,
@@ -1534,7 +2238,7 @@ describe("Ext.tree.Panel", function(){
                         dataIndex: 'text'
                     })]
                 });
-                expect(tree.el.down('.x-tree-node-text').dom.innerHTML).toEqual('RootNoScope');
+                expect(tree.el.dom.querySelector('.x-tree-node-text').innerHTML).toEqual('RootNoScope');
             });
             it("should be able to use a named renderer in the column with scope: 'this'", function() {
                 tree = new Ext.tree.Panel({
@@ -1552,7 +2256,7 @@ describe("Ext.tree.Panel", function(){
                         dataIndex: 'text'
                     })]
                 });
-                expect(tree.el.down('.x-tree-node-text').dom.innerHTML).toEqual('RootScopeThis');
+                expect(tree.el.dom.querySelector('.x-tree-node-text').innerHTML).toEqual('RootScopeThis');
             });
             // Note: xit because thrown errors inside the TableView rendering path leaves an invalid state
             // which breaks ALL subsequent tests.
@@ -1595,7 +2299,7 @@ describe("Ext.tree.Panel", function(){
                         renderer: 'renderColText'
                     })]
                 });
-                expect(tree.el.down('.x-tree-node-text').dom.innerHTML).toEqual('RootViewController');
+                expect(tree.el.dom.querySelector('.x-tree-node-text').innerHTML).toEqual('RootViewController');
                 tree.destroy();
 
                 tree = new Ext.tree.Panel({
@@ -1615,7 +2319,7 @@ describe("Ext.tree.Panel", function(){
                         renderer: 'renderColText'
                     })]
                 });
-                expect(tree.el.down('.x-tree-node-text').dom.innerHTML).toEqual('RootViewController');
+                expect(tree.el.dom.querySelector('.x-tree-node-text').innerHTML).toEqual('RootViewController');
                 tree.destroy();
 
                 tree = new Ext.tree.Panel({
@@ -1636,7 +2340,7 @@ describe("Ext.tree.Panel", function(){
                         scope: 'self.controller'
                     })]
                 });
-                expect(tree.el.down('.x-tree-node-text').dom.innerHTML).toEqual('RootViewController');
+                expect(tree.el.dom.querySelector('.x-tree-node-text').innerHTML).toEqual('RootViewController');
             });
             it("should be able to use a named renderer in the Column with no scope when Column uses defaultListenerScope: true", function() {
                 tree = new Ext.tree.Panel({
@@ -1659,7 +2363,7 @@ describe("Ext.tree.Panel", function(){
                         renderer: 'renderColText'
                     })]
                 });
-                expect(tree.el.down('.x-tree-node-text').dom.innerHTML).toEqual('RootColDefaultScope');
+                expect(tree.el.dom.querySelector('.x-tree-node-text').innerHTML).toEqual('RootColDefaultScope');
             });
             it("should be able to use a named renderer in the Panel with no scope when Panel uses defaultListenerScope: true", function() {
                 tree = new Ext.tree.Panel({
@@ -1682,11 +2386,11 @@ describe("Ext.tree.Panel", function(){
                         renderer: 'panelRenderColText'
                     })]
                 });
-                expect(tree.el.down('.x-tree-node-text').dom.innerHTML).toEqual('RootPanelDefaultScope');
+                expect(tree.el.dom.querySelector('.x-tree-node-text').innerHTML).toEqual('RootPanelDefaultScope');
             });
         });
 
-        describe('String renderer in a column definition', function() {
+        describe("String renderer in a column definition", function() {
             it("should be able to use a named renderer in the column with no scope", function() {
                 tree = new Ext.tree.Panel({
                     animate: false,
@@ -1708,7 +2412,7 @@ describe("Ext.tree.Panel", function(){
                         renderer: 'renderColText'
                     }]
                 });
-                expect(tree.el.down('.x-tree-node-text').dom.innerHTML).toEqual('RootNoScope');
+                expect(tree.el.dom.querySelector('.x-tree-node-text').innerHTML).toEqual('RootNoScope');
             });
             it("should be able to use a named renderer in the column with scope: 'this'", function() {
                 tree = new Ext.tree.Panel({
@@ -1732,7 +2436,7 @@ describe("Ext.tree.Panel", function(){
                         scope: 'this'
                     }]
                 });
-                expect(tree.el.down('.x-tree-node-text').dom.innerHTML).toEqual('RootScopeThis');
+                expect(tree.el.dom.querySelector('.x-tree-node-text').innerHTML).toEqual('RootScopeThis');
             });
             // Note: xit because thrown errors inside the TableView rendering path leaves an invalid state
             // which breaks ALL subsequent tests.
@@ -1780,7 +2484,7 @@ describe("Ext.tree.Panel", function(){
                         renderer: 'renderColText'
                     }]
                 });
-                expect(tree.el.down('.x-tree-node-text').dom.innerHTML).toEqual('RootViewController');
+                expect(tree.el.dom.querySelector('.x-tree-node-text').innerHTML).toEqual('RootViewController');
                 tree.destroy();
 
                 tree = new Ext.tree.Panel({
@@ -1802,7 +2506,7 @@ describe("Ext.tree.Panel", function(){
                         scope: 'controller'
                     }]
                 });
-                expect(tree.el.down('.x-tree-node-text').dom.innerHTML).toEqual('RootViewController');
+                expect(tree.el.dom.querySelector('.x-tree-node-text').innerHTML).toEqual('RootViewController');
                 tree.destroy();
 
                 tree = new Ext.tree.Panel({
@@ -1824,7 +2528,7 @@ describe("Ext.tree.Panel", function(){
                         scope: 'self.controller'
                     }]
                 });
-                expect(tree.el.down('.x-tree-node-text').dom.innerHTML).toEqual('RootViewController');
+                expect(tree.el.dom.querySelector('.x-tree-node-text').innerHTML).toEqual('RootViewController');
             });
             it("should be able to use a named renderer in the Column with no scope when Column uses defaultListenerScope: true", function() {
                 tree = new Ext.tree.Panel({
@@ -1848,7 +2552,7 @@ describe("Ext.tree.Panel", function(){
                         renderer: 'renderColText'
                     }]
                 });
-                expect(tree.el.down('.x-tree-node-text').dom.innerHTML).toEqual('RootColDefaultScope');
+                expect(tree.el.dom.querySelector('.x-tree-node-text').innerHTML).toEqual('RootColDefaultScope');
             });
             it("should be able to use a named renderer in the Panel with no scope when Panel uses defaultListenerScope: true", function() {
                 tree = new Ext.tree.Panel({
@@ -1872,10 +2576,10 @@ describe("Ext.tree.Panel", function(){
                         renderer: 'panelRenderColText'
                     }]
                 });
-                expect(tree.el.down('.x-tree-node-text').dom.innerHTML).toEqual('RootPanelDefaultScope');
+                expect(tree.el.dom.querySelector('.x-tree-node-text').innerHTML).toEqual('RootPanelDefaultScope');
             });
         });
-        
+
         it("should be able to use a renderer to render the value", function() {
             tree = new Ext.tree.Panel({
                 animate: false,
@@ -1896,10 +2600,10 @@ describe("Ext.tree.Panel", function(){
                     }
                 }]
             });
-            expect(tree.el.down('.x-tree-node-text').dom.innerHTML).toEqual('RootFoo');
+            expect(tree.el.dom.querySelector('.x-tree-node-text').innerHTML).toEqual('RootFoo');
         });
-        
-        it("should be able to use a string renderer that maps to Ext.util.Format", function () {
+
+        it("should be able to use a string renderer that maps to Ext.util.Format", function() {
             tree = new Ext.tree.Panel({
                 animate: false,
                 renderTo: Ext.getBody(),
@@ -1917,123 +2621,117 @@ describe("Ext.tree.Panel", function(){
                     dataIndex: 'text'
                 }]
             });
-            expect(tree.el.down('.x-tree-node-text').dom.innerHTML).toEqual('ROOT');
+            expect(tree.el.dom.querySelector('.x-tree-node-text').innerHTML).toEqual('ROOT');
         });
     });
-    
 
     // https://sencha.jira.com/browse/EXTJSIV-9533
-    describe('programmatic load', function() {
+    describe("programmatic load", function() {
         beforeEach(function() {
             Ext.define('spec.Foo', {
-                extend : 'Ext.data.Model',
-                fields : ['Name', 'Id'],
-                idProperty : 'Id'
+                extend: 'Ext.data.Model',
+                fields: ['Name', 'Id'],
+                idProperty: 'Id'
             });
         });
 
-        afterEach(function () {
+        afterEach(function() {
             Ext.undefine('spec.Foo');
             Ext.data.Model.schema.clear(true);
         });
 
         function getData() {
             return [{
-                "BaselineEndDate" : "2010-02-01",
-                "Id" : 1,
-                "Name" : "Planning",
-                "PercentDone" : 50,
-                "StartDate" : "2010-01-18",
-                "BaselineStartDate" : "2010-01-13",
-                "Duration" : 11,
-                "expanded" : true,
-                "TaskType" : "Important",
-                "children" : [{
-                    "BaselineEndDate" : "2010-01-28",
-                    "Id" : 11,
-                    "leaf" : true,
-                    "Name" : "Investigate",
-                    "PercentDone" : 50,
-                    "TaskType" : "LowPrio",
-                    "StartDate" : "2010-01-18",
-                    "BaselineStartDate" : "2010-01-20",
-                    "Duration" : 10
-                }, { 
-                    "BaselineEndDate" : "2010-02-01",
-                    "Id" : 12,
-                    "leaf" : true,
-                    "Name" : "Assign resources",
-                    "PercentDone" : 50,
-                    "StartDate" : "2010-01-18",
-                    "BaselineStartDate" : "2010-01-25",
-                    "Duration" : 10
+                "BaselineEndDate": "2010-02-01",
+                "Id": 1,
+                "Name": "Planning",
+                "PercentDone": 50,
+                "StartDate": "2010-01-18",
+                "BaselineStartDate": "2010-01-13",
+                "Duration": 11,
+                "expanded": true,
+                "TaskType": "Important",
+                "children": [{
+                    "BaselineEndDate": "2010-01-28",
+                    "Id": 11,
+                    "leaf": true,
+                    "Name": "Investigate",
+                    "PercentDone": 50,
+                    "TaskType": "LowPrio",
+                    "StartDate": "2010-01-18",
+                    "BaselineStartDate": "2010-01-20",
+                    "Duration": 10
                 }, {
-                    "BaselineEndDate" : "2010-02-01",
-                    "Id" : 13,
-                    "leaf" : true,
-                    "Name" : "Gather documents (not resizable)",
-                    "Resizable" : false,
-                    "PercentDone" : 50,
-                    "StartDate" : "2010-01-18",
-                    "BaselineStartDate" : "2010-01-25",
-                    "Duration" : 10
+                    "BaselineEndDate": "2010-02-01",
+                    "Id": 12,
+                    "leaf": true,
+                    "Name": "Assign resources",
+                    "PercentDone": 50,
+                    "StartDate": "2010-01-18",
+                    "BaselineStartDate": "2010-01-25",
+                    "Duration": 10
                 }, {
-                    "BaselineEndDate" : "2010-02-04",
-                    "Id" : 17,
-                    "leaf" : true,
-                    "Name" : "Report to management",
-                    "TaskType" : "Important",
-                    "PercentDone" : 0,
-                    "StartDate" : "2010-02-02",
-                    "BaselineStartDate" : "2010-02-04",
-                    "Duration" : 0
+                    "BaselineEndDate": "2010-02-01",
+                    "Id": 13,
+                    "leaf": true,
+                    "Name": "Gather documents (not resizable)",
+                    "Resizable": false,
+                    "PercentDone": 50,
+                    "StartDate": "2010-01-18",
+                    "BaselineStartDate": "2010-01-25",
+                    "Duration": 10
+                }, {
+                    "BaselineEndDate": "2010-02-04",
+                    "Id": 17,
+                    "leaf": true,
+                    "Name": "Report to management",
+                    "TaskType": "Important",
+                    "PercentDone": 0,
+                    "StartDate": "2010-02-02",
+                    "BaselineStartDate": "2010-02-04",
+                    "Duration": 0
                 }]
             }];
         }
 
-        it('should reload the root node', function() {
+        it("should reload the root node", function() {
             var store = new Ext.data.TreeStore({
-                model       : 'spec.Foo',
-                proxy       : {
-                    type   : 'ajax',
-                    url    : '/data/AjaxProxy/treeLoadData'
-                },
-                root        : {
-                    Name : 'ROOOOOOOOT',
-                    expanded : true
-                }
-            }), refreshSpy;
+                    model: 'spec.Foo',
+                    proxy: {
+                        type: 'ajax',
+                        url: '/data/AjaxProxy/treeLoadData'
+                    },
+                    root: {
+                        Name: 'ROOOOOOOOT',
+                        expanded: true
+                    }
+                }),
+                refreshSpy;
 
             tree = new Ext.tree.Panel({
-                renderTo : Ext.getBody(),
-                width    : 600,
-                height   : 400,
-                store    : store,
+                renderTo: Ext.getBody(),
+                width: 600,
+                height: 400,
+                store: store,
                 viewConfig: {
                     loadMask: false
                 },
-                columns  : [{
-                    xtype     : 'treecolumn',
-                    header    : 'Tasks',
-                    dataIndex : 'Name',
-                    locked    : true,
-                    width     : 200
+                columns: [{
+                    xtype: 'treecolumn',
+                    header: 'Tasks',
+                    dataIndex: 'Name',
+                    locked: true,
+                    width: 200
                 }, {
-                    width     : 200,
-                    dataIndex : 'Id'
+                    width: 200,
+                    dataIndex: 'Id'
                 }]
-            });
-
-            Ext.Ajax.mockComplete({
-                status: 200,
-                responseText: Ext.encode(getData())
             });
 
             var lockedView = tree.lockedGrid.view,
                 normalView = tree.normalGrid.view;
 
             refreshSpy = spyOnEvent(store, 'refresh');
-            store.load();
 
             Ext.Ajax.mockComplete({
                 status: 200,
@@ -2046,7 +2744,51 @@ describe("Ext.tree.Panel", function(){
         });
     });
 
-    describe('filtering', function() {
+    describe("rendering while a child node is loading and the root is specified on the tree", function() {
+        it("should render the correct number of nodes", function() {
+            var ProxyModel = Ext.define(null, {
+                extend: 'Ext.data.TreeModel',
+                fields: ['id', 'text', 'secondaryId'],
+                proxy: {
+                    type: 'ajax',
+                    url: 'fakeUrl'
+                }
+            });
+
+            makeTree(null, {
+                root: {
+                    expanded: true,
+                    children: [{
+                        id: 'node1',
+                        text: 'Node1',
+                        expandable: true,
+                        expanded: true
+                    }, {
+                        id: 'node2',
+                        text: 'Node2',
+                        expandable: true,
+                        expanded: false
+                    }]
+                }
+            }, {
+                model: ProxyModel,
+                root: null
+            });
+
+            expect(view.getNodes().length).toBe(3);
+
+            // At this point, node1 will be loading because it's expanded
+            Ext.Ajax.mockComplete({
+                status: 200,
+                responseText: Ext.encode([{
+                    id: 'node1.1'
+                }])
+            });
+            expect(view.getNodes().length).toBe(4);
+        });
+    });
+
+    describe("top down filtering", function() {
         var treeData = [{
             text: 'Top 1',
             children: [{
@@ -2113,7 +2855,7 @@ describe("Ext.tree.Panel", function(){
             return view.store.getAt(rowIdx).get('text') === value;
         }
 
-        it('should only show nodes which pass a filter', function() {
+        it("should only show nodes which pass a filter", function() {
             // When filtering the updating of the 'visible' field must not percolate a store update event out to views.
             var handleUpdateCallCount,
                 handleUpdateSpy = spyOn(view, 'handleUpdate').andCallThrough();
@@ -2125,24 +2867,12 @@ describe("Ext.tree.Panel", function(){
             expect(testRowText(1, 'Top 2')).toBe(true);
             expect(testRowText(2, 'Top 3')).toBe(true);
 
-            // Filter so that only "foo" nodes and their ancestors are visible
+            // Filter so that only "foo" nodes and their ancestors are visible.
+            // filterer = 'bottomup' means that visible leaf nodes cause their ancestors to be visible.
+            store.filterer = 'bottomup';
             store.filter({
                 filterFn: function(node) {
-                    var children = node.childNodes,
-                        len = children && children.length,
-
-                        // Visibility of leaf nodes is whether they pass the test.
-                        // Visibility of branch nodes depends on them having visible children.
-                        visible = node.isLeaf() ? node.get('text') === 'foo' : false,
-                        i;
-
-                    // We're visible if one of our child nodes is visible.
-                    // No loop body here. We are looping only while the visible flag remains false.
-                    // Child nodes are filtered before parents, so we can check them here.
-                    // As soon as we find a visible child, this branch node must be visible.
-                    for (i = 0; i < len && !(visible = children[i].get('visible')); i++);
-
-                    return visible;
+                    return  node.get('text') === 'foo';
                 },
                 id: 'testFilter'
             });
@@ -2181,21 +2911,7 @@ describe("Ext.tree.Panel", function(){
             // View should refresh.
             store.filter({
                 filterFn: function(node) {
-                    var children = node.childNodes,
-                        len = children && children.length,
-
-                        // Visibility of leaf nodes is whether they pass the test.
-                        // Visibility of branch nodes depends on them having visible children.
-                        visible = node.isLeaf() ? node.get('text') === 'bar' : false,
-                        i;
-
-                    // We're visible if one of our child nodes is visible.
-                    // No loop body here. We are looping only while the visible flag remains false.
-                    // Child nodes are filtered before parents, so we can check them here.
-                    // As soon as we find a visible child, this branch node must be visible.
-                    for (i = 0; i < len && !(visible = children[i].get('visible')); i++);
-
-                    return visible;
+                    return node.get('text') === 'bar';
                 },
                 id: 'testFilter'
             });
@@ -2246,8 +2962,8 @@ describe("Ext.tree.Panel", function(){
         });
     });
 
-    describe('sorting', function() {
-        it('should sort nodes', function() {
+    describe("sorting", function() {
+        it("should sort nodes", function() {
             var bNode;
 
             makeTree(testNodes, null, {
@@ -2263,7 +2979,7 @@ describe("Ext.tree.Panel", function(){
             // Insert an out of order node.
             // MUST be leaf: true so that the automatically prepended sort by leaf status has no effect.
             bNode.insertChild(0, {
-                text:'Z',
+                text: 'Z',
                 leaf: true
             });
 
@@ -2289,8 +3005,8 @@ describe("Ext.tree.Panel", function(){
             expect(bNode.childNodes[2].get('text')).toBe('C');
         });
     });
-    
-    describe('Buffered rendering large, expanded root node', function() {
+
+    describe("Buffered rendering large, expanded root node", function() {
         function makeNodes() {
             var nodes = [],
                 i, j,
@@ -2303,9 +3019,10 @@ describe("Ext.tree.Panel", function(){
                     id: 'n' + ip1,
                     text: 'Node' + ip1,
                     children: [
-                        
+
                     ]
                 };
+
                 for (j = 0; j < 50; j++) {
                     jp1 = j + 1;
                     node.children.push({
@@ -2314,8 +3031,10 @@ describe("Ext.tree.Panel", function(){
                         leaf: true
                     });
                 }
+
                 nodes.push(node);
             }
+
             return nodes;
         }
 
@@ -2326,7 +3045,7 @@ describe("Ext.tree.Panel", function(){
             });
         }
 
-        it('should maintain scroll position on reload', function() {
+        it("should maintain scroll position on reload", function() {
             makeTree(null, {
                 height: 400,
                 width: 350
@@ -2344,6 +3063,12 @@ describe("Ext.tree.Panel", function(){
 
             completeWithNodes();
 
+            // Child nodes of expanded root must be in store.
+            expect(store.getCount()).toBe(51);
+
+            // Child nodes must be in view
+            expect(view.all.getCount()).toBe(Math.min(store.getCount(), view.bufferedRenderer.viewSize));
+
             view.setScrollY(500);
             store.reload();
 
@@ -2352,7 +3077,7 @@ describe("Ext.tree.Panel", function(){
             expect(view.getScrollY()).toBe(500);
         });
 
-        it('should negate the animate flag and not throw an error', function() {
+        it("should negate the animate flag and not throw an error", function() {
             makeTree(null, {
                 height: 400,
                 width: 350,
@@ -2374,7 +3099,7 @@ describe("Ext.tree.Panel", function(){
             expect(tree.view.bufferedRenderer instanceof Ext.grid.plugin.BufferedRenderer).toBe(true);
         });
 
-        it('should scroll to unloaded nodes by absolute path', function() {
+        it("should scroll to unloaded nodes by absolute path", function() {
             makeTree(null, {
                 height: 400,
                 width: 350
@@ -2396,17 +3121,17 @@ describe("Ext.tree.Panel", function(){
             store.load();
 
             completeWithNodes();
-            
+
             tree.ensureVisible('/root/n50/n50.50');
             expect(Ext.fly(view.getNode(store.getById('n50.50'))).getBox().bottom).toBeLessThanOrEqual(view.getBox().bottom);
         });
 
-        it('should throw an error when being asked to scroll to an invisible root node', function() {
+        it("should throw an error when being asked to scroll to an invisible root node", function() {
             makeTree(null, {
                 height: 400,
                 width: 350,
                 rootVisible: false
-            }, {                
+            }, {
                 // lazyFill means childNodes do not load locally available children arrays until expanded.
                 lazyFill: true,
                 proxy: {
@@ -2433,7 +3158,7 @@ describe("Ext.tree.Panel", function(){
             });
         });
 
-        it('should scroll to loaded nodes by relative path', function() {
+        it("should scroll to loaded nodes by relative path", function() {
             makeTree(null, {
                 height: 400,
                 width: 350
@@ -2454,15 +3179,15 @@ describe("Ext.tree.Panel", function(){
             store.load();
 
             completeWithNodes();
-            
+
             runs(function() {
                 tree.ensureVisible('n50.50');
                 expect(Ext.fly(view.getNode(store.getById('n50.50'))).getBox().bottom).toBeLessThanOrEqual(view.getBox().bottom);
             });
         });
     });
-    
-    describe('multi append node', function() {
+
+    describe("multi append node", function() {
         var layoutCounter,
             height;
 
@@ -2473,7 +3198,7 @@ describe("Ext.tree.Panel", function(){
             layoutCounter = view.componentLayoutCounter;
         });
 
-        it('should only update the view once when an array of nodes is passed', function() {
+        it("should only update the view once when an array of nodes is passed", function() {
             height = tree.getHeight();
             expect(view.all.getCount()).toEqual(4);
             tree.getRootNode().appendChild([{
@@ -2497,10 +3222,10 @@ describe("Ext.tree.Panel", function(){
                 text: 'append-5',
                 secondaryId: 'append-5'
             }]);
-        
+
             // We added 5 nodes
             expect(view.all.getCount()).toEqual(9);
-            
+
             // We are shrinkwrap height, so it shuold have grown
             expect(tree.getHeight()).toBeGreaterThan(height);
 
@@ -2509,9 +3234,10 @@ describe("Ext.tree.Panel", function(){
         });
     });
 
-    describe('tracking removed nodes', function() {
-        it('should not add nodes removed by virtue of their parent collapsing to the removed list', function() {
+    describe("tracking removed nodes", function() {
+        it("should not add nodes removed by virtue of their parent collapsing to the removed list", function() {
             var done = false;
+
             makeTree(testNodes, null, {
                 trackRemoved: true
             });
@@ -2527,8 +3253,8 @@ describe("Ext.tree.Panel", function(){
                 expect(tree.store.getRemovedRecords().length).toBe(0);
             });
         });
-        
-        it('should add descendants of collapsed nodes to the removed list', function() {
+
+        it("should add descendants of collapsed nodes to the removed list", function() {
             // Create tree with collapsed root node;
             makeTree(testNodes, null, {
                 trackRemoved: true
@@ -2540,8 +3266,8 @@ describe("Ext.tree.Panel", function(){
                 expect(tree.store.getRemovedRecords().length).toBe(14);
             });
         });
-        
-        it('should add descendants of filtered out nodes to the removed list', function() {
+
+        it("should add descendants of filtered out nodes to the removed list", function() {
             var done = false;
 
             // Create tree with collapsed root node;
@@ -2571,8 +3297,8 @@ describe("Ext.tree.Panel", function(){
         });
     });
 
-    describe('Changing root node', function() {
-        it('should remove all listeners from old root node', function() {
+    describe("Changing root node", function() {
+        it("should remove all listeners from old root node", function() {
             tree = new Ext.tree.Panel({
                 title: 'Test',
                 height: 200,
@@ -2613,8 +3339,8 @@ describe("Ext.tree.Panel", function(){
         });
     });
 
-    describe('sorting a collapsed node', function() {
-        it('should not expand a collapsed node upon sort', function() {
+    describe("sorting a collapsed node", function() {
+        it("should not expand a collapsed node upon sort", function() {
             makeTree(testNodes, null, {
                 folderSort: true,
                 sorters: [{
@@ -2634,6 +3360,210 @@ describe("Ext.tree.Panel", function(){
             expect(tree.store.indexOf(aNode.childNodes[0])).toBe(-1);
             expect(tree.store.indexOf(aNode.childNodes[1])).toBe(-1);
             expect(tree.store.indexOf(aNode.childNodes[2])).toBe(-1);
+        });
+    });
+
+    describe("key events", function() {
+        describe("not locked", function() {
+            it("should expand all nodes with asterisk", function() {
+                makeTree(testNodes);
+                var cell = tree.getView().getCell(rootNode, tree.down('treecolumn'));
+
+                jasmine.fireMouseEvent(cell, 'click', 5, 5);
+                spyOn(tree, 'expandAll').andCallThrough();
+                jasmine.fireKeyEvent(cell, 'keydown', Ext.event.Event.EIGHT, true);
+                expect(tree.expandAll.callCount).toBe(1);
+
+            });
+        });
+
+        describe("locked", function() {
+            it("should expand all nodes with asterisk", function() {
+                makeTree(testNodes, {
+                    columns: [{
+                        xtype: 'treecolumn',
+                        locked: true,
+                        width: 200,
+                        dataIndex: 'text'
+                    }, {
+                        width: 200,
+                        dataIndex: 'text'
+                    }]
+                });
+                var cell = tree.getView().getCell(rootNode, tree.down('treecolumn'));
+
+                jasmine.fireMouseEvent(cell, 'click', 5, 5);
+                spyOn(tree, 'expandAll').andCallThrough();
+                jasmine.fireKeyEvent(cell, 'keydown', Ext.event.Event.EIGHT, true);
+                expect(tree.expandAll.callCount).toBe(1);
+            });
+        });
+    });
+
+    describe("bottom up filtering", function() {
+        it("should show path to all filtered in leaf nodes", function() {
+            makeTree(testNodes, null, {
+                filterer: 'bottomup'
+            });
+            tree.expandAll();
+
+            // All nodes must be visible
+            expect(view.all.getCount()).toBe(15);
+
+            // This should only pass one leaf node.
+            // But its ancestors obviously have to be visible.
+            store.filter({
+                property: 'text',
+                operator: '=',
+                value: 'H'
+            });
+
+            // The H node must be visible
+            expect(view.getNode(store.getById('H'))).not.toBe(null);
+
+            // Just the path to the H node must be visible
+            expect(view.all.getCount()).toBe(5);
+        });
+    });
+
+    describe("glyphs for icons", function() {
+        it("should render glyphs using the specified font", function() {
+            makeTree(testNodes, {
+                columns: [{
+                    xtype: 'treecolumn',
+                    width: 200,
+                    dataIndex: 'text',
+                    renderer: function(v, metaData, record) {
+                        metaData.glyph = record.data.text + '@FontAwesome';
+
+                        return v;
+                    }
+                }, {
+                    width: 200,
+                    dataIndex: 'text'
+                }]
+            });
+            tree.expandAll();
+
+            // Check that the font-family is as specified
+            expect(Ext.fly(view.getCellByPosition({ row: 0, column: 0 }, true).querySelector('.x-tree-icon')).getStyle('font-family')).toBe('FontAwesome');
+
+            // Check that the glyph is the first character of the text.
+            expect(view.getCellByPosition({ row: 0, column: 0 }, true).querySelector('.x-tree-icon').innerHTML).toBe(store.getAt(0).get('text').substr(0, 1));
+        });
+    });
+
+    describe("ARIA", function() {
+        beforeEach(function() {
+            makeTree(testNodes);
+        });
+
+        describe("role", function() {
+            it("should have treegrid role", function() {
+                expect(tree).toHaveAttr('role', 'treegrid');
+            });
+
+            it("should have rowgroup role", function() {
+                expect(view).toHaveAttr('role', 'rowgroup');
+            });
+        });
+
+        describe("aria-level", function() {
+            beforeEach(function() {
+                tree.expandAll();
+            });
+
+            it("should have aria-level on rows", function() {
+                // A
+                var row = view.getRow(1);
+
+                expect(row).toHaveAttr('aria-level', '2');
+
+                // B
+                row = view.getRow(2);
+
+                expect(row).toHaveAttr('aria-level', '3');
+
+                // C
+                row = view.getRow(3);
+
+                expect(row).toHaveAttr('aria-level', '4');
+            });
+        });
+
+        describe("aria-expanded", function() {
+            it("should be set to false when collapsed", function() {
+                // Root
+                var row = view.getRow(0);
+
+                expect(row).toHaveAttr('aria-expanded', 'false');
+            });
+
+            it("should be set to true when expanded", function() {
+                tree.getStore().getNodeById('A').expand();
+
+                // A
+                var row = view.getRow(1);
+
+                expect(row).toHaveAttr('aria-expanded', 'true');
+            });
+
+            it("should not be present on leaf nodes", function() {
+                tree.getStore().getNodeById('A').expand();
+
+                // C
+                var row = view.getRow(3);
+
+                expect(row).not.toHaveAttr('aria-expanded');
+            });
+        });
+    });
+
+    describe("reloading child node", function() {
+        function getChildData(level) {
+            Ext.Ajax.mockComplete({
+                status: 200,
+                responseText: Ext.encode([{
+                    id: level,
+                    text: 'A node'
+                }])
+            });
+        }
+
+        it("should correctly update the UI when reloading a child node directly", function() {
+            var node, cell;
+
+            makeTree(null, {
+                store: new Ext.data.TreeStore({
+                    proxy: {
+                        type: 'ajax',
+                        url: 'fakeUrl'
+                    },
+                    root: {
+                        text: 'Ext JS',
+                        id: 'src'
+                    }
+                })
+            });
+
+            tree.getRootNode().expand();
+            getChildData(1);
+
+            node = tree.getStore().getNodeById(1);
+            // expand node to load data
+            node.expand();
+            // get remote data
+            getChildData(2);
+            // collapse the node
+            node.collapse();
+
+            // now let's reload the node directly
+            tree.getStore().load({ node: node });
+            getChildData(2);
+
+            cell = view.getCell(1, 0).querySelector('.x-tree-expander');
+            // "plus" class should be applied
+            expect(cell).toHaveCls('x-tree-elbow-end-plus');
         });
     });
 });

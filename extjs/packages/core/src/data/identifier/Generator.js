@@ -32,9 +32,10 @@
  *
  * It is often desirable to share Generators to ensure uniqueness or common configuration.
  * This is done by giving Generator instances an id property by which they can be looked
- * up using the {@link Ext.Factory#dataIdentifier dataIdentifier} method. To configure two {@link Ext.data.Model Model} classes
- * to share one {@link Ext.data.identifier.Sequential sequential} id generator, you simply
- * assign them the same id:
+ * up using the {@link Ext.Factory#dataIdentifier dataIdentifier} method. To configure two
+ * {@link Ext.data.Model Model} classes to share one
+ * {@link Ext.data.identifier.Sequential sequential} id generator, you simply assign them
+ * the same id:
  *
  *     Ext.define('MyApp.data.MyModelA', {
  *         extend: 'Ext.data.Model',
@@ -139,15 +140,16 @@ Ext.define('Ext.data.identifier.Generator', {
         'Ext.mixin.Factoryable'
     ],
 
-    alias: 'data.identifier.default',  // this is used by Factoryable
+    alias: 'data.identifier.default', // this is used by Factoryable
 
     factoryConfig: {
-        defaultType: 'sequential'  // this is not a suitable type to create
+        defaultType: 'sequential' // this is not a suitable type to create
     },
 
     /**
      * @property {Boolean} isGenerator
-     * `true` in this class to identify an object as an instantiated IdGenerator, or subclass thereof.
+     * `true` in this class to identify an object as an instantiated IdGenerator, or subclass
+     * thereof.
      */
     isGenerator: true,
 
@@ -163,16 +165,16 @@ Ext.define('Ext.data.identifier.Generator', {
      * Initializes a new instance.
      * @param {Object} config (optional) Configuration object to be applied to the new instance.
      */
-    constructor: function (config) {
+    constructor: function(config) {
         var me = this,
-            cache, id;
+            id;
 
         me.initConfig(config);
 
         id = me.getId();
+
         if (id) {
-            cache = (config && config.cache) || Ext.data.identifier.Generator.all;
-            cache[id] = me;
+            Ext.data.identifier.Generator.all[id] = me;
         }
     },
 
@@ -191,9 +193,11 @@ Ext.define('Ext.data.identifier.Generator', {
          * @private
          * @return {Ext.data.identifier.Generator} The clone
          */
-        clone: function (config) {
+        clone: function(config) {
             var cfg = this.getInitialConfig();
+
             cfg = config ? Ext.apply({}, config, cfg) : cfg;
+
             return new this.self(cfg);
         },
 
@@ -207,8 +211,7 @@ Ext.define('Ext.data.identifier.Generator', {
             all: {}
         }
     }
-},
-function () {
+}, function() {
     var Generator = this,
         Factory = Ext.Factory,
         factory = Factory.dataIdentifier;
@@ -219,12 +222,12 @@ function () {
      * @member Ext.Factory
      * @method dataIdentifier
      * Returns an instance of an ID generator based on the ID you pass in.
-     * @param {string} id
+     * @param {String/Object} config The config object or `id` to lookup.
      * @return {Object} Ext.data.identifier.* The data identifier
      */
-    Factory.dataIdentifier = function (config) {
+    Factory.dataIdentifier = function(config) {
         var id = Ext.isString(config) ? config : (config && config.id),
-            existing = id && ((config && config.cache) || Generator.all)[id];
+            existing = id && Generator.all[id];
 
         return existing || factory(config);
     };

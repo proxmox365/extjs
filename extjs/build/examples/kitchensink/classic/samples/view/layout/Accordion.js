@@ -3,107 +3,99 @@
  */
 Ext.define('KitchenSink.view.layout.Accordion', {
     extend: 'Ext.panel.Panel',
-    
+    xtype: 'layout-accordion',
+
     requires: [
         'Ext.layout.container.Accordion',
-        'Ext.grid.*',
-        'KitchenSink.model.Company'
+        'Ext.grid.*'
     ],
-    xtype: 'layout-accordion',
+
     //<example>
-    exampleTitle: 'Accordion Layout',
     otherContent: [{
-        type: 'Store',
-        path: 'classic/samples/data/DataSets.js'
-    },{
+        type: 'Controller',
+        path: 'classic/samples/view/grid/BasicGridController.js'
+    }, {
         type: 'Model',
-        path: 'classic/samples/model/Company.js'
+        path: 'app/model/Company.js'
     }],
     profiles: {
         classic: {
-            colWidth: 75
+            width: 600,
+            height: 500,
+            gainColor: 'green',
+            lossColor: 'red'
         },
-        
         neptune: {
-            colWidth: 90
+            width: 700,
+            height: 500,
+            gainColor: '#73b51e',
+            lossColor: '#cf4c35'
+
+        },
+        graphite: {
+            width: 700,
+            height: 650,
+            gainColor: 'unset',
+            lossColor: 'unset'
+        },
+        'classic-material': {
+            width: 800,
+            height: 650,
+            gainColor: '#4caf50',
+            lossColor: '#f44336'
         }
     },
     //</example>
+
+    title: 'Accordion Layout',
     layout: 'accordion',
-    width: 500,
-    height: 400,
+    width: '${width}',
+    height: '${height}',
+    cls: Ext.baseCSSPrefix + 'shadow',
+
     defaults: {
         bodyPadding: 10
     },
-    
-    initComponent: function() {
-        Ext.apply(this, {
-            items: [{
-                bodyPadding: 0,
-                xtype: 'grid',
-                title: 'Array Grid (Click or tap header to collapse)',
-                hideCollapseTool: true,
-                columnLines: true,
-                store: new Ext.data.Store({
-                    model: KitchenSink.model.Company,
-                    data: KitchenSink.data.DataSets.company
-                }),
-                columns: [{
-                    text     : 'Company',
-                    flex     : 1,
-                    sortable : false,
-                    dataIndex: 'name'
-                }, {
-                    text     : 'Price',
-                    width    : 75,
-                    sortable : true,
-                    formatter: 'usMoney',
-                    dataIndex: 'price'
-                }, {
-                    text     : 'Change',
-                    width    : 75,
-                    sortable : true,
-                    renderer : this.changeRenderer,
-                    dataIndex: 'change'
-                }, {
-                    text     : '% Change',
-                    width    : 90,
-                    sortable : true,
-                    renderer : this.pctChangeRenderer,
-                    dataIndex: 'pctChange'
-                }]
-            }, {
-                title: 'Accordion Item 2',
-                html: 'Empty'
-            }, {
-                title: 'Accordion Item 3',
-                html: 'Empty'
-            }, {
-                title: 'Accordion Item 4',
-                html: 'Empty'
-            }, {
-                title: 'Accordion Item 5',
-                html: 'Empty'
-            }]
-        });
-        this.callParent();
-    },
-    
-    changeRenderer: function(val) {
-        if (val > 0) {
-            return '<span style="color:green;">' + val + '</span>';
-        } else if(val < 0) {
-            return '<span style="color:red;">' + val + '</span>';
-        }
-        return val;
-    },
-    
-    pctChangeRenderer: function(val){
-        if (val > 0) {
-            return '<span style="color:green;">' + val + '%</span>';
-        } else if(val < 0) {
-            return '<span style="color:red;">' + val + '%</span>';
-        }
-        return val;
-    }
+
+    items: [{
+        // See Grids / Basic Grid example for this view.
+        xtype: 'array-grid',
+        title: 'Basic Grid (Click or tap header to collapse)',
+        tools: [
+            { type: 'pin' }, { type: 'unpin' }, { type: 'gear' }
+        ],
+        bodyPadding: 0
+    }, {
+        title: 'Accordion Item 2',
+        tools: [
+            { iconCls: 'x-fa fa-thumbtack' },
+            { iconCls: 'x-fa fa-thumbtack fa-rotate-90' },
+            { iconCls: 'x-fa fa-cog' }
+        ],
+        html: 'Empty'
+    }, {
+        title: 'Accordion Item 3',
+        tools: [
+            { glyph: 'xf08d@\'Font Awesome 5 Free\'' },
+            { glyph: 'xf08d@\'Font Awesome 5 Free\'', cls: 'fa-rotate-90' },
+            { glyph: 'xf013@\'Font Awesome 5 Free\'' }
+        ],
+        html: 'Empty'
+    }, {
+        title: 'Accordion Item 4',
+        tools: [
+            { iconCls: 'x-fa fa-thumbtack' },
+            { iconCls: 'x-fa fa-thumbtack fa-rotate-90' },
+            { iconCls: 'x-fa fa-cog' }
+        ],
+        html: 'Empty'
+    }, {
+        title: 'Accordion Item 5',
+        tools: [
+            { glyph: 'xf08d@\'Font Awesome 5 Free\'' },
+            { glyph: 'xf08d@\'Font Awesome 5 Free\'', cls: 'fa-rotate-90' },
+            { glyph: 'xf013@\'Font Awesome 5 Free\'' }
+        ],
+        html: 'Empty'
+    }]
 });

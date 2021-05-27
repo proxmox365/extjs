@@ -26,8 +26,7 @@ Ext.define('Ext.event.publisher.Dom', {
         animationend: 1,
         resize: 1,
         focus: 1,
-        blur: 1,
-        scroll: 1
+        blur: 1
     },
 
     // The following events do not bubble, and cannot be "captured".  The only way to
@@ -45,7 +44,13 @@ Ext.define('Ext.event.publisher.Dom', {
         error: 1,
         DOMContentLoaded: 1,
         DOMFrameContentLoaded: 1,
-        hashchange: 1
+        hashchange: 1,
+        // Scroll can be captured, but it is listed here as one of directEvents instead of
+        // captureEvents because in some browsers capturing the scroll event does not work
+        // if the window object itself fired the scroll event.
+        scroll: 1,
+        online: 1,
+        offline: 1
     },
 
     /**
@@ -94,8 +99,11 @@ Ext.define('Ext.event.publisher.Dom', {
     },
 
     constructor: function() {
-        var me = this;
+        var me = this,
+            supportsPassive = Ext.supports.PassiveEventListener;
 
+        me.listenerOptions = supportsPassive ? { passive: false } : false;
+        me.captureOptions = supportsPassive ? { passive: false, capture: true } : true;
         me.bubbleSubscribers = {};
         me.captureSubscribers = {};
         me.directSubscribers = {};
@@ -111,23 +119,22 @@ Ext.define('Ext.event.publisher.Dom', {
         Ext.onInternalReady(me.onReady, me);
 
         me.callParent();
+
+        me.registerDomEvents();
     },
 
-    registerEvents: function() {
+    registerDomEvents: function() {
         var me = this,
             publishersByEvent = Ext.event.publisher.Publisher.publishersByEvent,
             domEvents = me.handledDomEvents,
             ln = domEvents.length,
-            i = 0,
-            eventName;
+            i, eventName;
 
-        for (; i < ln; i++) {
+        for (i = 0; i < ln; i++) {
             eventName = domEvents[i];
             me.handles[eventName] = 1;
             publishersByEvent[eventName] = me;
         }
-
-        this.callParent();
     },
 
     onReady: function() {
@@ -146,7 +153,12 @@ Ext.define('Ext.event.publisher.Dom', {
             }
         }
 
-        Ext.getWin().on('unload', me.destroy, me);
+        // DOM publishers should be the last thing to go since they are used
+        // to remove any element listeners which is typically part
+        // of the unload destroy process.
+        Ext.getWin().on('unload', me.destroy, me, {
+            priority: -10000
+        });
     },
 
     initHandlers: function() {
@@ -158,32 +170,46 @@ Ext.define('Ext.event.publisher.Dom', {
     },
 
     addDelegatedListener: function(eventName) {
-        this.delegatedListeners[eventName] = 1;
-        this.target.addEventListener(
-            eventName, this.onDelegatedEvent, !!this.captureEvents[eventName]
+        var me = this;
+
+        me.delegatedListeners[eventName] = 1;
+
+        me.target.addEventListener(
+            eventName,
+            me.onDelegatedEvent,
+            me.captureEvents[eventName] ? me.captureOptions : me.listenerOptions
         );
     },
 
     removeDelegatedListener: function(eventName) {
-        delete this.delegatedListeners[eventName];
-        this.target.removeEventListener(
-            eventName, this.onDelegatedEvent, !!this.captureEvents[eventName]
+        var me = this;
+
+        delete me.delegatedListeners[eventName];
+
+        me.target.removeEventListener(
+            eventName,
+            me.onDelegatedEvent,
+            me.captureEvents[eventName] ? me.captureOptions : me.listenerOptions
         );
     },
 
     addDirectListener: function(eventName, element, capture) {
+        var me = this;
+
         element.dom.addEventListener(
             eventName,
-            capture ? this.onDirectCaptureEvent : this.onDirectEvent,
-            capture
+            capture ? me.onDirectCaptureEvent : me.onDirectEvent,
+            capture ? me.captureOptions : me.listenerOptions
         );
     },
 
     removeDirectListener: function(eventName, element, capture) {
+        var me = this;
+
         element.dom.removeEventListener(
             eventName,
-            capture ? this.onDirectCaptureEvent : this.onDirectEvent,
-            capture
+            capture ? me.onDirectCaptureEvent : me.onDirectEvent,
+            capture ? me.captureOptions : me.listenerOptions
         );
     },
 
@@ -194,6 +220,7 @@ Ext.define('Ext.event.publisher.Dom', {
         if (delegated && !me.directEvents[eventName]) {
             // delegated listeners
             subscribers = capture ? me.captureSubscribers : me.bubbleSubscribers;
+
             if (!me.handles[eventName] && !me.delegatedListeners[eventName]) {
                 // First time we've attached a listener for this eventName - need to begin
                 // listening at the dom level
@@ -202,10 +229,12 @@ Ext.define('Ext.event.publisher.Dom', {
 
             if (subscribers[eventName]) {
                 ++subscribers[eventName];
-            } else {
+            }
+            else {
                 subscribers[eventName] = 1;
             }
-        } else {
+        }
+        else {
             subscribers = capture ? me.directCaptureSubscribers : me.directSubscribers;
 
             id = element.id;
@@ -214,9 +243,11 @@ Ext.define('Ext.event.publisher.Dom', {
             // so that this map does not grow indefinitely (it can only grow to a finite
             // set of event names) - see unsubscribe
             subscribers = subscribers[eventName] || (subscribers[eventName] = {});
+
             if (subscribers[id]) {
                 ++subscribers[id];
-            } else {
+            }
+            else {
                 subscribers[id] = 1;
                 me.addDirectListener(eventName, element, capture);
             }
@@ -236,16 +267,19 @@ Ext.define('Ext.event.publisher.Dom', {
                 --subscribers[eventName];
             }
 
-            if (!me.handles[eventName] && !bubbleSubscribers[eventName] && !captureSubscribers[eventName]) {
+            if (!me.handles[eventName] && !bubbleSubscribers[eventName] &&
+                !captureSubscribers[eventName]) {
                 // decremented subscribers back to 0 - and the event is not in "handledEvents"
                 // no longer need to listen at the dom level
                 this.removeDelegatedListener(eventName);
             }
-        } else {
+        }
+        else {
             subscribers = capture ? me.directCaptureSubscribers : me.directSubscribers;
 
             id = element.id;
             subscribers = subscribers[eventName];
+
             if (subscribers[id]) {
                 --subscribers[id];
             }
@@ -283,21 +317,66 @@ Ext.define('Ext.event.publisher.Dom', {
         return targets;
     },
 
-    publish: function(eventName, target, e) {
+    /**
+     *
+     * @param e {Ext.event.Event/Ext.event.Event[]} An event to publish. Can also be an
+     * array of events.  Gesture publisher passes an array so that gesture events and
+     * the dom events from which they were synthesized can propagate together.
+     * @param [targets] {HTMLElement[]} propagation targets.  Required if `e` is an array.
+     * @param {Boolean} [claimed=false] pass true if we are re-entering publish() to
+     * publish gesture cancellation events that are being fired as a result of something
+     * being claimed.  This ensures that cancellation events cannot be claimed.
+     * @protected
+     */
+    publish: function(e, targets, claimed) {
         var me = this,
-            targets, el, i, ln;
+            hasCaptureSubscribers = false,
+            hasBubbleSubscribers = false,
+            events, type, target, el, i, ln, j, eLn;
 
-        if (Ext.isArray(target)) {
-            // Gesture publisher passes an already created array of propagating targets
-            targets = target;
-        } else if (me.captureEvents[eventName]) {
-            el = Ext.cache[target.id];
-            targets = el ? [el] : [];
-        } else {
-            targets = me.getPropagatingTargets(target);
+        claimed = claimed || false;
+
+        // Gesture publisher passes an already created array of propagating targets.
+        // For all other events we need to compute the targets for propagation now.
+        if (!targets) {
+            //<debug>
+            if (e instanceof Array) {
+                Ext.raise("Propagation targets must be supplied when publishing " +
+                          "an array of events.");
+            }
+            //</debug>
+
+            // No targets passed, assume that e is not an array.
+            target = e.target;
+
+            if (me.captureEvents[e.type]) {
+                el = Ext.cache[target.id];
+                targets = el ? [el] : [];
+            }
+            else {
+                targets = me.getPropagatingTargets(target);
+            }
         }
 
+        // "e" may be either a single event (as is the case for events fired by dom publisher)
+        // or it could be an array of events containing a dom event and its recognized
+        // gesture events.
+        events = Ext.Array.from(e);
+
         ln = targets.length;
+        eLn = events.length;
+
+        for (i = 0; i < eLn; i++) {
+            type = events[i].type;
+
+            if (!hasCaptureSubscribers && me.captureSubscribers[type]) {
+                hasCaptureSubscribers = true;
+            }
+
+            if (!hasBubbleSubscribers && me.bubbleSubscribers[type]) {
+                hasBubbleSubscribers = true;
+            }
+        }
 
         // We will now proceed to fire events in both capture and bubble phases.  You
         // may notice that we are looping all potential targets both times, and only
@@ -308,13 +387,27 @@ Ext.define('Ext.event.publisher.Dom', {
         // are fired.  See https://sencha.jira.com/browse/EXTJS-15953
 
         // capture phase (top-down event propagation).
-        if (me.captureSubscribers[eventName]) {
+        if (hasCaptureSubscribers) {
             for (i = ln; i--;) {
                 el = Ext.cache[targets[i].id];
+
                 if (el) {
-                    me.fire(el, eventName, e, false, true);
-                    if (e.isStopped) {
-                        break;
+                    for (j = 0; j < eLn; j++) {
+                        e = events[j];
+
+                        me.fire(el, e.type, e, false, true);
+
+                        if (!claimed && e.claimed) {
+                            claimed = true;
+                            j = me.filterClaimed(events, e);
+                            eLn = events.length; // filterClaimed may remove items
+                        }
+
+                        if (e.stopped) {
+                            events.splice(j, 1);
+                            j--;
+                            eLn--;
+                        }
                     }
                 }
             }
@@ -322,17 +415,39 @@ Ext.define('Ext.event.publisher.Dom', {
 
         // bubble phase (bottom-up event propagation).
         // stopPropagation during capture phase cancels entire bubble phase
-        if (!e.isStopped && me.bubbleSubscribers[eventName]) {
+        if (hasBubbleSubscribers && !e.stopped) {
             for (i = 0; i < ln; i++) {
                 el = Ext.cache[targets[i].id];
+
                 if (el) {
-                    me.fire(el, eventName, e, false, false);
-                    if (e.isStopped) {
-                        break;
+                    for (j = 0; j < eLn; j++) {
+                        e = events[j];
+
+                        me.fire(el, e.type, e, false, false);
+
+                        if (!claimed && e.claimed && me.filterClaimed) {
+                            claimed = true;
+                            j = me.filterClaimed(events, e);
+                            eLn = events.length; // filterClaimed may remove items
+                        }
+
+                        if (e.stopped) {
+                            events.splice(j, 1);
+                            j--;
+                            eLn--;
+                        }
                     }
                 }
             }
         }
+    },
+
+    /**
+     * Hook for gesture publisher to override and perform gesture recognition
+     * @param {Ext.event.Event} e
+     */
+    publishDelegatedDomEvent: function(e) {
+        this.publish(e);
     },
 
     fire: function(element, eventName, e, direct, capture) {
@@ -344,9 +459,11 @@ Ext.define('Ext.event.publisher.Dom', {
             if (event) {
                 if (capture && direct) {
                     event = event.directCaptures;
-                } else if (capture) {
+                }
+                else if (capture) {
                     event = event.captures;
-                } else if (direct) {
+                }
+                else if (direct) {
                     event = event.directs;
                 }
 
@@ -365,34 +482,36 @@ Ext.define('Ext.event.publisher.Dom', {
             // using [e] is faster than using arguments in most browsers
             // http://jsperf.com/passing-arguments
             Ext.elevateFunction(this.doDelegatedEvent, this, [e]);
-        } else {
+        }
+        else {
             this.doDelegatedEvent(e);
         }
     },
 
-    doDelegatedEvent: function(e, invokeAfter) {
+    doDelegatedEvent: function(e) {
         var me = this,
-            timeStamp = e.timeStamp;
+            timeStamp;
 
         e = new Ext.event.Event(e);
 
-        if (me.isEventBlocked(e)) {
-            return false;
-        }
+        timeStamp = e.time;
 
-        me.beforeEvent(e);
+        if (!me.isEventBlocked(e)) {
+            me.beforeEvent(e);
 
-        Ext.frameStartTime = timeStamp;
+            Ext.frameStartTime = timeStamp;
 
-        me.reEnterCount++;
-        me.publish(e.type, e.target, e);
-        me.reEnterCount--;
+            me.reEnterCountAdjusted = false;
+            me.reEnterCount++;
+            me.publishDelegatedDomEvent(e);
 
-        if (invokeAfter !== false) {
+            // Gesture publisher deals with exceptions in recognizers
+            if (!me.reEnterCountAdjusted) {
+                me.reEnterCount--;
+            }
+
             me.afterEvent(e);
         }
-
-        return e;
     },
 
     /**
@@ -405,7 +524,8 @@ Ext.define('Ext.event.publisher.Dom', {
             // using [e] is faster than using arguments in most browsers
             // http://jsperf.com/passing-arguments
             Ext.elevateFunction(this.doDirectEvent, this, [e, false]);
-        } else {
+        }
+        else {
             this.doDirectEvent(e, false);
         }
     },
@@ -417,7 +537,8 @@ Ext.define('Ext.event.publisher.Dom', {
             // using [e] is faster than using arguments in most browsers
             // http://jsperf.com/passing-arguments
             Ext.elevateFunction(this.doDirectEvent, this, [e, true]);
-        } else {
+        }
+        else {
             this.doDirectEvent(e, true);
         }
     },
@@ -425,10 +546,11 @@ Ext.define('Ext.event.publisher.Dom', {
     doDirectEvent: function(e, capture) {
         var me = this,
             currentTarget = e.currentTarget,
-            timeStamp = e.timeStamp,
-            el;
+            timeStamp, el;
 
         e = new Ext.event.Event(e);
+
+        timeStamp = e.time;
 
         if (me.isEventBlocked(e)) {
             return;
@@ -437,9 +559,9 @@ Ext.define('Ext.event.publisher.Dom', {
         me.beforeEvent(e);
 
         Ext.frameStartTime = timeStamp;
-        
+
         el = Ext.cache[currentTarget.id];
-        
+
         // Element can be removed from the cache by this time, with the node
         // still lingering for some reason. This can happen for example when
         // load event is fired on an iframe that we constructed when submitting
@@ -447,9 +569,14 @@ Ext.define('Ext.event.publisher.Dom', {
         if (el) {
             // Since natural DOM propagation has occurred, no emulated propagation is needed.
             // Simply dispatch the event on the currentTarget element
+            me.reEnterCountAdjusted = false;
             me.reEnterCount++;
             me.fire(el, e.type, e, true, capture);
-            me.reEnterCount--;
+
+            // Gesture publisher deals with exceptions in recognizers
+            if (!me.reEnterCountAdjusted) {
+                me.reEnterCount--;
+            }
         }
 
         me.afterEvent(e);
@@ -506,8 +633,8 @@ Ext.define('Ext.event.publisher.Dom', {
             self.lastTouchEndTime = Ext.now();
         }
 
-        if (!this.reEnterCount && GlobalEvents.hasListeners.idle && !GlobalEvents.idleEventMask[type]) {
-            GlobalEvents.fireEvent('idle');
+        if (!this.reEnterCount && !GlobalEvents.idleEventMask[type]) {
+            Ext.fireIdle();
         }
     },
 
@@ -582,11 +709,21 @@ Ext.define('Ext.event.publisher.Dom', {
     },
 
     destroy: function() {
-        var eventName;
+        var GC = Ext.dom['GarbageCollector'], // eslint-disable-line dot-notation
+            eventName;
 
         for (eventName in this.delegatedListeners) {
             this.removeDelegatedListener(eventName);
         }
+
+        // We are wired to the unload event, so we ensure cleanup of low-level stuff
+        // like the Reaper and the GarbageCollector.
+        Ext.Reaper.flush();
+
+        if (GC) {
+            GC.collect();
+        }
+
         this.callParent();
     },
 
@@ -604,6 +741,8 @@ Ext.define('Ext.event.publisher.Dom', {
         // both reset flags on the same object.
         var self = Ext.event.publisher.Dom;
 
+        this.reEnterCount = 0;
+
         // set to undefined, not null, because that is the initial state of these vars and
         // undefined/null return different results when used in math operations
         // (see isEventBlocked)
@@ -615,7 +754,8 @@ Ext.define('Ext.event.publisher.Dom', {
         defaultView = doc.defaultView,
         prototype = Dom.prototype;
 
-    if ((Ext.os.is.iOS && Ext.os.version.getMajor() < 5) || Ext.browser.is.AndroidStock ||
+    // In case of iOS if it is in iFrame then it should enter if condition
+    if ((Ext.os.is.iOS && window.self !== window.top) || Ext.browser.is.AndroidStock ||
         !(defaultView && defaultView.addEventListener)) {
         // Delegated listeners will get attached to the document object because
         // attaching to the window object will not work.  In IE8 this is needed because
@@ -625,8 +765,10 @@ Ext.define('Ext.event.publisher.Dom', {
         // was carried forward as well - it may be required for older mobile browsers.
         // see also TOUCH-5408
         prototype.target = doc;
-    } else {
+    }
+    else {
         /**
+         * @member Ext.event.publisher.Dom
          * @property {Object} target the DOM target to which listeners are attached for
          * delegated events.
          * @private

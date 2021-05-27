@@ -1,17 +1,12 @@
-.x-dataview-inlineblock {
-    .x-dataview-item, .x-data-item {
+.#{$prefix}dataview.#{$prefix}inline {
+    .#{$prefix}dataview-item, .#{$prefix}dataitem {
         display: inline-block;
+        vertical-align: top;
     }
 }
 
-.x-dataview-nowrap {
-    .x-dataview-container {
-        white-space: nowrap !important;
-    }
-}
-
-.x-dataview-nowrap {
-    .x-container.x-dataview {
+.#{$prefix}dataview.#{$prefix}nowrap {
+    .#{$prefix}body-el {
         white-space: nowrap !important;
     }
 }

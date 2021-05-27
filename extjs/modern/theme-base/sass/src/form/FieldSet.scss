@@ -1,19 +1,4 @@
-.#{$prefix}form-fieldset {
-    .#{$prefix}form-fieldset-inner {
-        border: 1px solid #ccc;
-        overflow: hidden;
-    }
-
-    .#{$prefix}dock {
-        .#{$prefix}dock-body {
-            @include st-box-flex(1);
-        }
-    }
-}
-
 .#{$prefix}form-fieldset-title {
-    font-weight: bold;
-
     .#{$prefix}innerhtml {
         @include ellipsis();
     }

@@ -19,18 +19,20 @@ Ext.define('Ext.util.sizemonitor.Abstract', {
         args: []
     },
 
-    width: 0,
+    width: null,
 
-    height: 0,
+    height: null,
 
-    contentWidth: 0,
+    contentWidth: null,
 
-    contentHeight: 0,
+    contentHeight: null,
 
     constructor: function(config) {
-        this.refresh = Ext.Function.bind(this.refresh, this);
+        var me = this;
 
-        this.info = {
+        me.refresh = me.refresh.bind(me);
+
+        me.info = {
             width: 0,
             height: 0,
             contentWidth: 0,
@@ -38,11 +40,11 @@ Ext.define('Ext.util.sizemonitor.Abstract', {
             flag: 0
         };
 
-        this.initElement();
+        me.initElement();
 
-        this.initConfig(config);
+        me.initConfig(config);
 
-        this.bindListeners(true);
+        me.bindListeners(true);
     },
 
     bindListeners: Ext.emptyFn,
@@ -54,7 +56,7 @@ Ext.define('Ext.util.sizemonitor.Abstract', {
     },
 
     updateElement: function(element) {
-        element.append(this.detectorsContainer);
+        element.append(this.detectorsContainer, true);
         element.addCls(Ext.baseCSSPrefix + 'size-monitored');
     },
 
@@ -73,11 +75,11 @@ Ext.define('Ext.util.sizemonitor.Abstract', {
     },
 
     getContentWidth: function() {
-        return this.detectorsContainer.offsetWidth;
+        return this.detectorsContainer.clientWidth;
     },
 
     getContentHeight: function() {
-        return this.detectorsContainer.offsetHeight;
+        return this.detectorsContainer.clientHeight;
     },
 
     refreshSize: function() {
@@ -87,22 +89,26 @@ Ext.define('Ext.util.sizemonitor.Abstract', {
             return false;
         }
 
-        var width = element.getWidth(),
-            height = element.getHeight(),
-            contentWidth = this.getContentWidth(),
-            contentHeight = this.getContentHeight(),
-            currentContentWidth = this.contentWidth,
-            currentContentHeight = this.contentHeight,
-            info = this.info,
+        // eslint-disable-next-line vars-on-top
+        var me = this,
+            size = element.measure(),
+            width = size.width,
+            height = size.height,
+            contentWidth = me.getContentWidth(),
+            contentHeight = me.getContentHeight(),
+            currentContentWidth = me.contentWidth,
+            currentContentHeight = me.contentHeight,
+            info = me.info,
             resized = false,
             flag;
 
-        this.width = width;
-        this.height = height;
-        this.contentWidth = contentWidth;
-        this.contentHeight = contentHeight;
+        me.width = width;
+        me.height = height;
+        me.contentWidth = contentWidth;
+        me.contentHeight = contentHeight;
 
-        flag = ((currentContentWidth !== contentWidth ? 1 : 0) + (currentContentHeight !== contentHeight ? 2 : 0));
+        flag = ((currentContentWidth !== contentWidth ? 1 : 0) +
+                (currentContentHeight !== contentHeight ? 2 : 0));
 
         if (flag > 0) {
             info.width = width;
@@ -112,16 +118,28 @@ Ext.define('Ext.util.sizemonitor.Abstract', {
             info.flag = flag;
 
             resized = true;
-            this.getCallback().apply(this.getScope(), this.getArgs());
+            me.getCallback().apply(me.getScope(), me.getArgs());
         }
 
         return resized;
     },
 
-    refresh: function(force) {
-        if (this.refreshSize() || force) {
-            Ext.TaskQueue.requestWrite('refreshMonitors', this);
+    refresh: function() {
+        if (this.destroying || this.destroyed) {
+            return;
         }
+
+        this.refreshSize();
+
+        // We should always refresh the monitors regardless of whether or not refreshSize
+        // resulted in a new size.  This avoids race conditions in situations such as
+        // panel placeholder expand where we layout the panel in its expanded state momentarily
+        // just so we can measure its animation destination, then immediately collapse it.
+        // In such a scenario refreshSize() will be acting on the original size since it
+        // is asynchronous, so it will not detect a size change, but we still need to
+        // ensure that the monitoring elements are in sync, or else the next resize event
+        // will not fire.
+        Ext.TaskQueue.requestWrite('refreshMonitors', this);
     },
 
     destroy: function() {
@@ -135,6 +153,9 @@ Ext.define('Ext.util.sizemonitor.Abstract', {
         }
 
         delete me._element;
+
+        // This is a closure so Base destructor won't null it
+        me.refresh = null;
 
         me.callParent();
     }

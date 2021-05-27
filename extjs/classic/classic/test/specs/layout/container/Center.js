@@ -1,5 +1,4 @@
-describe("Ext.layout.container.Center", function() {
-
+topSuite("Ext.layout.container.Center", ['Ext.Panel'], function() {
     var ct, item;
 
     afterEach(function() {
@@ -17,6 +16,7 @@ describe("Ext.layout.container.Center", function() {
 
     function expectResult(w, h, left, top, ctWidth, ctHeight) {
         var pos = item.getEl().getStyle(['left', 'top']);
+
         expect(item.getWidth()).toBe(w);
         expect(item.getHeight()).toBe(h);
         expect(parseInt(pos.left, 10)).toBe(left);
@@ -27,12 +27,15 @@ describe("Ext.layout.container.Center", function() {
 
     function makeAutoSizer(w, h) {
         var css = [];
+
         if (w) {
             css.push('width: ' + w + 'px');
         }
+
         if (h) {
             css.push('height: ' + h + 'px');
         }
+
         return '<div style="' + css.join(';') + '"></div>';
     }
 
@@ -57,6 +60,54 @@ describe("Ext.layout.container.Center", function() {
 
         expect(item.getX() - ct.getX()).toBe(pad);
         expect(item.getY() - ct.getY()).toBe(pad);
+    });
+
+    describe("shrink wrapping child item where dimension is calculated", function() {
+        it("should layout width correctly when width is being calculated by parent", function() {
+            var p = new Ext.panel.Panel({
+                renderTo: Ext.getBody(),
+                height: 400,
+                width: 400,
+                dockedItems: [{
+                    xtype: 'container',
+                    dock: 'top',
+                    layout: 'center',
+                    items: [{
+                        xtype: 'component',
+                        html: makeAutoSizer(100, 30)
+                    }]
+                }]
+            });
+
+            ct = p.getDockedItems()[0];
+            item = ct.items.first();
+            expectResult(100, 30, 150, 0, 400, 30);
+            // Assign here so it gets destroyed.
+            ct = p;
+        });
+
+        it("should layout height correctly when width is being calculated by parent", function() {
+            var p = new Ext.panel.Panel({
+                renderTo: Ext.getBody(),
+                height: 400,
+                width: 400,
+                dockedItems: [{
+                    xtype: 'container',
+                    dock: 'left',
+                    layout: 'center',
+                    items: [{
+                        xtype: 'component',
+                        html: makeAutoSizer(30, 100)
+                    }]
+                }]
+            });
+
+            ct = p.getDockedItems()[0];
+            item = ct.items.first();
+            expectResult(30, 100, 0, 150, 30, 400);
+            // Assign here so it gets destroyed.
+            ct = p;
+        });
     });
 
     describe("container: fixed width, fixed height", function() {

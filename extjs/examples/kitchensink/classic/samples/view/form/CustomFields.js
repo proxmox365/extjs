@@ -6,76 +6,82 @@
 Ext.define('KitchenSink.view.form.CustomFields', {
     extend: 'Ext.form.Panel',
     xtype: 'form-customfields',
-    
-    //<example>
+
     requires: [
-        'Ext.ux.form.SearchField',
-        'KitchenSink.model.form.ForumPost',
-        'KitchenSink.store.form.ForumPosts'
+        'Ext.ux.form.SearchField'
     ],
-    
-    exampleTitle: 'Custom Form Fields',
+
+    //<example>
     //</example>
-    
-    store: {
-        type: 'form-forum-posts'
+
+    profiles: {
+        classic: {
+            width: 600,
+            labelWidth: 50
+        },
+        neptune: {
+            width: 600,
+            labelWidth: 50
+        },
+        graphite: {
+            width: 750,
+            labelWidth: 60
+        },
+        'classic-material': {
+            width: 750,
+            labelWidth: 60
+        }
     },
-    
     title: 'Forum Search',
     height: 600,
-    width: 600,
+    width: '${width}',
+
     layout: 'fit',
+
+    config: {
+        store: {
+            type: 'form-forum-posts',
+            autoLoad: true,
+            pageSize: 25
+        }
+    },
+
     items: [{
         scrollable: 'y',
         xtype: 'dataview',
         tpl: [
             '<tpl for=".">',
             '<div class="search-item">',
-                '<h3><span>{lastPost:this.formatDate}<br>by {author}</span>',
-                '<a href="http://sencha.com/forum/showthread.php?t={topicId}&p={postId}" target="_blank">{title}</a></h3>',
-                '<p>{excerpt}</p>',
+            '<h3><span>{lastPost:this.formatDate}<br>by {author}</span>',
+            '<a href="http://sencha.com/forum/showthread.php?t={topicId}&p={postId}" target="_blank">{title}</a></h3>',
+            '<p>{excerpt}</p>',
             '</div></tpl>',
-        {
-            formatDate: function(value) {
-                return Ext.Date.format(value, 'M j, Y');
-            }
-        }],
+            {
+                formatDate: function(value) {
+                    return Ext.Date.format(value, 'M j, Y');
+                }
+            }],
         itemSelector: 'div.search-item',
         emptyText: '<div class="x-grid-empty">No Matching Threads</div>',
         store: 'form-forum-posts'
     }],
-    
-    dockedItems: [{
-        dock: 'top',
-        xtype: 'toolbar',
-        items: {
-            width: 400,
-            fieldLabel: 'Search',
-            labelWidth: 50,
-            xtype: 'searchfield',
-            store: 'form-forum-posts'
-        }
-    }, {
-        dock: 'bottom',
+
+    tbar: [{
+        width: 400,
+        fieldLabel: 'Search',
+        labelWidth: '${labelWidth}',
+        xtype: 'searchfield',
+        store: 'form-forum-posts'
+    }],
+
+    bbar: {
         xtype: 'pagingtoolbar',
-        store: 'form-forum-posts',
-        pageSize: 25,
         displayInfo: true,
         displayMsg: 'Topics {0} - {1} of {2}',
         emptyMsg: 'No topics to display'
-    }],
-    
-    initComponent: function() {
-        var me = this,
-            store = me.store;
-        
-        if (!store.isStore) {
-            store = me.store = Ext.data.StoreManager.lookup(store);
-        }
-        
-        // Seed the store with the first page
-        store.loadPage(1);
-        
-        me.callParent();
+    },
+
+    applyStore: function(store) {
+        return store && Ext.Factory.store(store);
     }
 });

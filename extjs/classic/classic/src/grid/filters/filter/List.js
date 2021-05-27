@@ -1,8 +1,8 @@
 /**
  * The list grid filter allows you to create a filter selection that limits results
  * to values matching an element in a list.  The filter can be set programmatically or via 
- * user input with a configurable {@link Ext.form.field.Checkbox check box field} in the filter section 
- * of the column header.
+ * user input with a configurable {@link Ext.form.field.Checkbox check box field} in the filter
+ * section  of the column header.
  * 
  * List filters are able to be preloaded/backed by an Ext.data.Store to load
  * their options the first time they are shown.  They are also able to create their own 
@@ -30,7 +30,9 @@
  *         height: 250,
  *         width: 350,
  *         store: shows,
- *         plugins: 'gridfilters',
+ *         plugins: {
+ *             gridfilters: true
+ *         },
  *         columns: [{
  *             dataIndex: 'id',
  *             text: 'ID',
@@ -107,13 +109,13 @@ Ext.define('Ext.grid.filters.filter.List', {
 
     /**
      * @cfg {Array} [options]
-     * The data to be used to implicitly create a data store to back this list. This is used only when
-     * the data source is **local**. If the data for the list is remote, use the {@link #store}
+     * The data to be used to implicitly create a data store to back this list. This is used only
+     * when the data source is **local**. If the data for the list is remote, use the {@link #store}
      * config instead.
      *
      * If neither store nor {@link #options} is specified, then the choices list is automatically
-     * populated from all unique values of the specified {@link #dataIndex} field in the store at first
-     * time of filter invocation.
+     * populated from all unique values of the specified {@link #dataIndex} field in the store
+     * at first time of filter invocation.
      *
      * Each item within the provided array may be in one of the following formats:
      *
@@ -159,22 +161,21 @@ Ext.define('Ext.grid.filters.filter.List', {
 
     /**
      * @cfg {String} [labelIndex]
-     * The field in the records of the grid's store from which the menu item text should be retrieved.
-     * This field is only used when no `{@link #cfg-options}` and no `{@link #cfg-store}` is provided
-     * and the distinct value of the grid's store need to be generated dynamically.
+     * The field in the records of the grid's store from which the menu item text should be
+     * retrieved. This field is only used when no `{@link #cfg-options}` and no `{@link #cfg-store}`
+     * is provided and the distinct value of the grid's store need to be generated dynamically.
      * 
      * If not provided, this field defaults to the column's `dataIndex` property.
      * @since 5.1.0
      */
     labelIndex: null,
 
-    //<locale>
     /**
-     * @cfg {String} [loadingText="Loading..."]
+     * @cfg {String} [loadingText]
      * The text that is displayed while the configured store is loading.
+     * @locale
      */
     loadingText: 'Loading...',
-    //</locale>
 
     /**
      * @cfg {Boolean} loadOnShow
@@ -196,11 +197,21 @@ Ext.define('Ext.grid.filters.filter.List', {
      * The {@link Ext.data.Store} this list should use as its data source.
      *
      * If neither store nor {@link #options} is specified, then the choices list is automatically
-     * populated from all unique values of the specified {@link #dataIndex} field in the store at first
-     * time of filter invocation.
+     * populated from all unique values of the specified {@link #dataIndex} field in the store
+     * at first time of filter invocation.
      */
 
-    constructor: function (config) {
+    /**
+     * @private
+     */
+    gridStoreListenersCfg: {
+        add: 'onDataChanged',
+        refresh: 'onDataChanged',
+        remove: 'onDataChanged',
+        update: 'onDataChanged'
+    },
+
+    constructor: function(config) {
         var me = this,
             gridStore;
 
@@ -208,14 +219,19 @@ Ext.define('Ext.grid.filters.filter.List', {
 
         //<debug>
         if (me.itemDefaults.checked) {
-            Ext.raise('The itemDefaults.checked config is not supported, use the value config instead.');
+            Ext.raise('The itemDefaults.checked config is not supported, ' +
+                      'use the value config instead.');
         }
         //</debug>
 
         me.labelIndex = me.labelIndex || me.column.dataIndex;
 
-        // In order to fully support the `active` config, we need to do some preprocessing in case we need
-        // to fetch store data in order to create the options menu items.
+        if (me.store) {
+            me.store = Ext.StoreManager.lookup(me.store);
+        }
+
+        // In order to fully support the `active` config, we need to do some preprocessing in case
+        // we need to fetch store data in order to create the options menu items.
         //
         // For instance, imagine if a list filter has the following definition:
         //
@@ -224,63 +240,64 @@ Ext.define('Ext.grid.filters.filter.List', {
         //        value: 'Bruce Springsteen'
         //    }
         //
-        // Since there is no `options` or `store` config, it will need to infer its options store data from
-        // the grid store. Since it is also active by default if not explicitly configured as `value: false`,
-        // it must register listeners with the grid store now so its own column filter store will be created
-        // and filtered immediately and properly sync its options when the grid store changes.
+        // Since there is no `options` or `store` config, it will need to infer its options store
+        // data from the grid store. Since it is also active by default if not explicitly
+        // configured as `value: false`, it must register listeners with the grid store now
+        // so its own column filter store will be created and filtered immediately and properly sync
+        // its options when the grid store changes.
         //
-        // So here we need to subscribe to very specific events. We can't subscribe to a catch-all like
-        // 'datachanged' because the listener will get called too many times. This will respond to the following
-        // scenarios:
+        // So here we need to subscribe to very specific events. We can't subscribe to a catch-all
+        // like 'datachanged' because the listener will get called too many times. This will respond
+        // to the following scenarios:
         //  1. Removing a filter
         //  2. Adding a filter
         //  3. (Re)loading the store
         //  4. Updating a model
         //
-        // Note we need to make sure it's not the empty store (if it is, the store is being bound to a VM).
-        if (!me.options && (me.value != null) && me.active) {
+        if (!me.store && !me.options) {
             gridStore = me.getGridStore();
 
-            if (!gridStore.isEmptyStore) {
-                gridStore.on(me.getGridStoreListeners());
+            if (me.value != null && me.active) {
+                me.gridStoreListeners = gridStore.on(Ext.apply({
+                    scope: me,
+                    destroyable: true
+                }, me.gridStoreListenersCfg));
             }
 
-            me.grid.on('reconfigure', me.onReconfigure, me);
+            me.gridListeners = me.grid.on({
+                reconfigure: me.onReconfigure,
+                scope: me,
+                destroyable: true
+            });
+
             me.inferOptionsFromGridStore = true;
         }
     },
 
-    destroy: function () {
+    destroy: function() {
         var me = this,
             store = me.store,
-            autoStore = me.autoStore,
-            gridStoreListeners = me.gridStoreListeners;
+            autoStore = me.autoStore;
 
         // We may bind listeners to both the options store & grid store, so we
         // need to unbind both sets here
-        if (store) {
+        if (store && store.isStore) {
             if (autoStore || store.autoDestroy) {
                 store.destroy();
-            } else {
+            }
+            else {
                 store.un('load', me.bindMenuStore, me);
             }
 
             me.store = null;
         }
 
-        if (me.inferOptionsFromGridStore) {
-            me.grid.un('reconfigure', me.onReconfigure, me);
-        }
-
-        if (gridStoreListeners) {
-            me.getGridStore().un(gridStoreListeners);
-            me.gridStoreListeners = null;
-        }
+        Ext.destroy(me.gridStoreListeners, me.gridListeners);
 
         me.callParent();
     },
 
-    activateMenu: function () {
+    activateMenu: function() {
         var me = this,
             value = me.filter.getValue(),
             items, i, len, checkItem;
@@ -295,12 +312,12 @@ Ext.define('Ext.grid.filters.filter.List', {
             checkItem = items.getAt(i);
 
             if (Ext.Array.indexOf(value, checkItem.value) > -1) {
-                checkItem.setChecked(true, /*suppressEvents*/ true);
+                checkItem.setChecked(true, /* suppressEvents */ true);
             }
         }
     },
 
-    bindMenuStore: function (options) {
+    bindMenuStore: function(options) {
         var me = this;
 
         if (me.grid.destroyed || me.preventFilterRemoval) {
@@ -312,7 +329,21 @@ Ext.define('Ext.grid.filters.filter.List', {
         me.loaded = true;
     },
 
-    createListStore: function (options) {
+    /**
+     * Returns a store for the filter.
+     * An instantiated store may be passed.
+     * 
+     * If that store is the grid's store, then all unique values of this filter's
+     * {@link #dataIndex} field are extracted for use in the filter.
+     * 
+     * Otherwise the passed store is used.
+     *
+     * If the passed parameter is not a store, it is taken to be a list of possible
+     * values for the filter.
+     * 
+     * @private
+     */
+    createListStore: function(options) {
         var me = this,
             store = me.store,
             isStore = options.isStore,
@@ -325,11 +356,13 @@ Ext.define('Ext.grid.filters.filter.List', {
             if (options !== me.getGridStore()) {
                 optionsStore = true;
                 store = me.store = options;
-            } else {
+            }
+            else {
                 me.autoStore = true;
                 storeData = me.getOptionsFromStore(options);
             }
-        } else {
+        }
+        else {
             storeData = [];
 
             for (i = 0, len = options.length; i < len; i++) {
@@ -339,9 +372,11 @@ Ext.define('Ext.grid.filters.filter.List', {
                     case 'array':
                         storeData.push(value);
                         break;
+
                     case 'object':
                         storeData.push(value);
                         break;
+
                     default:
                         if (value != null) {
                             o = {};
@@ -363,10 +398,13 @@ Ext.define('Ext.grid.filters.filter.List', {
                 data: storeData
             });
 
-            // Note that the grid store listeners may have been bound in the constructor if it was determined
-            // that the grid filter was active and defined with a value.
-            if (!me.gridStoreListeners) {
-                me.getGridStore().on(me.getGridStoreListeners());
+            // Note that the grid store listeners may have been bound in the constructor
+            // if it was determined that the grid filter was active and defined with a value.
+            if (me.inferOptionsFromGridStore & !me.gridStoreListeners) {
+                me.gridStoreListeners = me.getGridStore().on(Ext.apply({
+                    scope: me,
+                    destroyable: true
+                }, me.gridStoreListenersCfg));
             }
 
             me.loaded = true;
@@ -402,12 +440,16 @@ Ext.define('Ext.grid.filters.filter.List', {
                     iconCls: Ext.baseCSSPrefix + 'mask-msg-text'
                 });
 
-                // Add a listener that will auto-load the menu store if `loadOnShow` is true (the default).
-                // Don't bother with mon here, the menu is destroyed when we are
-                menu.on('show', me.show, me);
+                // Add a listener that will auto-load the menu store if `loadOnShow` is true
+                // (the default). Don't bother with mon here, the menu is destroyed when we are.
+                menu.on({
+                    show: me.show,
+                    scope: me
+                });
 
-                store.on('load', me.bindMenuStore, me, {single: true});
-            } else {
+                store.on('load', me.bindMenuStore, me, { single: true });
+            }
+            else {
                 me.createMenuItems(store);
             }
 
@@ -416,33 +458,32 @@ Ext.define('Ext.grid.filters.filter.List', {
         else if (options) {
             me.bindMenuStore(options);
         }
-        // A ListMenu which is completely unconfigured acquires its store from the unique values of its field in the store.
-        // Note that the gridstore may have already been filtered on load if the column filter had been configured as active
-        // with no items checked by default.
+        // A ListMenu which is completely unconfigured acquires its store from the unique values
+        // of its field in the store. Note that the gridstore may have already been filtered on load
+        // if the column filter had been configured as active with no items checked by default.
         else if (gridStore.getCount() || gridStore.isFiltered()) {
             me.bindMenuStore(gridStore);
         }
-        // If there are no records in the grid store, then we know it's async and we need to listen for its 'load' event.
+        // If there are no records in the grid store, then we know it's async and we need to listen
+        // for its 'load' event.
         else {
-            gridStore.on('load', me.bindMenuStore, me, {single: true});
+            gridStore.on('load', me.bindMenuStore, me, { single: true });
         }
     },
 
-    /** @private */
-    createMenuItems: function (store) {
+    /**
+     * @private
+     */
+    createMenuItems: function(store) {
         var me = this,
             menu = me.menu,
             len = store.getCount(),
             contains = Ext.Array.contains,
-            listeners, itemDefaults, record, gid, idValue, idField, labelValue, labelField, i, item, processed;
+            itemDefaults, record, gid, idValue, idField, labelValue, labelField,
+            i, processed;
 
         // B/c we're listening to datachanged event, we need to make sure there's a menu.
         if (len && menu) {
-            listeners = {
-                checkchange: me.onCheckChange,
-                scope: me
-            };
-
             itemDefaults = me.getItemDefaults();
             menu.suspendLayouts();
             menu.removeAll(true);
@@ -464,13 +505,14 @@ Ext.define('Ext.grid.filters.filter.List', {
 
                 processed.push(labelValue);
 
-                // Note that the menu items will be set checked in filter#activate() if the value of the menu
-                // item is in the cfg.value array.
-                item = menu.add(Ext.apply({
+                // Note that the menu items will be set checked in filter#activate()
+                // if the value of the menu item is in the cfg.value array.
+                menu.add(Ext.apply({
                     text: labelValue,
                     group: gid,
                     value: idValue,
-                    listeners: listeners
+                    checkHandler: me.onCheckChange,
+                    scope: me
                 }, itemDefaults));
             }
 
@@ -478,43 +520,44 @@ Ext.define('Ext.grid.filters.filter.List', {
         }
     },
 
-    getFilterConfig: function (config, key) {
-        // List filter needs to have its value set immediately or else could will fail when filtering since its
-        // _value would be undefined.
-        config.value = config.value || [];
+    getFilterConfig: function(config, key) {
+        // List filter needs to have its value set immediately or else could will fail
+        // when filtering since its _value would be undefined.
+        var value = config.value;
+
+        if (Ext.isEmpty(value)) {
+            value = [];
+        }
+        else if (!Ext.isArray(value)) {
+            value = [value];
+        }
+
+        config.value = value;
+
         return this.callParent([config, key]);
     },
 
-    getGridStoreListeners: function () {
-        var me = this;
-
-        return me.gridStoreListeners = {
-            scope: me,
-            add: me.onDataChanged,
-            refresh: me.onDataChanged,
-            remove: me.onDataChanged,
-            update: me.onDataChanged
-        };
-    },
-
-    getOptionsFromStore: function (store) {
+    getOptionsFromStore: function(store) {
         var me = this,
-            data = store.getData(),
+            data = store.getData(), // eslint-disable-line no-unused-vars
             map = {},
             ret = [],
             dataIndex = me.dataIndex,
             labelIndex = me.labelIndex,
-            items, i, length, recData, idValue, labelValue;
+            recData, idValue, labelValue;
 
         if (store.isFiltered() && !store.remoteFilter) {
             data = data.getSource();
         }
 
-        items = data.items;
-        length = items.length;
-
-        for (i = 0; i < length; ++i) {
-            recData = items[i].data;
+        // Use store type agnostic each method.
+        // TreeStore and Store implement this differently.
+        // In a TreeStore, the items array only contains nodes
+        // below *expanded* ancestors. Nodes below a collapsed ancestor
+        // are removed from the collection. TreeStores walk the tree
+        // to implement each.
+        store.each(function(record) {
+            recData = record.data;
 
             idValue = recData[dataIndex];
             labelValue = recData[labelIndex];
@@ -524,51 +567,73 @@ Ext.define('Ext.grid.filters.filter.List', {
             }
 
             // TODO: allow null?
-            //if ((allowNull || !Ext.isEmpty(value)) && !map[strValue1]) {
+            // if ((allowNull || !Ext.isEmpty(value)) && !map[strValue1]) {
             if (!map[idValue]) {
                 map[idValue] = 1;
                 ret.push([idValue, labelValue]);
             }
-        }
+        }, null, {
+            filtered: true,     // Include filtered out nodes.
+            collapsed: true     // Include nodes below collapsed ancestors.
+        });
 
         return ret;
     },
 
-    onCheckChange: function () {
-        // Note that we don't care about the checked state here because #setValue will sort this out.
-        // #setValue will get the values of the currently-checked items and set its filter value from that.
+    onCheckChange: function() {
+        // Note that we don't care about the checked state here because #setValue
+        // will sort this out. #setValue will get the values of the currently-checked items
+        // and set its filter value from that.
         var me = this,
             updateBuffer = me.updateBuffer;
 
         if (updateBuffer) {
-            me.task.delay(updateBuffer, null, null);
-        } else {
+            me.task.delay(updateBuffer);
+        }
+        else {
             me.setValue();
         }
     },
 
-    onDataChanged: function (store) {
-        // If the menu item options (and the options store) are being auto-generated from the grid store, then it
-        // needs to know when the grid store has changed its data so it can remain in sync.
-        if (!this.preventDefault) {
+    onDataChanged: function(store) {
+        // If the menu item options (and the options store) are being auto-generated
+        // from the grid store, then it needs to know when the grid store has changed its data
+        // so it can remain in sync.
+        if (this.preventDefault) {
+            this.preventDefault = false;
+        }
+        else {
             this.bindMenuStore(store);
         }
     },
 
-    onReconfigure: function (grid, store) {
-        // We need to listen for reconfigure not only for when the list filter has inferred its options from the
-        // grid store but also when the grid has a VM and is late-binding the store.
+    onReconfigure: function(grid, store) {
+        // We need to listen for reconfigure not only for when the list filter has inferred
+        // its options from the grid store but also when the grid has a VM and is late-binding
+        // the store.
         if (store) {
             this.bindMenuStore(store);
         }
     },
 
-    setStoreFilter: function (options) {
+    setActive: function(active) {
+        if (this.active !== active) {
+            // The store filter will be updated, but we don't want to recreate the list store
+            // or the menu items in the onDataChanged listener so we need to set this flag.
+            // It will be reset in the onDatachanged listener when the store has filtered/cleared
+            // filters.
+            this.preventDefault = true;
+            this.callParent([active]);
+        }
+    },
+
+    setStoreFilter: function(options) {
         var me = this,
             value = me.value,
             filter = me.filter;
 
-        // If there are user-provided values we trust that they are valid (an empty array IS valid!).
+        // If there are user-provided values we trust that they are valid
+        // (an empty array IS valid!).
         if (value) {
             if (!Ext.isArray(value)) {
                 value = [value];
@@ -588,14 +653,15 @@ Ext.define('Ext.grid.filters.filter.List', {
      * @private
      * Template method that is to set the value of the filter.
      */
-    setValue: function () {
+    setValue: function() {
         var me = this,
             items = me.menu.items,
             value = [],
             i, len, checkItem;
 
-        // The store filter will be updated, but we don't want to recreate the list store or the menu items in the
-        // onDataChanged listener so we need to set this flag.
+        // The store filter will be updated, but we don't want to recreate the list store
+        // or the menu items in the onDataChanged listener so we need to set this flag.
+        // It will be reset in the onDatachanged listener when the store has filtered.
         me.preventDefault = true;
 
         for (i = 0, len = items.length; i < len; i++) {
@@ -606,23 +672,25 @@ Ext.define('Ext.grid.filters.filter.List', {
             }
         }
 
-        me.filter.setValue(value);
-        len = value.length;
+        // Only update the store if the value has changed
+        if (!Ext.Array.equals(value, me.filter.getValue())) {
+            me.filter.setValue(value);
+            len = value.length;
 
-        if (len && me.active) {
-            me.updateStoreFilter();
-        } else {
-            me.setActive(!!len);
+            if (len && me.active) {
+                me.updateStoreFilter();
+            }
+            else {
+                me.setActive(!!len);
+            }
         }
-
-        me.preventDefault = false;
     },
 
-    show: function () {
+    show: function() {
         var store = this.store;
+
         if (this.loadOnShow && !this.loaded && !store.hasPendingLoad()) {
             store.load();
         }
     }
 });
-

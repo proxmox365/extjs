@@ -1,4 +1,7 @@
-describe("Ext.Component", function(){
+topSuite("Ext.Component",
+    ['Ext.Container', 'Ext.layout.container.*', 'Ext.Panel', 'Ext.form.FieldSet', 'Ext.form.field.*',
+     'Ext.data.Model', 'Ext.app.ViewModel', 'Ext.app.ViewController', 'Ext.plugin.Viewport', 'Ext.grid.Panel', 'Ext.window.Window', 'Ext.form.Panel'],
+function() {
     var Component = Ext.Component,
         proto = Component.prototype,
         compIdAttr = 'data-componentid',
@@ -7,7 +10,7 @@ describe("Ext.Component", function(){
     function makeComponent(cfg, isConfiguredEl) {
         c = new Ext.Component(cfg || {});
 
-        // Note that els not created by the component need an extra step to inform fromElement what its
+        // Note that els not created by the component need an extra step to inform from what its
         // owning component is.
         if (isConfiguredEl) {
             c.el.dom.setAttribute(compIdAttr, c.id);
@@ -32,10 +35,11 @@ describe("Ext.Component", function(){
         spyOn(Ext.Logger, 'warn');
     });
 
-    afterEach(function(){
+    afterEach(function() {
         if (c) {
             c.destroy();
         }
+
         c = null;
     });
 
@@ -52,40 +56,39 @@ describe("Ext.Component", function(){
             expect(proto.renderTpl).toBeDefined();
         });
     });
-    
-    
-    describe("ids", function(){
-        it("should generate an id if one isn't specified", function(){
+
+    describe("ids", function() {
+        it("should generate an id if one isn't specified", function() {
             makeComponent();
             expect(c.id).toBeDefined();
         });
 
-        it("should use an id if one is specified", function(){
+        it("should use an id if one is specified", function() {
             makeComponent({
                 id: 'foo'
             });
             expect(c.id).toEqual('foo');
         });
 
-        it("should return the itemId if one exists", function(){
+        it("should return the itemId if one exists", function() {
             makeComponent({
                 itemId: 'a'
-            });      
+            });
             expect(c.getItemId()).toEqual('a');
         });
 
-        it("should fall back on the id if no itemId is specified", function(){
+        it("should fall back on the id if no itemId is specified", function() {
             makeComponent({
                 id: 'foo'
             });
-            expect(c.getItemId()).toEqual('foo');    
+            expect(c.getItemId()).toEqual('foo');
         });
 
-        it("should give the itemId precedence", function(){
+        it("should give the itemId precedence", function() {
             makeComponent({
                 id: 'foo',
                 itemId: 'bar'
-            });    
+            });
             expect(c.getItemId()).toEqual('bar');
         });
 
@@ -97,6 +100,7 @@ describe("Ext.Component", function(){
                     });
                 }).toThrow('Invalid component "id": "' + id + '"');
             }
+
             expectError('.abcdef');
             expectError('0a...');
             expectError('12345');
@@ -106,18 +110,19 @@ describe("Ext.Component", function(){
         });
     });
 
-    describe("registering with ComponentManager", function(){
-        it("should register itself upon creation", function(){
+    describe("registering with ComponentManager", function() {
+        it("should register itself upon creation", function() {
             makeComponent({
                 id: 'foo'
             });
-            expect(Ext.ComponentManager.get('foo')).toEqual(c);    
-        });  
+            expect(Ext.ComponentManager.get('foo')).toEqual(c);
+        });
 
-        it("should unregister on destroy", function(){
+        it("should unregister on destroy", function() {
             makeComponent({
                 id: 'foo'
-            });    
+            });
+
             c.destroy();
             expect(Ext.ComponentManager.get('foo')).toBeUndefined();
         });
@@ -154,11 +159,13 @@ describe("Ext.Component", function(){
                 var rec = new MyModel({
                     name: 'recName'
                 });
+
                 makeComponent({
                     renderTo: Ext.getBody(),
                     tpl: '{name}',
                     data: rec
                 });
+
                 expect(c.getEl().dom.innerHTML).toBe('recName');
             });
 
@@ -182,11 +189,13 @@ describe("Ext.Component", function(){
                     id: 1,
                     name: 'recName'
                 });
+
                 makeComponent({
                     renderTo: Ext.getBody(),
                     tpl: '{name}',
                     data: rec
                 });
+
                 expect(c.getData()).toEqual({
                     id: 1,
                     name: 'recName'
@@ -206,10 +215,12 @@ describe("Ext.Component", function(){
                 makeComponent({
                     tpl: '{x}/{y}'
                 });
+
                 c.setData({
                     x: 1,
                     y: 2
                 });
+
                 c.render(Ext.getBody());
                 expect(c.getEl().dom.innerHTML).toBe('1/2');
             });
@@ -218,11 +229,14 @@ describe("Ext.Component", function(){
                 var rec = new MyModel({
                     name: 'recName'
                 });
+
                 makeComponent({
                     tpl: '{name}'
                 });
+
                 c.setData(rec);
                 c.render(Ext.getBody());
+
                 expect(c.getEl().dom.innerHTML).toBe('recName');
             });
         });
@@ -252,10 +266,12 @@ describe("Ext.Component", function(){
                 var rec = new MyModel({
                     name: 'recName'
                 });
+
                 makeComponent({
                     renderTo: Ext.getBody(),
                     tpl: '{name}'
                 });
+
                 c.setData(rec);
                 expect(c.getEl().dom.innerHTML).toBe('recName');
             });
@@ -264,10 +280,11 @@ describe("Ext.Component", function(){
 
     describe("view controllers", function() {
         var Controller;
+
         beforeEach(function() {
             // Suppress console warning about mapping being overridden
             spyOn(Ext.log, 'warn');
-            
+
             Controller = Ext.define('spec.TestController', {
                 extend: 'Ext.app.ViewController',
                 alias: 'controller.test',
@@ -275,39 +292,45 @@ describe("Ext.Component", function(){
                 someFn: function() {}
             });
         });
-        
+
         afterEach(function() {
             Ext.undefine('spec.TestController');
             Controller = null;
             Ext.Factory.controller.instance.clearCache();
         });
-        
+
         describe("initializing", function() {
             it("should accept an alias string", function() {
                 makeComponent({
                     controller: 'test'
-                }); 
-                var controller = c.getController();   
+                });
+
+                var controller = c.getController();
+
                 expect(controller instanceof spec.TestController).toBe(true);
                 expect(controller.getView()).toBe(c);
             });
-            
+
             it("should accept a controller config", function() {
                 makeComponent({
                     controller: {
                         type: 'test'
                     }
-                });    
-                var controller = c.getController();   
+                });
+
+                var controller = c.getController();
+
                 expect(controller instanceof spec.TestController).toBe(true);
                 expect(controller.getView()).toBe(c);
-            }); 
-            
+            });
+
             it("should accept a controller instance", function() {
                 var controller = new spec.TestController();
+
                 makeComponent({
                     controller: controller
                 });
+
                 expect(c.getController()).toBe(controller);
                 expect(controller.getView()).toBe(c);
             });
@@ -318,15 +341,18 @@ describe("Ext.Component", function(){
                 });
                 expect(c.getController()).toBeNull();
             });
-        });  
-        
+        });
+
         it("should destroy the controller when destroying the component", function() {
             makeComponent({
                 controller: 'test'
             });
+
             var controller = c.getController();
+
             spyOn(controller, 'destroy');
             c.destroy();
+
             expect(controller.destroy).toHaveBeenCalled();
         });
 
@@ -343,12 +369,14 @@ describe("Ext.Component", function(){
                             xtype: 'component'
                         }
                     });
+
                     expect(ct.items.first().lookupController(false)).toBeNull();
                     ct.destroy();
                 });
 
                 it("should return the controller attached to the component when it is at the root", function() {
                     var controller = new spec.TestController();
+
                     makeComponent({
                         controller: controller
                     });
@@ -357,12 +385,14 @@ describe("Ext.Component", function(){
 
                 it("should return the controller attached to the component when it is in a hierarchy", function() {
                     var controller = new spec.TestController();
+
                     var ct = new Ext.container.Container({
                         items: {
                             xtype: 'component',
                             controller: controller
                         }
                     });
+
                     expect(ct.items.first().lookupController(false)).toBe(controller);
                     ct.destroy();
                 });
@@ -376,6 +406,7 @@ describe("Ext.Component", function(){
                             xtype: 'component'
                         }
                     });
+
                     expect(ct.items.first().lookupController(false)).toBe(controller);
                     ct.destroy();
                 });
@@ -395,6 +426,7 @@ describe("Ext.Component", function(){
                             }
                         }
                     });
+
                     expect(ct.down('#x').lookupController(false)).toBe(controller2);
                     ct.destroy();
                 });
@@ -412,12 +444,14 @@ describe("Ext.Component", function(){
                             xtype: 'component'
                         }
                     });
+
                     expect(ct.items.first().lookupController(true)).toBeNull();
                     ct.destroy();
                 });
 
                 it("should not return the controller attached to the component when it is at the root", function() {
                     var controller = new spec.TestController();
+
                     makeComponent({
                         controller: controller
                     });
@@ -426,12 +460,14 @@ describe("Ext.Component", function(){
 
                 it("should not return the controller attached to the component when it is in a hierarchy and no controllers exist above it", function() {
                     var controller = new spec.TestController();
+
                     var ct = new Ext.container.Container({
                         items: {
                             xtype: 'component',
                             controller: controller
                         }
                     });
+
                     expect(ct.items.first().lookupController(true)).toBeNull();
                     ct.destroy();
                 });
@@ -445,6 +481,7 @@ describe("Ext.Component", function(){
                             xtype: 'component'
                         }
                     });
+
                     expect(ct.items.first().lookupController(true)).toBe(controller);
                     ct.destroy();
                 });
@@ -464,6 +501,7 @@ describe("Ext.Component", function(){
                             }
                         }
                     });
+
                     expect(ct.down('#x').lookupController(true)).toBe(controller2);
                     ct.destroy();
                 });
@@ -471,6 +509,7 @@ describe("Ext.Component", function(){
 
             it("should default to skipThis: false", function() {
                 var controller = new spec.TestController();
+
                 makeComponent({
                     controller: controller
                 });
@@ -521,6 +560,7 @@ describe("Ext.Component", function(){
 
         it("should accept an object instance", function() {
             var vm = new spec.ViewModel();
+
             makeComponent({
                 viewModel: vm
             });
@@ -536,14 +576,14 @@ describe("Ext.Component", function(){
             expect(called).toBe(false);
         });
 
-        it("should not create an instance during render", function() {
+        it("should initialize if there are no binds/publishes", function() {
             makeComponent({
                 renderTo: Ext.getBody(),
                 viewModel: {
                     type: 'test'
                 }
             });
-            expect(called).toBe(false);
+            expect(called).toBe(true);
         });
 
         it("should not create an instance while constructing with binds", function() {
@@ -594,6 +634,7 @@ describe("Ext.Component", function(){
 
             it("should call initViewController when creating an instance during rendering", function() {
                 var ctrl = new TestController();
+
                 makeComponent({
                     controller: ctrl,
                     viewModel: {
@@ -608,6 +649,7 @@ describe("Ext.Component", function(){
 
             it("should call initViewController when creating view a direct call to getViewModel", function() {
                 var ctrl = new TestController();
+
                 makeComponent({
                     controller: ctrl,
                     viewModel: {
@@ -700,6 +742,7 @@ describe("Ext.Component", function(){
         describe("session", function() {
             it("should attach the view model to the session", function() {
                 var session = new Ext.data.Session();
+
                 makeComponent({
                     session: session,
                     viewModel: {}
@@ -709,6 +752,7 @@ describe("Ext.Component", function(){
 
             it("should attach the view model to a session higher up in the hierarchy", function() {
                 var session = new Ext.data.Session();
+
                 var ct = new Ext.container.Container({
                     session: session,
                     items: {
@@ -716,6 +760,7 @@ describe("Ext.Component", function(){
                         viewModel: true
                     }
                 });
+
                 expect(ct.items.first().getViewModel().getSession()).toBe(session);
                 ct.destroy();
             });
@@ -732,8 +777,51 @@ describe("Ext.Component", function(){
                         viewModel: {}
                     }
                 });
+
                 expect(ct.items.first().getViewModel().getSession()).toBe(session2);
                 ct.destroy();
+            });
+        });
+
+        describe("destruction", function() {
+            it("should destroy the viewModel when the component is destroyed", function() {
+                makeComponent({
+                    viewModel: {},
+                    renderTo: Ext.getBody()
+                });
+                var vm = c.getViewModel();
+
+                c.destroy();
+                expect(vm.destroyed).toBe(true);
+            });
+
+            it("should not throw error when destroying components with null binding", function() {
+                var ct = new Ext.Container({
+                    renderTo: document.body,
+                    viewModel: {
+                        data: {
+                            isDisabled: true
+                        }
+                    },
+                    defaultType: 'button',
+                    defaults: {
+                        bind: {
+                            disabled: '{isDisabled}'
+                        }
+                    },
+                    items: [{
+                        text: 'Foo',
+                        bind: {
+                            disabled: null
+                        }
+                    }, {
+                        text: 'Bar'
+                    }]
+                });
+
+                expect(function() {
+                    ct.destroy();
+                }).not.toThrow();
             });
         });
     });
@@ -746,6 +834,7 @@ describe("Ext.Component", function(){
 
         it("should use a passed session", function() {
             var session = new Ext.data.Session();
+
             makeComponent({
                 session: session
             });
@@ -774,7 +863,9 @@ describe("Ext.Component", function(){
             var session = new Ext.data.Session({
                 autoDestroy: false
             });
+
             var spy = spyOn(session, 'destroy').andCallThrough();
+
             makeComponent({
                 session: session
             });
@@ -793,6 +884,7 @@ describe("Ext.Component", function(){
                         xtype: 'component'
                     }
                 });
+
                 expect(ct.items.first().lookupSession()).toBe(session);
                 ct.destroy();
             });
@@ -809,8 +901,9 @@ describe("Ext.Component", function(){
                 });
 
                 var child = ct.items.first().getSession();
+
                 expect(child.getParent()).toBe(session);
-                
+
                 ct.destroy();
             });
         });
@@ -867,6 +960,31 @@ describe("Ext.Component", function(){
             expect(c.getHeight()).toBe(200);
         });
 
+        it("should stop reacting when setting the binding to null", function() {
+            makeComponent({
+                renderTo: Ext.getBody(),
+                height: 200,
+                viewModel: {
+                    data: {
+                        width: 200
+                    }
+                },
+                bind: {
+                    width: '{width}'
+                }
+            });
+            var vm = c.getViewModel();
+
+            vm.notify();
+            expect(c.getWidth()).toBe(200);
+            c.setBind({
+                width: null
+            });
+            vm.set('width', 400);
+            vm.notify();
+            expect(c.getWidth()).toBe(200);
+        });
+
         describe("twoWayBindable", function() {
             var Cls, viewModel;
 
@@ -917,6 +1035,53 @@ describe("Ext.Component", function(){
                         bind: {}
                     });
                 }).not.toThrow();
+            });
+
+            it("should stop reacting when setting the binding to null", function() {
+                makeCls({
+                    renderTo: Ext.getBody(),
+                    viewModel: {
+                        data: {
+                            d: 200
+                        }
+                    },
+                    bind: {
+                        customD: '{d}'
+                    }
+                });
+                var vm = c.getViewModel();
+
+                vm.notify();
+                expect(c.getCustomD()).toBe(200);
+                c.setBind({
+                    customD: null
+                });
+                vm.set('customD', 400);
+                vm.notify();
+                expect(c.getCustomD()).toBe(200);
+            });
+
+            it("should not be two way if the binding has twoWay: false", function() {
+                makeCls({
+                    renderTo: Ext.getBody(),
+                    viewModel: {
+                        data: {
+                            d: 200
+                        }
+                    },
+                    bind: {
+                        customD: {
+                            bindTo: '{d}',
+                            twoWay: false
+                        }
+                    }
+                });
+                var vm = c.getViewModel();
+
+                vm.notify();
+                c.setCustomD(400);
+                vm.notify();
+                expect(vm.get('d')).toBe(200);
             });
 
             describe("when the binding has not fired", function() {
@@ -1065,6 +1230,56 @@ describe("Ext.Component", function(){
                 });
             });
         });
+
+        describe("on destruction", function() {
+            beforeEach(function() {
+                Ext.define('spec.BindCls', {
+                    extend: 'Ext.Component',
+                    xtype: 'bindcls',
+                    config: {
+                        test: null
+                    }
+                });
+            });
+
+            afterEach(function() {
+                Ext.undefine('spec.BindCls');
+            });
+
+            it("should remove bindings when children are destroyed", function() {
+                var ct = new Ext.container.Container({
+                    viewModel: {
+                        data: {
+                            foo: 1
+                        }
+                    },
+                    renderTo: Ext.getBody(),
+                    items: {
+                        xtype: 'bindcls',
+                        bind: {
+                            test: '{foo}'
+                        }
+                    }
+                }),
+                vm = ct.getViewModel();
+
+                var c = ct.items.first();
+
+                spyOn(c, 'setTest');
+                vm.notify();
+                expect(c.setTest.callCount).toBe(1);
+                c.setTest.reset();
+
+                vm.set('foo', 2);
+
+                // The bind is queued up
+                c.destroy();
+                vm.notify();
+                expect(c.setTest).not.toHaveBeenCalled();
+
+                ct.destroy();
+            });
+        });
     });
 
     describe("listener scope resolution", function() {
@@ -1102,7 +1317,8 @@ describe("Ext.Component", function(){
                 if (name === scope) {
                     expect(spy).toHaveBeenCalled();
                     expect(spy.mostRecentCall.object).toBe(scopes[name]);
-                } else {
+                }
+                else {
                     expect(spy).not.toHaveBeenCalled();
                 }
             }
@@ -1135,15 +1351,7 @@ describe("Ext.Component", function(){
         });
 
         afterEach(function() {
-            if (cmp) {
-                cmp.destroy();
-            }
-            if (parent) {
-                parent.destroy();
-            }
-            if (grandparent) {
-                grandparent.destroy();
-            }
+            cmp = parent = grandparent = Ext.destroy(cmp, parent, grandparent);
         });
 
         describe("listener declared on class body", function() {
@@ -3359,41 +3567,41 @@ describe("Ext.Component", function(){
             });
         });
     });
-    
+
     describe("suspend/resume layouts", function() {
         beforeEach(function() {
             makeComponent({
                 renderTo: Ext.getBody()
             });
         });
-        
+
         function s() {
             c.suspendLayouts();
         }
-        
+
         function r() {
             c.resumeLayouts();
         }
-        
+
         function expectSuspended(suspended) {
             expect(c.isLayoutSuspended()).toBe(suspended);
         }
-        
+
         it("should not be suspended by default", function() {
             expectSuspended(false);
         });
-        
+
         it("should suspend layouts when suspend is called", function() {
             s();
             expectSuspended(true);
         });
-        
+
         it("should not suspend when resume is called", function() {
             s();
             r();
-            expectSuspended(false);    
+            expectSuspended(false);
         });
-        
+
         it("should be suspended after calling suspend more times than resume", function() {
             s();
             s();
@@ -3402,11 +3610,11 @@ describe("Ext.Component", function(){
             r();
             expectSuspended(true);
         });
-        
+
         it("should not be suspended after calling resume more times than suspend", function() {
             // Suppress console warning about mismatched resumeLayout call
             spyOn(Ext.log, 'warn');
-            
+
             s();
             s();
             r();
@@ -3414,30 +3622,55 @@ describe("Ext.Component", function(){
             r();
             expectSuspended(false);
         });
-        
+
         it("should not run a layout while suspended", function() {
             var spy = jasmine.createSpy();
+
             c.on('resize', spy);
             c.suspendLayouts();
             c.setSize(200, 200);
             expect(spy).not.toHaveBeenCalled();
         });
-        
+
         it("should keep any layout pending if resume is called without the flush param", function() {
             var spy = jasmine.createSpy();
+
             c.on('resize', spy);
             c.suspendLayouts();
             c.setSize(200, 200);
             c.resumeLayouts();
             expect(spy).not.toHaveBeenCalled();
-            
+
             c.updateLayout();
             expect(c.el.getWidth()).toBe(200);
             expect(c.el.getHeight()).toBe(200);
         });
-        
+
+        it("should suspend layouts in Ext.batchLayouts", function() {
+            Ext.batchLayouts(function() {
+                expect(Component.layoutSuspendCount).toBe(1);
+            });
+            expect(Component.layoutSuspendCount).toBe(0);
+        });
+
+        it("should resume layouts in Ext.batchLayouts if fn throws an error", function() {
+            // try/catch required to avoid causing test to fail due to the exception thrown
+            try {
+                Ext.batchLayouts(function() {
+                    expect(Component.layoutSuspendCount).toBe(1);
+                    throw 'unexpected exception';
+                });
+            }
+            catch (e) {
+            }
+
+            // finally should resume
+            expect(Component.layoutSuspendCount).toBe(0);
+        });
+
         it("should run the layout straight away when resuming layouts with flush", function() {
             var spy = jasmine.createSpy();
+
             c.on('resize', spy);
             c.suspendLayouts();
             c.setSize(200, 200);
@@ -3452,6 +3685,7 @@ describe("Ext.Component", function(){
                 autoShow: true
             });
             var count = c.componentLayoutCounter;
+
             c.suspendLayouts();
             c.setWidth(200);
             c.setHeight(200);
@@ -3476,7 +3710,6 @@ describe("Ext.Component", function(){
             var sizeModels = Ext.layout.SizeModel.sizeModels,
                 cCount, ctCount;
 
-
             var ct = new Ext.container.Container({
                 renderTo: Ext.getBody(),
                 layout: 'fit',
@@ -3485,6 +3718,7 @@ describe("Ext.Component", function(){
 
             function expectSizeModel(comp, widthModel, heightModel) {
                 var sizeModel = comp.getSizeModel();
+
                 expect(sizeModel.width).toBe(widthModel);
                 expect(sizeModel.height).toBe(heightModel);
             }
@@ -3649,6 +3883,7 @@ describe("Ext.Component", function(){
                     Ext.each(widthOptions, function(widthItem, i) {
                         Ext.each(heightOptions, function(heightItem, j) {
                             var offset = expected[i][j];
+
                             it("should" + (!offset ? " not " : "") + " layout when " + widthItem.name + " width and " + heightItem.name + " height", function() {
                                 c.setSize(widthItem.value, heightItem.value);
                                 expect(c.componentLayoutCounter).toBe(count + offset);
@@ -3690,12 +3925,12 @@ describe("Ext.Component", function(){
                         name: 'leaving the',
                         value: undefined
                     }], [
-                        [0, 1, 1, 0], 
-                        [1, 1, 1, 1], 
-                        [1, 1, 1, 1], 
+                        [0, 1, 1, 0],
+                        [1, 1, 1, 1],
+                        [1, 1, 1, 1],
                         [0, 1, 1, 0]
                     ]);
-                    
+
                 });
 
                 describe("with a configured width and without a configured height", function() {
@@ -3784,27 +4019,29 @@ describe("Ext.Component", function(){
         });
     });
 
-    describe("xtypes",  function(){
-        it("should work with a string", function(){
+    describe("xtypes",  function() {
+        it("should work with a string", function() {
             makeComponent();
-            expect(c.isXType('component')).toBe(true);   
-        });    
-
-        it("should not match incorrectly", function(){
-            makeComponent();
-            expect(c.isXType('panel')).toBe(false);    
+            expect(c.isXType('component')).toBe(true);
         });
 
-        it("should match subclasses by default", function(){
+        it("should not match incorrectly", function() {
+            makeComponent();
+            expect(c.isXType('panel')).toBe(false);
+        });
+
+        it("should match subclasses by default", function() {
             var ct = new Ext.container.Container();
+
             expect(ct.isXType('component')).toBe(true);
             ct.destroy();
         });
 
-        it("should match exactly if shallow is true", function(){
+        it("should match exactly if shallow is true", function() {
             var ct = new Ext.container.Container();
+
             expect(ct.isXType('component', true)).toBe(false);
-            ct.destroy();    
+            ct.destroy();
         });
     });
 
@@ -3827,12 +4064,14 @@ describe("Ext.Component", function(){
 
         describe("with an existing element", function() {
             var ct;
-            afterEach(function () {
+
+            afterEach(function() {
                 ct = Ext.destroy(ct);
             });
 
             it("should be able to render", function() {
                 var el = Ext.getBody().createChild();
+
                 makeComponent({
                     el: el,
                     renderTo: Ext.getBody()
@@ -3860,9 +4099,11 @@ describe("Ext.Component", function(){
                 expect(ct.body.component).toBe(ct);
 
                 var bodyEl = ct.body.el.dom;
-                expect(bodyEl.parentNode).toBe(ct.el.dom);
+
+                expect(bodyEl.parentNode.parentNode).toBe(ct.el.dom);
 
                 var item = ct.items.getAt(0);
+
                 expect(item.el.dom.parentNode).toBe(bodyEl);
                 expect(item.el.component).toBe(item);
             });
@@ -3893,15 +4134,18 @@ describe("Ext.Component", function(){
                 expect(ct.body.component).toBe(ct);
 
                 var bodyEl = ct.body.el.dom;
-                expect(bodyEl.parentNode).toBe(ct.el.dom);
+
+                expect(bodyEl.parentNode.parentNode).toBe(ct.el.dom);
 
                 var subPanel = ct.items.getAt(0);
+
                 var bodyEl2 = subPanel.body.el.dom;
 
                 expect(subPanel.el.dom.parentNode).toBe(bodyEl);
-                expect(bodyEl2.parentNode).toBe(subPanel.el.dom);
+                expect(bodyEl2.parentNode.parentNode).toBe(subPanel.el.dom);
 
                 var item = subPanel.items.getAt(0);
+
                 expect(item.el.dom.parentNode).toBe(bodyEl2);
                 expect(item.el.component).toBe(item);
             });
@@ -3926,17 +4170,21 @@ describe("Ext.Component", function(){
                 expect(ct.body.component).toBe(ct);
 
                 var bodyEl = ct.body.el.dom;
-                expect(bodyEl.parentNode).toBe(ct.el.dom);
+
+                expect(bodyEl.parentNode.parentNode).toBe(ct.el.dom);
 
                 var outerCt = ct.layout.outerCt;
+
                 expect(outerCt.component).toBe(ct);
                 expect(outerCt.dom.parentNode).toBe(bodyEl);
 
                 var innerCt = ct.layout.innerCt;
+
                 expect(innerCt.component).toBe(ct);
                 expect(innerCt.dom.parentNode).toBe(outerCt.dom);
 
                 var item = ct.items.getAt(0);
+
                 expect(item.el.dom.parentNode).toBe(innerCt.dom);
                 expect(item.el.component).toBe(item);
             });
@@ -3961,17 +4209,21 @@ describe("Ext.Component", function(){
                 expect(ct.body.component).toBe(ct);
 
                 var bodyEl = ct.body.el.dom;
-                expect(bodyEl.parentNode).toBe(ct.el.dom);
+
+                expect(bodyEl.parentNode.parentNode).toBe(ct.el.dom);
 
                 var innerCt = ct.layout.innerCt;
+
                 expect(innerCt.component).toBe(ct);
                 expect(innerCt.dom.parentNode).toBe(bodyEl);
 
                 var targetEl = ct.layout.targetEl;
+
                 expect(targetEl.component).toBe(ct);
                 expect(targetEl.dom.parentNode).toBe(innerCt.dom);
 
                 var item = ct.items.getAt(0);
+
                 expect(item.el.dom.parentNode).toBe(targetEl.dom);
                 expect(item.el.component).toBe(item);
             });
@@ -3996,17 +4248,21 @@ describe("Ext.Component", function(){
                 expect(ct.body.component).toBe(ct);
 
                 var bodyEl = ct.body.el.dom;
-                expect(bodyEl.parentNode).toBe(ct.el.dom);
+
+                expect(bodyEl.parentNode.parentNode).toBe(ct.el.dom);
 
                 var innerCt = ct.layout.innerCt;
+
                 expect(innerCt.component).toBe(ct);
                 expect(innerCt.dom.parentNode).toBe(bodyEl);
 
                 var targetEl = ct.layout.targetEl;
+
                 expect(targetEl.component).toBe(ct);
                 expect(targetEl.dom.parentNode).toBe(innerCt.dom);
 
                 var item = ct.items.getAt(0);
+
                 expect(item.el.dom.parentNode).toBe(targetEl.dom);
                 expect(item.el.component).toBe(item);
             });
@@ -4065,7 +4321,7 @@ describe("Ext.Component", function(){
 
         describe("configuration", function() {
             describe("default", function() {
-                it("should be enabled", function(){
+                it("should be enabled", function() {
                     makeDisableComp();
                     expect(c.isDisabled()).toBe(false);
                     expect(c.disabled).toBe(false);
@@ -4485,6 +4741,7 @@ describe("Ext.Component", function(){
                     it("should call the disabled method when a truthy value is passed", function() {
                         makeDisableComp();
                         var spy = spyOn(c, 'disable');
+
                         c.setDisabled(true);
                         expect(spy).toHaveBeenCalled();
                     });
@@ -4492,6 +4749,7 @@ describe("Ext.Component", function(){
                     it("should call the enable method when a falsy value is passed", function() {
                         makeDisableComp();
                         var spy = spyOn(c, 'enable');
+
                         c.setDisabled(false);
                         expect(spy).toHaveBeenCalled();
                     });
@@ -4503,6 +4761,7 @@ describe("Ext.Component", function(){
                             renderTo: Ext.getBody()
                         });
                         var spy = spyOn(c, 'disable');
+
                         c.setDisabled(true);
                         expect(spy).toHaveBeenCalled();
                     });
@@ -4512,6 +4771,7 @@ describe("Ext.Component", function(){
                             renderTo: Ext.getBody()
                         });
                         var spy = spyOn(c, 'enable');
+
                         c.setDisabled(false);
                         expect(spy).toHaveBeenCalled();
                     });
@@ -4619,18 +4879,18 @@ describe("Ext.Component", function(){
             });
         });
 
-        (Ext.isIE ? xdescribe : describe)('disabling the dom element', function () {
+        (Ext.isIE ? xdescribe : describe)('disabling the dom element', function() {
             // Only disable whitelisted elements as determined by W3C.
             // http://www.w3.org/TR/html5/disabled-elements.html
             // See EXTJS-12705.
             var dom;
 
-            afterEach(function () {
+            afterEach(function() {
                 dom = null;
             });
 
-            Ext.each(['button', 'input', 'select', 'textarea', 'fieldset'], function (tagName) {
-                it('should disable ' + tagName, function () {
+            Ext.each(['button', 'input', 'select', 'textarea', 'fieldset'], function(tagName) {
+                it('should disable ' + tagName, function() {
                     makeComponent({
                         autoEl: {
                             tag: tagName
@@ -4647,8 +4907,8 @@ describe("Ext.Component", function(){
                 });
             });
 
-            Ext.each(['div', 'table', 'p'], function (tagName) {
-                it('should not disable ' + tagName, function () {
+            Ext.each(['div', 'table', 'p'], function(tagName) {
+                it('should not disable ' + tagName, function() {
                     makeComponent({
                         autoEl: {
                             tag: tagName
@@ -4666,10 +4926,10 @@ describe("Ext.Component", function(){
             });
         });
 
-        (Ext.isIE ? xdescribe : describe)('masking a disabled comp', function () {
+        (Ext.isIE ? xdescribe : describe)('masking a disabled comp', function() {
             // See EXTJS-12705.
-            Ext.each(['button', 'fieldset', 'div', 'p'], function (tagName) {
-                it('should mask ' + tagName, function () {
+            Ext.each(['button', 'fieldset', 'div', 'p'], function(tagName) {
+                it('should mask ' + tagName, function() {
                     makeComponent({
                         autoEl: {
                             tag: tagName
@@ -4684,8 +4944,8 @@ describe("Ext.Component", function(){
                 });
             });
 
-            Ext.each(['input', 'select', 'textarea', 'option', 'optgroup', 'table'], function (tagName) {
-                it('should not mask ' + tagName, function () {
+            Ext.each(['input', 'select', 'textarea', 'option', 'optgroup', 'table'], function(tagName) {
+                it('should not mask ' + tagName, function() {
                     makeComponent({
                         autoEl: {
                             tag: tagName
@@ -4701,7 +4961,7 @@ describe("Ext.Component", function(){
             });
         });
     });
-    
+
     describe("component lookup by element", function() {
         describe("focusable components", function() {
             beforeEach(function() {
@@ -4715,38 +4975,39 @@ describe("Ext.Component", function(){
                             '<span id="{id}-spanEl" data-ref="spanEl">foo bar</span>',
                         '</div>'
                     ],
+                    scrollable: false,
                     getFocusEl: function() {
                         return this.el;
                     }
                 });
             });
-            
+
             it("should add " + compIdAttr + " attribute to the focusable element", function() {
-                var cmpId = c.getFocusEl().getAttribute(compIdAttr);
-                
+                var cmpId = c.getFocusEl().dom.getAttribute(compIdAttr);
+
                 expect(cmpId).toBe(c.id);
             });
-            
+
             it("should be able to look Component up by " + compIdAttr + " attribute", function() {
-                var cmp = Ext.Component.fromElement(c.getFocusEl());
-                
+                var cmp = Ext.Component.from(c.getFocusEl());
+
                 expect(cmp).toEqual(c);
             });
-            
+
             it("should be able to look Component up by its inner element", function() {
-                var cmp = Ext.Component.fromElement(c.spanEl);
-                
+                var cmp = Ext.Component.from(c.spanEl);
+
                 expect(cmp).toEqual(c);
             });
-            
+
             // We don't have a Viewport here, so lookup on the body element should fail
             it("should return null if no Component is found", function() {
-                var cmp = Ext.Component.fromElement(Ext.getBody());
-                
+                var cmp = Ext.Component.from(Ext.getBody());
+
                 expect(cmp).toBe(null);
             });
         });
-        
+
         describe("non-focusable components", function() {
             beforeEach(function() {
                 makeComponent({
@@ -4759,22 +5020,22 @@ describe("Ext.Component", function(){
                     ]
                 });
             });
-            
+
             it("should not add " + compIdAttr + " attribute to Component's elements", function() {
                 var el = c.el.down('[' + compIdAttr + ']');
-                
+
                 expect(el).toEqual(null);
             });
-            
+
             it("should be able to look Component up by its main element", function() {
-                var cmp = Ext.Component.fromElement(c.el);
-                
+                var cmp = Ext.Component.from(c.el);
+
                 expect(cmp).toEqual(c);
             });
-            
+
             it("should be able to look Component up by its inner elements", function() {
-                var cmp = Ext.Component.fromElement(c.divEl);
-                
+                var cmp = Ext.Component.from(c.divEl);
+
                 expect(cmp).toEqual(c);
             });
         });
@@ -4850,6 +5111,7 @@ describe("Ext.Component", function(){
             inner21FocusLeaveSpy = spyOn(inner21, 'onFocusLeave').andCallThrough();
             textfield2FocusLeaveSpy = spyOn(textfield2, 'onFocusLeave').andCallThrough();
         });
+
         it('should fire focusEnter on the whole tree into which focus enters, and focusleave on the whole tree from which focus leaves', function() {
             expect(c.containsFocus).toBeFalsy();
             expect(inner1.containsFocus).toBeFalsy();
@@ -4861,9 +5123,8 @@ describe("Ext.Component", function(){
             textfield1.focus();
 
             // Some browsers deliver the focus event asynchronously
-            waitsFor(function() {
-                return c.containsFocus;
-            });
+            waitForSpy(cFocusEnterSpy);
+
             runs(function() {
                 // Focus has entered "c" and inner1 (and all inner1's descendants)
                 expect(cFocusEnterSpy.callCount).toBe(1);
@@ -4887,9 +5148,8 @@ describe("Ext.Component", function(){
             });
 
             // Some browsers deliver the focus event asynchronously
-            waitsFor(function() {
-                return inner2.containsFocus;
-            });
+            waitForSpy(inner2FocusEnterSpy);
+
             runs(function() {
                 expect(cFocusEnterSpy.callCount).toBe(1);
                 expect(inner1FocusEnterSpy.callCount).toBe(1);
@@ -4921,43 +5181,155 @@ describe("Ext.Component", function(){
         });
     });
 
-    describe("visibility", function(){
-        //TODO: need to change show/hide to be testable
+    describe('onFocusEnter', function() {
+        var grid;
+
+        beforeEach(function() {
+            var gridData = [],
+                i = 0;
+
+                 while (i < 14) {
+                    gridData.push({
+                        firstName: 'C',
+                        lastName: 'C'
+                    });
+                    ++i;
+                }
+
+            Ext.define('FooView', {
+                extend: 'Ext.window.Window',
+                alias: 'widget.fooview',
+                modal: true,
+                closable: false,
+
+                initComponent: function() {
+                    var me = this;
+
+                    Ext.apply(me, {
+                        items: [{
+                            xtype: 'form',
+                            items: [{
+                                xtype: 'textfield',
+                                fieldLabel: 'Name',
+                                width: 400,
+                                labelWidth: 50
+                            }]
+                        }]
+                    });
+
+                    me.callParent();
+                }
+            });
+
+            grid = Ext.create('Ext.grid.Panel', {
+                renderTo: Ext.getBody(),
+                height: 300,
+                width: 500,
+
+                store: Ext.create('Ext.data.Store', {
+                    fields: [{
+                        name: 'firstName',
+                        type: 'string'
+                    }, {
+                        name: 'lastName',
+                        type: 'string'
+                    }],
+                    data: gridData
+                }),
+                columns: {
+                    items: [{
+                        text: 'First Name',
+                        dataIndex: 'firstName',
+                        editor: {
+                            xtype: 'textfield'
+                        }
+                    }, {
+                        text: 'Last Name',
+                        dataIndex: 'lastName'
+                    }]
+                }
+            });
+        });
+
+        afterEach(function() {
+            Ext.undefine('FooView');
+            Ext.destroy(grid);
+        });
+
+        it('should focus on grid scrollbar after retaining focus from dialog', function() {
+            // Show fooview dialog box
+            var foo = Ext.widget('fooview'),
+                errorSpy = jasmine.createSpy(),
+                old = window.onerror;
+
+            window.onerror = errorSpy.andCallFake(function() {
+                if (old) {
+                    old();
+                }
+            });
+
+            foo.show();
+
+            // Open another dialog box
+            Ext.Msg.show({
+                title: 'Duplicate Category Name',
+                msg: 'The name of the category may not be a duplicate.',
+                buttons: Ext.MessageBox.OK,
+                icon: Ext.MessageBox.ERROR
+            });
+
+            Ext.Msg.down('#ok').el.dom.click();
+
+            // Close the dialog box
+            foo.close();
+            grid.getView().lastFocused = 'scrollbar';
+            grid.getView().el.dom.focus();
+            Ext.destroy(foo);
+            // No errors must have been caught
+            expect(errorSpy).not.toHaveBeenCalled();
+
+        });
+
     });
 
-    describe("rendering", function(){
+    describe("visibility", function() {
+        // TODO: need to change show/hide to be testable
+    });
 
-        it("should set the rendered property  when it's rendered", function(){
+    describe("rendering", function() {
+
+        it("should set the rendered property  when it's rendered", function() {
             makeComponent();
             expect(c.rendered).toBeFalsy();
             c.render(Ext.getBody());
-            expect(c.rendered).toBeTruthy();    
+            expect(c.rendered).toBeTruthy();
         });
-        
-        describe("cancelling render", function(){
+
+        describe("cancelling render", function() {
             it("should not create an element if we veto beforerender and do not provide an el", function() {
                 makeComponent({
                     id: 'testComp'
                 });
-                c.on('beforerender', function(){
+                c.on('beforerender', function() {
                     return false;
-                });    
+                });
                 c.render(Ext.getBody());
                 expect(Ext.get('testComp')).toBeNull();
             });
-            
-            it("should not move the element if we veto beforerender and we do provide an el", function(){
+
+            it("should not move the element if we veto beforerender and we do provide an el", function() {
                 var a = Ext.getBody().createChild({
                     id: 'a'
-                });    
+                });
+
                 var b = Ext.getBody().createChild({
                     id: 'b'
                 });
-                
+
                 makeComponent({
                     el: a
                 });
-                c.on('beforerender', function(){
+                c.on('beforerender', function() {
                     return false;
                 });
                 c.render(b);
@@ -4968,15 +5340,15 @@ describe("Ext.Component", function(){
             });
         });
 
-        describe("renderTpl", function(){
-            it("should not use any renderTpl by default", function(){
+        describe("renderTpl", function() {
+            it("should not use any renderTpl by default", function() {
                 makeComponent({
                     renderTo: Ext.getBody()
-                });    
+                });
                 expect(c.el.dom.firstChild).toBeNull();
             });
 
-            it("should take a renderTpl", function(){
+            it("should take a renderTpl", function() {
                 makeComponent({
                     renderTo: Ext.getBody(),
                     renderTpl: '<div><span>a</span></div>'
@@ -4986,24 +5358,27 @@ describe("Ext.Component", function(){
             });
         });
 
-        describe("rendering to the dom", function(){
-            it("should use the renderTo option", function(){
+        describe("rendering to the dom", function() {
+            it("should use the renderTo option", function() {
                 var el = Ext.getBody().createChild();
+
                 makeComponent({
                     renderTo: el
                 });
                 expect(el.dom.getElementsByTagName('div')[0]).toEqual(c.el.dom);
                 el.remove();
             });
-            
-            it("should not render if not explicitly told to", function(){
+
+            it("should not render if not explicitly told to", function() {
                 var total = document.body.getElementsByTagName('div').length;
+
                 makeComponent();
                 expect(document.body.getElementsByTagName('div').length).toEqual(total);
             });
 
-            it("should render to a specific element", function(){
-                var el = Ext.getBody().createChild();    
+            it("should render to a specific element", function() {
+                var el = Ext.getBody().createChild();
+
                 makeComponent();
                 c.render(el);
                 expect(el.dom.getElementsByTagName('div')[0]).toEqual(c.el.dom);
@@ -5011,18 +5386,18 @@ describe("Ext.Component", function(){
             });
         });
 
-        describe("content", function(){
+        describe("content", function() {
 
-            describe("initialization", function(){
-                it("should accept an html string", function(){
+            describe("initialization", function() {
+                it("should accept an html string", function() {
                     makeComponent({
                         html: 'foo',
                         renderTo: Ext.getBody()
-                    });    
+                    });
                     expect(c.el.dom).hasHTML('foo');
-                });  
+                });
 
-                it("should accept a markup config for html", function(){
+                it("should accept a markup config for html", function() {
                     makeComponent({
                         html: {
                             tag: 'span',
@@ -5035,11 +5410,12 @@ describe("Ext.Component", function(){
 
                 });
 
-                it("should accept a contentEl", function(){
+                it("should accept a contentEl", function() {
                     var div = Ext.getBody().createChild({
                         tag: 'div',
                         html: 'foo'
                     });
+
                     makeComponent({
                         contentEl: div,
                         renderTo: document.body
@@ -5047,9 +5423,9 @@ describe("Ext.Component", function(){
                     expect(c.el.dom.firstChild).hasHTML('foo');
                 });
 
-                describe("tpl", function(){
+                describe("tpl", function() {
 
-                    it("should accept a raw template", function(){
+                    it("should accept a raw template", function() {
                         makeComponent({
                             renderTo: Ext.getBody(),
                             tpl: '{first} - {last}',
@@ -5057,42 +5433,42 @@ describe("Ext.Component", function(){
                                 first: 'John',
                                 last: 'Foo'
                             }
-                        });    
+                        });
                         expect(c.el.dom).hasHTML('John - Foo');
                     });
 
-                    it("should take a template instance", function(){
+                    it("should take a template instance", function() {
                         makeComponent({
                             tpl: new Ext.XTemplate('{0} - {1}'),
                             data: [3, 7],
                             renderTo: Ext.getBody()
-                        });    
+                        });
                         expect(c.el.dom).hasHTML('3 - 7');
                     });
 
                 });
-            }); 
+            });
 
-            describe("before render", function(){
-                it("should be able to change the html before render", function(){
+            describe("before render", function() {
+                it("should be able to change the html before render", function() {
                     makeComponent();
                     c.update('foo');
                     c.render(Ext.getBody());
-                    expect(c.el.dom).hasHTML('foo');    
-                });  
+                    expect(c.el.dom).hasHTML('foo');
+                });
 
-                it("should be able to update the markup when not rendered", function(){
+                it("should be able to update the markup when not rendered", function() {
                     makeComponent();
                     c.update({
                         tag: 'span',
                         html: 'bar'
-                    });    
+                    });
                     c.render(Ext.getBody());
 
                     expect(c.el.dom).hasHTML('<span>bar</span>');
                 });
 
-                it("should be able to change the data when not rendered", function(){
+                it("should be able to change the data when not rendered", function() {
                     makeComponent({
                         tpl: '{a} - {b}'
                     });
@@ -5101,22 +5477,22 @@ describe("Ext.Component", function(){
                         b: 'bar'
                     });
                     c.render(Ext.getBody());
-                    expect(c.el.dom).hasHTML('foo - bar');   
+                    expect(c.el.dom).hasHTML('foo - bar');
                 });
-            });   
+            });
 
-            describe("after render", function(){
-                it("should change the html after being rendered", function(){
+            describe("after render", function() {
+                it("should change the html after being rendered", function() {
                     makeComponent({
                         renderTo: Ext.getBody(),
                         html: 'foo'
-                    });    
+                    });
                     expect(c.el.dom).hasHTML('foo');
                     c.update('bar');
                     expect(c.el.dom).hasHTML('bar');
-                });  
+                });
 
-                it("should change markup if an html config is provided", function(){
+                it("should change markup if an html config is provided", function() {
                     makeComponent({
                         renderTo: Ext.getBody(),
                         html: {
@@ -5133,7 +5509,7 @@ describe("Ext.Component", function(){
                     expect(c.el.dom).hasHTML('<div>2</div>');
                 });
 
-                it("should update tpl data", function(){
+                it("should update tpl data", function() {
                     makeComponent({
                         renderTo: Ext.getBody(),
                         tpl: '{a} - {b}',
@@ -5150,7 +5526,7 @@ describe("Ext.Component", function(){
                     expect(c.el.dom).hasHTML('v3 - v4');
                 });
 
-                it("should use the correct writeMode", function(){
+                it("should use the correct writeMode", function() {
                     makeComponent({
                         renderTo: Ext.getBody(),
                         tpl: '{a} - {b}',
@@ -5159,32 +5535,33 @@ describe("Ext.Component", function(){
                             a: 'v1',
                             b: 'v2'
                         }
-                    });    
+                    });
                     expect(c.el.dom).hasHTML('v1 - v2');
                     c.update({
                         a: 'v3',
-                        b: 'v4'    
+                        b: 'v4'
                     });
                     expect(c.el.dom).hasHTML('v1 - v2v3 - v4');
                 });
             });
-        }); 
+        });
 
-        describe('afterrender event', function(){
+        describe('afterrender event', function() {
             var mock, fireEventSpy;
-            beforeEach(function(){
-                mock = {handler: function(){}};
+
+            beforeEach(function() {
+                mock = { handler: function() {} };
                 fireEventSpy = spyOn(mock, 'handler');
             });
 
-            it('should fire "afterrender" after render', function(){
+            it('should fire "afterrender" after render', function() {
                 expect(fireEventSpy.callCount).toEqual(0);
-                
+
                 makeComponent({
-                    listeners:{afterrender:mock.handler},
+                    listeners: { afterrender: mock.handler },
                     renderTo: Ext.getBody()
                 });
-                
+
                 expect(fireEventSpy.callCount).toEqual(1);
             });
 
@@ -5192,59 +5569,59 @@ describe("Ext.Component", function(){
 
     });
 
-    describe("addCls/removeCls", function(){
-        it("should be able to add class when not rendered", function(){
+    describe("addCls/removeCls", function() {
+        it("should be able to add class when not rendered", function() {
             makeComponent();
             c.addCls('foo');
             c.render(Ext.getBody());
-            expect(c.el.hasCls('foo')).toBe(true);    
+            expect(c.el.hasCls('foo')).toBe(true);
         });
 
-        it("should add the class if the item is rendered", function(){
+        it("should add the class if the item is rendered", function() {
             makeComponent({
                 renderTo: Ext.getBody()
-            });    
+            });
             c.addCls('foo');
             expect(c.el.hasCls('foo')).toBe(true);
-        });  
+        });
 
-        it("should be able to remove class when not rendered", function(){
+        it("should be able to remove class when not rendered", function() {
             makeComponent({
                 additionalCls: ['foo']
-            });    
+            });
             c.removeCls('foo');
             c.render(Ext.getBody());
             expect(c.el.hasCls('foo')).toBe(false);
         });
 
-        it("should remove the class if the item is rendered", function(){
+        it("should remove the class if the item is rendered", function() {
             makeComponent({
                 renderTo: Ext.getBody(),
                 additionalCls: ['foo']
-            });    
+            });
             c.removeCls('foo');
             expect(c.el.hasCls('foo')).toBe(false);
         });
     });
 
-    describe("styling", function(){
-        it("should apply the cls to the element", function(){
+    describe("styling", function() {
+        it("should apply the cls to the element", function() {
             makeComponent({
                 renderTo: Ext.getBody(),
                 cls: 'foo'
-            });    
+            });
             expect(c.el.hasCls('foo')).toBe(true);
-        }); 
-        
-        it("should add the baseCls to the element", function(){
+        });
+
+        it("should add the baseCls to the element", function() {
             makeComponent({
                 renderTo: Ext.getBody()
-            });    
+            });
             expect(c.el.hasCls(c.baseCls)).toBe(true);
         });
 
-        describe("style", function(){
-            it("should accept a style string", function(){
+        describe("style", function() {
+            it("should accept a style string", function() {
                 makeComponent({
                     renderTo: Ext.getBody(),
                     style: 'background-color: red;'
@@ -5252,93 +5629,98 @@ describe("Ext.Component", function(){
                 expect(c.el.dom.style.backgroundColor).toMatch('^(red|#ff0000)$');
             });
 
-            it("should accept a style config", function(){
+            it("should accept a style config", function() {
                 makeComponent({
                     renderTo: Ext.getBody(),
                     style: {
                         color: 'red'
                     }
-                });    
+                });
                 expect(c.el.dom.style.color).toMatch('^(red|#ff0000)$');
             });
         });
 
-        describe("padding", function(){
-            it("should accept a single number", function(){
+        describe("padding", function() {
+            it("should accept a single number", function() {
                 makeComponent({
                     renderTo: Ext.getBody(),
                     padding: 5
-                });    
+                });
                 var style = c.el.dom.style;
+
                 expect(style.paddingTop).toEqual('5px');
                 expect(style.paddingRight).toEqual('5px');
                 expect(style.paddingBottom).toEqual('5px');
                 expect(style.paddingLeft).toEqual('5px');
-            });  
+            });
 
-            it("should accept a css style string", function(){
+            it("should accept a css style string", function() {
                 makeComponent({
                     renderTo: Ext.getBody(),
                     padding: '1 2 3 4'
                 });
                 var style = c.el.dom.style;
+
                 expect(style.paddingTop).toEqual('1px');
                 expect(style.paddingRight).toEqual('2px');
                 expect(style.paddingBottom).toEqual('3px');
-                expect(style.paddingLeft).toEqual('4px');    
+                expect(style.paddingLeft).toEqual('4px');
             });
         });
 
-        describe("margin", function(){
-            it("should accept a single number", function(){
+        describe("margin", function() {
+            it("should accept a single number", function() {
                 makeComponent({
                     renderTo: Ext.getBody(),
                     margin: 1
-                });    
+                });
                 var style = c.el.dom.style;
+
                 expect(style.marginTop).toEqual('1px');
                 expect(style.marginRight).toEqual('1px');
                 expect(style.marginBottom).toEqual('1px');
                 expect(style.marginLeft).toEqual('1px');
-            });  
+            });
 
-            it("should accept a css style string", function(){
+            it("should accept a css style string", function() {
                 makeComponent({
                     renderTo: Ext.getBody(),
                     margin: '4 5 6 7'
                 });
                 var style = c.el.dom.style;
+
                 expect(style.marginTop).toEqual('4px');
                 expect(style.marginRight).toEqual('5px');
                 expect(style.marginBottom).toEqual('6px');
-                expect(style.marginLeft).toEqual('7px');    
+                expect(style.marginLeft).toEqual('7px');
             });
         });
     });
 
-    describe("plugins", function(){
+    describe("plugins", function() {
         var Plugin;
-        
-        beforeEach(function(){
+
+        beforeEach(function() {
             Plugin = Ext.define('MyPlugin', {
                 alias: 'plugin.myplug',
 
-                constructor: function(cfg){
+                constructor: function(cfg) {
                     this.marked = (cfg || {}).marked;
                 },
 
-                init: function(c){
+                init: function(c) {
                     c.marked = this.marked || true;
-                }    
+                }
             });
         });
 
-        afterEach(function(){
+        afterEach(function() {
             Ext.undefine('MyPlugin');
-        });   
+        });
 
-        it("should accept a single plugin", function(){
+        it("should accept a single plugin", function() {
             var p = new Plugin();
+
             spyOn(p, 'init');
             makeComponent({
                 plugins: p
@@ -5346,7 +5728,7 @@ describe("Ext.Component", function(){
             expect(p.init).toHaveBeenCalledWith(c);
         });
 
-        it("should accept an array of plugins", function(){
+        it("should accept an array of plugins", function() {
             var p1 = new Plugin(),
                 p2 = new Plugin(),
                 p3 = new Plugin();
@@ -5357,26 +5739,26 @@ describe("Ext.Component", function(){
 
             makeComponent({
                 plugins: [p1, p2, p3]
-            });    
+            });
             expect(p1.init).toHaveBeenCalledWith(c);
             expect(p2.init).toHaveBeenCalledWith(c);
             expect(p3.init).toHaveBeenCalledWith(c);
         });
 
-        it("should be able to create string plugins", function(){
+        it("should be able to create string plugins", function() {
             makeComponent({
                 plugins: 'myplug'
             });
             expect(c.marked).toBeTruthy();
         });
 
-        it("should be able to create config object plugins", function(){
+        it("should be able to create config object plugins", function() {
             makeComponent({
                 plugins: {
                     ptype: 'myplug',
                     marked: 'foo'
                 }
-            });        
+            });
             expect(c.marked).toBe('foo');
         });
 
@@ -5404,158 +5786,166 @@ describe("Ext.Component", function(){
                 expect(p.init).toHaveBeenCalled();
             });
         });
-        
+
         // https://sencha.jira.com/browse/EXTJSIV-8568
         it("should not break on getPlugin when there are no plugins", function() {
             makeComponent();
-            
+
             var p = c.getPlugin('foo');
-            
+
             expect(p).toBe(null);
         });
 
         it("should be able to add a plugin");
     });
-    
-    describe("previousSibling", function(){
+
+    describe("previousSibling", function() {
         var ct;
-        beforeEach(function(){
+
+        beforeEach(function() {
             makeComponent();
             ct = new Ext.container.Container();
         });
-        
-        afterEach(function(){
+
+        afterEach(function() {
             ct.destroy();
         });
-        it("should return null if it is not in a container", function(){
+        it("should return null if it is not in a container", function() {
             expect(c.previousSibling()).toBeNull();
-        });    
-        
-        it("should return null if it is the only item in the container", function(){
+        });
+
+        it("should return null if it is the only item in the container", function() {
             ct.add(c);
             expect(c.previousSibling()).toBeNull();
         });
-        
-        it("should return null if it is the first item in the container", function(){
+
+        it("should return null if it is the first item in the container", function() {
             ct.add([c, {}, {}, {}, {}]);
-            expect(c.previousSibling()).toBeNull();    
+            expect(c.previousSibling()).toBeNull();
         });
-        
-        it("should return the closest previous sibling", function(){
+
+        it("should return the closest previous sibling", function() {
             var other = new Ext.Component();
+
             ct.add([{}, {}, {}, other, c, {}]);
-            expect(c.previousSibling()).toBe(other);    
+            expect(c.previousSibling()).toBe(other);
         });
-        
-        it("should return null if no previous items match the selector", function(){
+
+        it("should return null if no previous items match the selector", function() {
             ct.add([{}, {}, {}, {}, c]);
             expect(c.previousSibling('*[aProp=1]')).toBeNull();
         });
-        
-        it("should return an item matching the selector", function(){
+
+        it("should return an item matching the selector", function() {
             var other = new Ext.Component({
                 aProp: 1
             });
+
             ct.add([{}, other, {}, {}, {}, c]);
             expect(c.previousSibling('*[aProp=1]')).toBe(other);
         });
-        
-        it("should return the first item matching the selector", function(){
+
+        it("should return the first item matching the selector", function() {
             var other = new Ext.Component({
                 aProp: 1
             });
-            ct.add([{}, {aProp: 1}, other, {}, {}, c]);
+
+            ct.add([{}, { aProp: 1 }, other, {}, {}, c]);
             expect(c.previousSibling('*[aProp=1]')).toBe(other);
         });
     });
-    
-    describe("previousNode", function(){
+
+    describe("previousNode", function() {
         var ct, mainCt;
-        
-        beforeEach(function(){
+
+        beforeEach(function() {
             makeComponent();
             ct = new Ext.container.Container();
             mainCt = new Ext.container.Container();
         });
-        
-        afterEach(function(){
+
+        afterEach(function() {
             ct.destroy();
             mainCt.destroy();
             ct = mainCt = null;
         });
-        
+
         describe("without selectors", function() {
-        
-            it("should return null if it is not in a container", function(){
+
+            it("should return null if it is not in a container", function() {
                 expect(c.previousNode()).toBeNull();
             });
-        
-            it("should return the owner container if there are no siblings", function(){
+
+            it("should return the owner container if there are no siblings", function() {
                 ct.add(c);
                 expect(c.previousNode()).toBe(ct);
             });
-        
-            it("should return the previous sibling if it exists", function(){
+
+            it("should return the previous sibling if it exists", function() {
                 var prev = new Ext.Component();
+
                 ct.add(prev, c);
                 expect(c.previousNode()).toBe(prev);
             });
-        
-            it("should be able to select itself if includeSelf is passed", function(){
+
+            it("should be able to select itself if includeSelf is passed", function() {
                 ct.add(c);
-                expect(c.previousNode(null, true)).toBe(c);    
+                expect(c.previousNode(null, true)).toBe(c);
             });
         });
-        
-        describe("with selectors", function(){
-            
+
+        describe("with selectors", function() {
+
             describe("flat", function() {
-            
-                it("should return null if no component matches the selector", function(){
+
+                it("should return null if no component matches the selector", function() {
                     ct.add(c);
-                    expect(c.previousNode('foo')).toBeNull();    
-                });  
-            
-                it("should return the previous sibling if it matches the selector", function(){
-                    var prev = new Ext.Component({
-                        type: 'foo'
-                    });    
-                    ct.add(prev, c);
-                    expect(c.previousNode('[type=foo]')).toBe(prev);
+                    expect(c.previousNode('foo')).toBeNull();
                 });
-                
-                it("should return any previous sibling that matches the selector", function(){
+
+                it("should return the previous sibling if it matches the selector", function() {
                     var prev = new Ext.Component({
                         type: 'foo'
                     });
-                    ct.add(prev, {}, {}, {}, c);
-                    expect(c.previousNode('[type=foo]')).toBe(prev);    
+
+                    ct.add(prev, c);
+                    expect(c.previousNode('[type=foo]')).toBe(prev);
                 });
-                
-                it("should return the closest previous sibling that matches the selector", function(){
+
+                it("should return any previous sibling that matches the selector", function() {
                     var prev = new Ext.Component({
                         type: 'foo'
-                    });    
+                    });
+
+                    ct.add(prev, {}, {}, {}, c);
+                    expect(c.previousNode('[type=foo]')).toBe(prev);
+                });
+
+                it("should return the closest previous sibling that matches the selector", function() {
+                    var prev = new Ext.Component({
+                        type: 'foo'
+                    });
+
                     ct.add({}, {
                         type: 'foo'
                     }, prev, {}, c);
-                    expect(c.previousNode('[type=foo]')).toBe(prev);    
+                    expect(c.previousNode('[type=foo]')).toBe(prev);
                 });
-                
-                it("should return the container if the container matches the selector and no siblings do", function(){
-                    ct.add({}, {}, {}, c);    
+
+                it("should return the container if the container matches the selector and no siblings do", function() {
+                    ct.add({}, {}, {}, c);
                     ct.type = 'foo';
                     expect(c.previousNode('[type=foo]')).toBe(ct);
                 });
             });
-            
-            describe("nested", function(){
-                
-                it("should give precedence to children", function(){
+
+            describe("nested", function() {
+
+                it("should give precedence to children", function() {
                     var prev = new Ext.Component({
                         type: 'foo'
-                    });    
-                    
+                    });
+
                     mainCt.add(prev);
                     ct.add({
                         xtype: 'component',
@@ -5563,11 +5953,12 @@ describe("Ext.Component", function(){
                     }, mainCt, c);
                     expect(c.previousNode('[type=foo]')).toBe(prev);
                 });
-                
-                it("should match the deepest, last child", function(){
+
+                it("should match the deepest, last child", function() {
                     var prev = new Ext.Component({
                         type: 'foo'
                     });
+
                     mainCt.add({
                         xtype: 'component'
                     }, {
@@ -5587,15 +5978,16 @@ describe("Ext.Component", function(){
                                 xtype: 'component'
                             }]
                         }]
-                    }); 
+                    });
                     ct.add(mainCt, c);
-                    expect(c.previousNode('[type=foo]')).toBe(prev);   
+                    expect(c.previousNode('[type=foo]')).toBe(prev);
                 });
-                
-                it("should match any sibling if children don't match", function(){
+
+                it("should match any sibling if children don't match", function() {
                     var prev = new Ext.Component({
                         type: 'foo'
                     });
+
                     mainCt.add({
                         xtype: 'component'
                     }, {
@@ -5616,159 +6008,197 @@ describe("Ext.Component", function(){
                                 xtype: 'component'
                             }]
                         }]
-                    }); 
+                    });
                     ct.add(prev, mainCt, c);
-                    expect(c.previousNode('[type=foo]')).toBe(prev);   
+                    expect(c.previousNode('[type=foo]')).toBe(prev);
                 });
             });
-            
+
         });
     });
-    
-    describe("nextSibling", function(){
+
+    describe("findParentBy", function() {
         var ct;
-        beforeEach(function(){
+
+        describe("findParentByType", function() {
+            beforeEach(function() {
+                ct = new Ext.toolbar.Toolbar({
+                    renderTo: document.body
+                });
+                makeComponent({
+                    renderTo: null
+                });
+                ct.add(c);
+            });
+
+            afterEach(function() {
+                ct.destroy();
+            });
+
+            it("should find by xtype", function() {
+                expect(c.findParentByType('toolbar')).toBe(ct);
+            });
+
+            it("should find by class", function() {
+                expect(c.findParentByType(Ext.toolbar.Toolbar)).toBe(ct);
+            });
+        });
+    });
+
+    describe("nextSibling", function() {
+        var ct;
+
+        beforeEach(function() {
             makeComponent();
             ct = new Ext.container.Container();
         });
-        
-        afterEach(function(){
+
+        afterEach(function() {
             ct.destroy();
         });
-        it("should return null if it is not in a container", function(){
+        it("should return null if it is not in a container", function() {
             expect(c.nextSibling()).toBeNull();
-        });    
-        
-        it("should return null if it is the only item in the container", function(){
+        });
+
+        it("should return null if it is the only item in the container", function() {
             ct.add(c);
             expect(c.nextSibling()).toBeNull();
         });
-        
-        it("should return null if it is the last item in the container", function(){
+
+        it("should return null if it is the last item in the container", function() {
             ct.add([{}, {}, {}, {}, c]);
-            expect(c.nextSibling()).toBeNull();    
+            expect(c.nextSibling()).toBeNull();
         });
-        
-        it("should return the closest next sibling", function(){
+
+        it("should return the closest next sibling", function() {
             var other = new Ext.Component();
+
             ct.add([{}, {}, {}, c, other, {}]);
-            expect(c.nextSibling()).toBe(other);    
+            expect(c.nextSibling()).toBe(other);
         });
-        
-        it("should return null if no next items match the selector", function(){
+
+        it("should return null if no next items match the selector", function() {
             ct.add([c, {}, {}, {}, {}]);
             expect(c.nextSibling('*[aProp=1]')).toBeNull();
         });
-        
-        it("should return an item matching the selector", function(){
+
+        it("should return an item matching the selector", function() {
             var other = new Ext.Component({
                 aProp: 1
             });
+
             ct.add([c, {}, {}, other, {}]);
             expect(c.nextSibling('*[aProp=1]')).toBe(other);
         });
-        
-        it("should return the first item matching the selector", function(){
+
+        it("should return the first item matching the selector", function() {
             var other = new Ext.Component({
                 aProp: 1
             });
-            ct.add([c, {}, other, {aProp: 1}, {}, {}]);
+
+            ct.add([c, {}, other, { aProp: 1 }, {}, {}]);
             expect(c.nextSibling('*[aProp=1]')).toBe(other);
         });
     });
-    
-    describe("nextNode", function(){
+
+    describe("nextNode", function() {
         var ct, mainCt;
-        
-        beforeEach(function(){
+
+        beforeEach(function() {
             makeComponent();
             ct = new Ext.container.Container();
             mainCt = new Ext.container.Container();
         });
-        
-        afterEach(function(){
+
+        afterEach(function() {
             ct.destroy();
             mainCt.destroy();
             ct = mainCt = null;
         });
-        
+
         describe("without selectors", function() {
-        
-            it("should return null if it is not in a container", function(){
+
+            it("should return null if it is not in a container", function() {
                 expect(c.nextNode()).toBeNull();
             });
-        
-            it("should return the nextNode of the owner container if there are no siblings", function(){
+
+            it("should return the nextNode of the owner container if there are no siblings", function() {
                 var next = new Ext.Component();
+
                 mainCt.add(c);
                 ct.add(mainCt, next);
                 expect(c.nextNode()).toBe(next);
             });
-        
-            it("should return the next sibling if it exists", function(){
+
+            it("should return the next sibling if it exists", function() {
                 var next = new Ext.Component();
+
                 ct.add(c, next);
                 expect(c.nextNode()).toBe(next);
             });
-        
-            it("should be able to select itself if includeSelf is passed", function(){
+
+            it("should be able to select itself if includeSelf is passed", function() {
                 ct.add(c);
-                expect(c.nextNode(null, true)).toBe(c);    
+                expect(c.nextNode(null, true)).toBe(c);
             });
         });
-        
-        describe("with selectors", function(){
-            
+
+        describe("with selectors", function() {
+
             describe("flat", function() {
-            
-                it("should return null if no component matches the selector", function(){
+
+                it("should return null if no component matches the selector", function() {
                     ct.add(c);
-                    expect(c.nextNode('foo')).toBeNull();    
-                });  
-            
-                it("should return the next sibling if it matches the selector", function(){
+                    expect(c.nextNode('foo')).toBeNull();
+                });
+
+                it("should return the next sibling if it matches the selector", function() {
                     var next = new Ext.Component({
                         type: 'foo'
-                    });    
+                    });
+
                     ct.add(c, next);
                     expect(c.nextNode('[type=foo]')).toBe(next);
                 });
-                
-                it("should return any next sibling that matches the selector", function(){
+
+                it("should return any next sibling that matches the selector", function() {
                     var next = new Ext.Component({
                         type: 'foo'
                     });
+
                     ct.add(c, {}, {}, {}, next);
-                    expect(c.nextNode('[type=foo]')).toBe(next);    
+                    expect(c.nextNode('[type=foo]')).toBe(next);
                 });
-                
-                it("should return the closest next sibling that matches the selector", function(){
+
+                it("should return the closest next sibling that matches the selector", function() {
                     var next = new Ext.Component({
                         type: 'foo'
-                    });    
+                    });
+
                     ct.add(c, {}, next, {}, {
                         type: 'foo'
                     }, {});
-                    expect(c.nextNode('[type=foo]')).toBe(next);    
+                    expect(c.nextNode('[type=foo]')).toBe(next);
                 });
-                
-                it("should return the owner container nextNode if the nextNode matches the selector and no siblings do", function(){
+
+                it("should return the owner container nextNode if the nextNode matches the selector and no siblings do", function() {
                     var next = new Ext.Component({
                         type: 'foo'
                     });
-                    mainCt.add(c, {}, {}, {});  
-                    ct.add(mainCt, next);  
+
+                    mainCt.add(c, {}, {}, {});
+                    ct.add(mainCt, next);
                     expect(c.nextNode('[type=foo]')).toBe(next);
                 });
             });
-            
-            describe("nested", function(){
-                
-                it("should give precedence to children", function(){
+
+            describe("nested", function() {
+
+                it("should give precedence to children", function() {
                     var next = new Ext.Component({
                         type: 'foo'
-                    });    
-                    
+                    });
+
                     mainCt.add(next);
                     ct.add(c, mainCt, {
                         xtype: 'component',
@@ -5776,11 +6206,12 @@ describe("Ext.Component", function(){
                     });
                     expect(c.nextNode('[type=foo]')).toBe(next);
                 });
-                
-                it("should match the least deep, first child", function(){
+
+                it("should match the least deep, first child", function() {
                     var next = new Ext.Component({
                         type: 'foo'
                     });
+
                     mainCt.add({
                         xtype: 'component'
                     }, next, {
@@ -5800,15 +6231,16 @@ describe("Ext.Component", function(){
                                 xtype: 'component'
                             }]
                         }]
-                    }); 
+                    });
                     ct.add(c, mainCt);
-                    expect(c.nextNode('[type=foo]')).toBe(next);   
+                    expect(c.nextNode('[type=foo]')).toBe(next);
                 });
-                
-                it("should match any sibling if children don't match", function(){
+
+                it("should match any sibling if children don't match", function() {
                     var next = new Ext.Component({
                         type: 'foo'
                     });
+
                     mainCt.add({
                         xtype: 'component'
                     }, {
@@ -5829,28 +6261,28 @@ describe("Ext.Component", function(){
                                 xtype: 'component'
                             }]
                         }]
-                    }); 
+                    });
                     ct.add(c, mainCt, next);
-                    expect(c.nextNode('[type=foo]')).toBe(next);   
+                    expect(c.nextNode('[type=foo]')).toBe(next);
                 });
             });
-            
+
         });
     });
-    
-    describe("rendering cycle", function(){
+
+    describe("rendering cycle", function() {
         var makeContainer,
             ct;
-            
-        beforeEach(function(){
-            makeContainer = function(event, fn1, fn2){
-                
+
+        beforeEach(function() {
+            makeContainer = function(event, fn1, fn2) {
+
                 var l1 = {},
                     l2 = {};
-                    
+
                 l1[event + 'render'] = fn1;
                 l2[event + 'render'] = fn2;
-                
+
                 ct = new Ext.container.Container({
                     defaultType: 'component',
                     items: [{
@@ -5869,149 +6301,150 @@ describe("Ext.Component", function(){
                 });
             };
         });
-        
-        afterEach(function(){
+
+        afterEach(function() {
             makeContainer = null;
             Ext.destroy(ct);
             ct = null;
         });
-        
-        it("should be able to add a class in beforerender using the API", function(){
-            makeContainer('before', function(c){
+
+        it("should be able to add a class in beforerender using the API", function() {
+            makeContainer('before', function(c) {
                 c.next().addCls('foo');
-            }, function(c){
+            }, function(c) {
                 c.prev().addCls('bar');
             });
             ct.render(Ext.getBody());
-            
+
             expect(Ext.getCmp('b').el.hasCls('foo')).toBe(true);
             expect(Ext.getCmp('c').el.hasCls('bar')).toBe(true);
         });
-        
-        it("should be able to add a class in beforerender using this.cls", function(){
-            makeContainer('before', function(c){
+
+        it("should be able to add a class in beforerender using this.cls", function() {
+            makeContainer('before', function(c) {
                 c.next().cls += ' foo';
-            }, function(c){
+            }, function(c) {
             });
             ct.render(Ext.getBody());
-            
+
             expect(Ext.getCmp('b').el.hasCls('foo')).toBe(true);
         });
-        
-        it("should be able to check if a class exists in beforerender", function(){
+
+        it("should be able to check if a class exists in beforerender", function() {
             var hasB,
                 hasC;
-                
-            makeContainer('before', function(c){
+
+            makeContainer('before', function(c) {
                 hasB = c.next().hasCls('clsB');
-            }, function(c){
+            }, function(c) {
                 hasC = c.prev().hasCls('clsC');
             });
             ct.render(Ext.getBody());
-            
+
             expect(hasB).toBe(true);
             expect(hasC).toBe(true);
         });
-        
-        it("should be able to remove a class in beforerender", function(){
-            makeContainer('before', function(c){
+
+        it("should be able to remove a class in beforerender", function() {
+            makeContainer('before', function(c) {
                 c.next().removeCls('clsB');
-            }, function(c){
+            }, function(c) {
                 c.prev().removeCls('clsC');
             });
             ct.render(Ext.getBody());
-            
+
             expect(Ext.getCmp('b').el.hasCls('clsB')).toBe(false);
             expect(Ext.getCmp('c').el.hasCls('clsC')).toBe(false);
         });
-        
-        it("should be able to add a class in aftererender", function(){
-            makeContainer('after', function(c){
+
+        it("should be able to add a class in aftererender", function() {
+            makeContainer('after', function(c) {
                 c.next().addCls('foo');
-            }, function(c){
+            }, function(c) {
                 c.prev().addCls('bar');
             });
             ct.render(Ext.getBody());
-            
+
             expect(Ext.getCmp('b').el.hasCls('foo')).toBe(true);
             expect(Ext.getCmp('c').el.hasCls('bar')).toBe(true);
         });
-        
-        it("should be able to check if a class exists in afterrender", function(){
+
+        it("should be able to check if a class exists in afterrender", function() {
             var hasB,
                 hasC;
-                
-            makeContainer('before', function(c){
+
+            makeContainer('before', function(c) {
                 hasB = c.next().hasCls('clsB');
-            }, function(c){
+            }, function(c) {
                 hasC = c.prev().hasCls('clsC');
             });
             ct.render(Ext.getBody());
-            
+
             expect(hasB).toBe(true);
             expect(hasC).toBe(true);
         });
-        
-        it("should be able to remove a class in afterrender", function(){
-            makeContainer('after', function(c){
+
+        it("should be able to remove a class in afterrender", function() {
+            makeContainer('after', function(c) {
                 c.next().removeCls('clsB');
-            }, function(c){
+            }, function(c) {
                 c.prev().removeCls('clsC');
             });
             ct.render(Ext.getBody());
-            
+
             expect(Ext.getCmp('b').el.hasCls('clsB')).toBe(false);
             expect(Ext.getCmp('c').el.hasCls('clsC')).toBe(false);
         });
     });
 
-    describe("destruction", function(){
+    describe("destruction", function() {
         it("should be destroyed if not rendered", function() {
             makeComponent();
             expect(c.destroyed).toBe(false);
-            
+
             c.destroy();
             expect(c.destroyed).toBe(true);
         });
-        
-        it("should be destroyed if rendered", function(){
+
+        it("should be destroyed if rendered", function() {
             makeComponent({
                 renderTo: Ext.getBody()
             });
-            
+
             expect(c.destroyed).toBe(false);
             expect(Ext.get(c.id).dom.id).toBe(c.id);
-            
+
             c.destroy();
-            
+
             // component and el should be cleaned up
             expect(c.destroyed).toBe(true);
             expect(Ext.get(c.id)).toBe(null);
         });
-        
+
         it("should be destroyed and child els removed if childEls defined", function() {
             // Button is a convenient component to use since it already has childEls defined
             c = Ext.createWidget('button', {
                 renderTo: Ext.getBody()
             });
-            
+
             expect(c.destroyed).toBe(false);
             expect(Ext.get(c.id).dom.id).toBe(c.id);
-            
+
             var childId = c.btnEl.id;
+
             expect(Ext.get(childId).dom.id).toBe(childId);
-            
+
             c.destroy();
-            
+
             // component and child refs should be cleaned up
             expect(c.destroyed).toBe(true);
             expect(c.btnEl).toBe(null);
-            
+
             // component and child els should be gone
             expect(Ext.get(c.id)).toBeNull();
             expect(Ext.get(childId)).toBeNull();
         });
-        
+
         it("should be destroyed and child els removed if renderSelectors defined", function() {
             // Button does not have renderSelectors (since they were converted to childEls)
             // but it's an easy component to add selectors for to verify this case.
@@ -6022,24 +6455,25 @@ describe("Ext.Component", function(){
                     btnSelector2: '.x-btn-button'
                 }
             });
-            
+
             expect(c.destroyed).toBe(false);
             expect(Ext.get(c.id).dom.id).toBe(c.id);
-            
+
             var childId = c.btnSelector.id;
+
             expect(Ext.get(childId).dom.id).toBe(childId);
-            
+
             c.destroy();
-            
+
             // component and child refs should be cleaned up
             expect(c.destroyed).toBe(true);
             expect(c.btnSelector).not.toBeDefined();
-            
+
             // component and child els should be gone
             expect(Ext.get(c.id)).toBeNull();
             expect(Ext.get(childId)).toBeNull();
         });
-        
+
         it("should be destroyed when a childEl and a renderSelector have duplicate names", function() {
             // This should not normally happen, but is possible, especially when subclassing.
             // This test verifies the fix for a bug that happened in real code.
@@ -6050,19 +6484,20 @@ describe("Ext.Component", function(){
                     btnEl: '.x-btn-button'
                 }
             });
-            
+
             expect(c.destroyed).toBe(false);
             expect(Ext.get(c.id).dom.id).toBe(c.id);
-            
+
             var childId = c.btnEl.id;
+
             expect(Ext.get(childId).dom.id).toBe(childId);
-            
+
             c.destroy();
-            
+
             // component and child refs should be cleaned up
             expect(c.destroyed).toBe(true);
             expect(c.btnEl).toBeNull();
-            
+
             // component and child els should be gone
             expect(Ext.get(c.id)).toBeNull();
             expect(Ext.get(childId)).toBeNull();
@@ -6079,6 +6514,7 @@ describe("Ext.Component", function(){
                 });
 
                 var spy = jasmine.createSpy();
+
                 ct.on('remove', spy);
                 expect(ct.down('#foo')).toBe(c);
                 c.destroy();
@@ -6101,6 +6537,7 @@ describe("Ext.Component", function(){
                 });
 
                 var spy = jasmine.createSpy();
+
                 ct.on('remove', spy);
                 expect(ct.down('#foo')).toBe(c);
                 c.destroy();
@@ -6126,6 +6563,7 @@ describe("Ext.Component", function(){
 
                 c.show();
                 var spy = jasmine.createSpy();
+
                 ct.on('remove', spy);
                 expect(ct.down('#foo')).toBe(c);
                 c.destroy();
@@ -6151,6 +6589,7 @@ describe("Ext.Component", function(){
                 c.show();
 
                 var spy = jasmine.createSpy();
+
                 ct.on('remove', spy);
                 expect(ct.down('#foo')).toBe(c);
                 c.destroy();
@@ -6162,6 +6601,23 @@ describe("Ext.Component", function(){
                 ct.destroy();
             });
         });
+
+        describe("floating", function() {
+            it("should not destroy a previous align target", function() {
+                var el = Ext.getBody().createChild();
+
+                makeComponent({
+                    floating: true,
+                    width: 100,
+                    height: 100
+                });
+                c.show();
+                c.alignTo(el);
+                c.destroy();
+                expect(el.dom.parentNode).toBe(Ext.getBody().dom);
+                el.destroy();
+            });
+        });
     });
 
     describe("afterRender", function() {
@@ -6170,48 +6626,48 @@ describe("Ext.Component", function(){
         describe("when pageX/pageY is set", function() {
             describe("call setPagePosition", function() {
                 it("pageX", function() {
-                    makeComponent({pageX:10});
-                    
+                    makeComponent({ pageX: 10 });
+
                     spy = spyOn(c, "setPagePosition");
-                    
+
                     c.render(Ext.getBody());
-                    
-                    expect(spy).wasCalledWith(10, undefined);
+
+                    expect(spy).toHaveBeenCalledWith(10, undefined);
                 });
-                
+
                 it("pageY", function() {
-                    makeComponent({pageY:10});
-                    
+                    makeComponent({ pageY: 10 });
+
                     spy = spyOn(c, "setPagePosition");
-                    
+
                     c.render(Ext.getBody());
-                    
-                    expect(spy).wasCalledWith(undefined, 10);
+
+                    expect(spy).toHaveBeenCalledWith(undefined, 10);
                 });
             });
         });
-        
+
         describe("resizable", function() {
             it("should call initResizable", function() {
-                makeComponent({resizable:true});
+                makeComponent({ resizable: true });
 
                 spy = spyOn(c, "initResizable");
 
                 c.render(Ext.getBody());
 
-                expect(spy).wasCalled();
+                expect(spy).toHaveBeenCalled();
             });
         });
-        
+
         describe("draggable", function() {
             it("should call initDraggable", function() {
-                makeComponent({draggable:true});
-                
+                makeComponent({ draggable: true });
+
                 spy = spyOn(c, "initDraggable");
-                
+
                 c.render(Ext.getBody());
-                
-                expect(spy).wasCalled();
+
+                expect(spy).toHaveBeenCalled();
             });
         });
 
@@ -6219,11 +6675,11 @@ describe("Ext.Component", function(){
             describe("if autoScroll is not defined", function() {
                 it("should not call setAutoScroll", function() {
                     makeComponent();
-            
+
                     spy = spyOn(c, "getOverflowStyle").andCallThrough();
-            
+
                     c.render(Ext.getBody());
-            
+
                     expect(spy).toHaveBeenCalled();
                 });
             });
@@ -6232,11 +6688,11 @@ describe("Ext.Component", function(){
                     makeComponent({
                         autoScroll: false
                     });
-            
+
                     spy = spyOn(c, "getOverflowStyle").andCallThrough();
-            
+
                     c.render(Ext.getBody());
-            
+
                     expect(spy).toHaveBeenCalled();
                 });
             });
@@ -6403,7 +6859,7 @@ describe("Ext.Component", function(){
                 expect(c.getScrollable().getY()).toBe(true);
             });
 
-            it("should be able to clear the old scroller", function() {
+            it("should be able to disable scrolling", function() {
                 makeComponent({
                     renderTo: document.body,
                     width: 300,
@@ -6411,104 +6867,273 @@ describe("Ext.Component", function(){
                     scrollable: true
                 });
 
-                var scroller = c.getScrollable();
                 c.setScrollable(false);
-                expect(c.getScrollable()).toBeNull();
-                expect(scroller.destroyed).toBe(true);
+                expect(c.getScrollable().getX()).toBe(false);
+                expect(c.getScrollable().getY()).toBe(false);
             });
         });
 
-        describe('scroll position', function () {
-            it('should preserve vertical scroll position when toggling hide/show', function () {
-                makeComponent({
-                    renderTo: document.body,
-                    height: 100,
-                    width: 100,
-                    scrollable: true,
-                    html: makeText()
-                });
+        describe("retaining scroll position across layouts", function() {
+            var endSpy, s;
 
-                c.el.dom.scrollTop = 1000;
-
-                c.hide();
-                c.show();
-
-                expect(c.el.dom.scrollTop).toBe(1000);
+            beforeEach(function() {
+                endSpy = jasmine.createSpy();
             });
 
-            describe('in a container', function () {
-                var ct, ctScrollable;
+            afterEach(function() {
+                endSpy = s = null;
+            });
 
-                beforeEach(function () {
+            describe("configured dimensions", function() {
+                beforeEach(function() {
                     makeComponent({
-                        width: 500,
-                        height: 500,
-                        html: makeText(),
-                        scrollable: true
-                    });
-
-                    ct = Ext.widget({
-                        xtype: 'container',
-                        renderTo: document.body,
-                        height: 200,
+                        renderTo: Ext.getBody(),
                         width: 200,
-                        items: c,
-                        scrollable: true
+                        height: 200,
+                        scrollable: true,
+                        html: '<div style="width: 600px; height: 600px;"></div>'
                     });
-
-                    ctScrollable = ct.scrollable;
+                    s = c.getScrollable();
+                    s.on('scrollend', endSpy);
                 });
 
-                afterEach(function () {
-                    ct = ctScrollable = Ext.destroy(ct);
+                it("should retain position", function() {
+                    s.scrollTo(300, 300);
+                    waitsFor(function() {
+                        return endSpy.callCount > 0;
+                    });
+                    runs(function() {
+                        c.setSize(199, 199);
+                    });
+                    waitsFor(function() {
+                        var pos = s.getPosition();
+
+                        return pos.x > 0 && pos.y > 0;
+                    });
+                    runs(function() {
+                        expect(s.getPosition()).toEqual({
+                            x: 300,
+                            y: 300
+                        });
+                    });
                 });
 
-                it('should preserve vertical scroll position when toggling hide/show', function () {
-                    var cmpScrollable;
-
-                    // Here we want a child component with different dimensions than the one created in beforeEach.
-                    ct.add({
-                        width: 100,
-                        height: 100,
-                        html: makeText(),
-                        scrollable: true
+                it("should retain position when hiding/showing", function() {
+                    s.scrollTo(300, 300);
+                    waitsFor(function() {
+                        return endSpy.callCount > 0;
                     });
+                    runs(function() {
+                        c.hide();
+                        c.show();
+                    });
+                    waitsFor(function() {
+                        var pos = s.getPosition();
 
-                    cmpScrollable = ct.items.getAt(1).scrollable;
-                    cmpScrollable.scrollTo(0, 150);
-
-                    ct.hide();
-                    ct.show();
-
-                    expect(cmpScrollable.getPosition()).toEqual({x: 0, y: 150});
+                        return pos.x > 0 && pos.y > 0;
+                    });
+                    runs(function() {
+                        expect(s.getPosition()).toEqual({
+                            x: 300,
+                            y: 300
+                        });
+                    });
                 });
 
-                describe('scroll position of container', function () {
-                    it('should preserve vertical scroll position when toggling hide/show', function () {
-                        ctScrollable.scrollTo(0, 150);
+                it("should not fire a scroll event", function() {
+                    var spy = jasmine.createSpy();
 
-                        ct.hide();
-                        ct.show();
+                    s.scrollTo(300, 300);
+                    waitsFor(function() {
+                        return endSpy.callCount > 0;
+                    });
+                    runs(function() {
+                        s.on('scroll', spy);
+                        c.setSize(199, 199);
+                    });
+                    waitsFor(function() {
+                        var pos = s.getPosition();
 
-                        expect(ctScrollable.getPosition()).toEqual({x: 0, y: 150});
+                        return pos.x > 0 && pos.y > 0;
+                    });
+                    runs(function() {
+                        expect(spy).not.toHaveBeenCalled();
+                    });
+                });
+            });
+
+            describe("calculated dimensions", function() {
+                var ct;
+
+                beforeEach(function() {
+                    makeComponent({
+                        scrollable: true,
+                        html: '<div style="width: 600px; height: 600px;"></div>'
                     });
 
-                    it('should preserve horizontal scroll position when toggling hide/show', function () {
-                        ctScrollable.scrollTo(300, 0);
-
-                        ct.hide();
-                        ct.show();
-
-                        expect(ctScrollable.getPosition()).toEqual({x: 300, y: 0});
+                    ct = new Ext.container.Container({
+                        renderTo: Ext.getBody(),
+                        width: 200,
+                        height: 200,
+                        layout: 'fit',
+                        items: c
                     });
 
-                    it('should preserve both scroll positions when toggling hide/show', function () {
-                        ctScrollable.scrollTo(300, 150);
+                    s = c.getScrollable();
+                    s.on('scrollend', endSpy);
+                });
 
-                        ct.hide();
-                        ct.show();
+                afterEach(function() {
+                    ct.destroy();
+                    ct = null;
+                });
 
-                        expect(ctScrollable.getPosition()).toEqual({x: 300, y: 150});
+                it("should retain position", function() {
+                    s.scrollTo(300, 300);
+                    waitsFor(function() {
+                        return endSpy.callCount > 0;
+                    });
+                    runs(function() {
+                        ct.setSize(199, 199);
+                    });
+                    waitsFor(function() {
+                        var pos = s.getPosition();
+
+                        return pos.x > 0 && pos.y > 0;
+                    });
+                    runs(function() {
+                        expect(s.getPosition()).toEqual({
+                            x: 300,
+                            y: 300
+                        });
+                    });
+                });
+
+                it("should retain position when hiding/showing", function() {
+                    s.scrollTo(300, 300);
+                    waitsFor(function() {
+                        return endSpy.callCount > 0;
+                    });
+                    runs(function() {
+                        c.hide();
+                        c.show();
+                    });
+                    waitsFor(function() {
+                        var pos = s.getPosition();
+
+                        return pos.x > 0 && pos.y > 0;
+                    });
+                    runs(function() {
+                        expect(s.getPosition()).toEqual({
+                            x: 300,
+                            y: 300
+                        });
+                    });
+                });
+
+                it("should not fire a scroll event", function() {
+                    var spy = jasmine.createSpy();
+
+                    s.scrollTo(300, 300);
+                    waitsFor(function() {
+                        return endSpy.callCount > 0;
+                    });
+                    runs(function() {
+                        s.on('scroll', spy);
+                        ct.setSize(199, 199);
+                    });
+                    waitsFor(function() {
+                        var pos = s.getPosition();
+
+                        return pos.x > 0 && pos.y > 0;
+                    });
+                    runs(function() {
+                        expect(spy).not.toHaveBeenCalled();
+                    });
+                });
+            });
+
+            describe("shrinkWrap with constraints", function() {
+                var ct;
+
+                beforeEach(function() {
+                    makeComponent({
+                        renderTo: Ext.getBody(),
+                        scrollable: true,
+                        html: '<div style="width: 600px; height: 600px;"></div>',
+                        shrinkWrap: true,
+                        floating: true,
+                        maxWidth: 200,
+                        maxHeight: 200,
+                        x: 0,
+                        y: 0
+                    });
+
+                    s = c.getScrollable();
+                    s.on('scrollend', endSpy);
+                });
+
+                it("should retain position", function() {
+                    s.scrollTo(300, 300);
+                    waitsFor(function() {
+                        return endSpy.callCount > 0;
+                    });
+                    runs(function() {
+                        c.setHtml('<div style="width: 700px; height: 700px;"></div>');
+                    });
+                    waitsFor(function() {
+                        var pos = s.getPosition();
+
+                        return pos.x > 0 && pos.y > 0;
+                    });
+                    runs(function() {
+                        expect(s.getPosition()).toEqual({
+                            x: 300,
+                            y: 300
+                        });
+                    });
+                });
+
+                it("should retain position when hiding/showing", function() {
+                    s.scrollTo(300, 300);
+                    waitsFor(function() {
+                        return endSpy.callCount > 0;
+                    });
+                    runs(function() {
+                        c.hide();
+                        c.show();
+                    });
+                    waitsFor(function() {
+                        var pos = s.getPosition();
+
+                        return pos.x > 0 && pos.y > 0;
+                    });
+                    runs(function() {
+                        expect(s.getPosition()).toEqual({
+                            x: 300,
+                            y: 300
+                        });
+                    });
+                });
+
+                it("should not fire a scroll event", function() {
+                    var spy = jasmine.createSpy();
+
+                    s.scrollTo(300, 300);
+                    waitsFor(function() {
+                        return endSpy.callCount > 0;
+                    });
+                    runs(function() {
+                        s.on('scroll', spy);
+                        c.setHtml('<div style="width: 700px; height: 700px;"></div>');
+                    });
+                    waitsFor(function() {
+                        var pos = s.getPosition();
+
+                        return pos.x > 0 && pos.y > 0;
+                    });
+                    runs(function() {
+                        expect(spy).not.toHaveBeenCalled();
                     });
                 });
             });
@@ -6777,7 +7402,7 @@ describe("Ext.Component", function(){
         });
     });
 
-    (Ext.supports.Touch ? xdescribe : describe)("scroll template methods", function() {
+    (jasmine.supportsTouch ? xdescribe : describe)("scroll template methods", function() {
         var startSpy, moveSpy, endSpy;
 
         beforeEach(function() {
@@ -6803,22 +7428,27 @@ describe("Ext.Component", function(){
             // scroll twice, make sure onScrollStart only ran once
             c.scrollTo(10, 20);
 
-            waitsFor(function() {
-                return startSpy.callCount === 1;
-            }, 'startSpy to fire', 1000);
+            // onScrollMove is called afteronScrollStart, so both will be done and testable after this
+            // But the buffered scroll end timer will not have expired, so the next scroll impulse
+            // will not call onScrollStart
+            waitsForSpy(moveSpy);
 
             runs(function() {
+                expect(startSpy.callCount).toBe(1);
                 expect(startSpy.mostRecentCall.args).toEqual([10, 20]);
                 c.scrollTo(20, 30);
             });
 
-            waitsFor(function() {
-                return moveSpy.callCount === 2;
-            }, 'moveSpy to fire', 1000);
+            waitsForSpy(moveSpy);
 
             runs(function() {
+                // Because we moved through with no waiting, the scroll end timer has not fired, so this
+                // will be part of one scroll sequence
                 expect(startSpy.callCount).toBe(1);
             });
+
+            // This is still due
+            waitsForSpy(endSpy);
         });
 
         it("should call onScrollMove during scrolling", function() {
@@ -6846,16 +7476,16 @@ describe("Ext.Component", function(){
             c.scrollTo(10, 20);
 
             waitsFor(function() {
-                return moveSpy.callCount === 1;
-            }, 'moveSpy to fire', 1000);
+                return endSpy.callCount === 1;
+            }, 'endSpy to fire the first time', 1000);
 
             runs(function() {
                 c.scrollTo(20, 30);
             });
 
             waitsFor(function() {
-                return endSpy.callCount === 1;
-            }, 'endSpy to fire', 1000);
+                return endSpy.callCount === 2;
+            }, 'endSpy to fire the second time', 1000);
 
             runs(function() {
                 expect(endSpy.mostRecentCall.args).toEqual([20, 30]);
@@ -6865,135 +7495,135 @@ describe("Ext.Component", function(){
 
     describe("initResizer", function() {
         beforeEach(function() {
-            makeComponent({renderTo: Ext.getBody()});
+            makeComponent({ renderTo: Ext.getBody() });
         });
-        
+
         it("should create this.resizer", function() {
             expect(c.resizer).not.toBeDefined();
-            
+
             c.initResizable();
-            
+
             expect(c.resizer).toBeDefined();
         });
     });
-    
+
     xdescribe("initDraggable", function() {
-        
+
     });
-    
+
     describe("setPosition", function() {
         beforeEach(function() {
-            makeComponent({renderTo: Ext.getBody()});
+            makeComponent({ renderTo: Ext.getBody() });
         });
-        
+
         describe("when arguments", function() {
             it("should set x", function() {
                 c.setPosition(10, 0);
-                
+
                 expect(c.x).toEqual(10);
             });
-            
+
             it("should set y", function() {
                 c.setPosition(0, 10);
-                
+
                 expect(c.y).toEqual(10);
             });
         });
-        
+
         describe("when array", function() {
             it("should set x", function() {
                 c.setPosition([10, 0]);
-                
+
                 expect(c.x).toEqual(10);
             });
-            
+
             it("should set y", function() {
                 c.setPosition([0, 10]);
-                
+
                 expect(c.y).toEqual(10);
             });
         });
-        
+
         describe("when rendered", function() {
             it("should call adjustPosition", function() {
                 var spy = spyOn(c, "adjustPosition").andCallThrough();
-                
+
                 c.setPosition(10, 0);
-                
-                expect(spy).wasCalled();
+
+                expect(spy).toHaveBeenCalled();
             });
-            
+
             it("should call onPosition", function() {
                 var spy = spyOn(c, "onPosition");
-                
+
                 c.setPosition(10, 0);
-                
-                expect(spy).wasCalled();
+
+                expect(spy).toHaveBeenCalled();
             });
-            
+
             it("should fire the move event", function() {
                 var fired = false;
-                
-                c.on({move:function() {fired = true;}});
-                
+
+                c.on({ move: function() { fired = true; } });
+
                 c.setPosition(10, 0);
-                
+
                 expect(fired).toBeTruthy();
             });
         });
     });
-    
+
     describe("showAt", function() {
         beforeEach(function() {
-            makeComponent({renderTo: Ext.getBody()});
+            makeComponent({ renderTo: Ext.getBody() });
         });
-        
+
         it("should call setPagePosition", function() {
             var spy = spyOn(c, "setPagePosition");
-            
+
             c.showAt(10, 0, true);
-            
-            expect(spy).wasCalledWith(10, 0, true);
+
+            expect(spy).toHaveBeenCalledWith(10, 0, true);
         });
-        
+
         it("should call show", function() {
             var spy = spyOn(c, "show");
-            
+
             c.showAt(10, 0);
-            
-            expect(spy).wasCalled();
+
+            expect(spy).toHaveBeenCalled();
         });
     });
-    
+
     describe("setPagePosition", function() {
         beforeEach(function() {
-            makeComponent({renderTo: Ext.getBody()});
+            makeComponent({ renderTo: Ext.getBody() });
         });
-        
+
         describe("when arguments", function() {
             it("should set x", function() {
                 c.setPagePosition(10, 0);
-                
+
                 expect(c.pageX).toEqual(10);
             });
-            
+
             it("should set y", function() {
                 c.setPagePosition(0, 10);
-                
+
                 expect(c.pageY).toEqual(10);
             });
         });
-        
+
         describe("when array", function() {
             it("should set x", function() {
                 c.setPagePosition([10, 0]);
-                
+
                 expect(c.pageX).toEqual(10);
             });
-            
+
             it("should set y", function() {
                 c.setPagePosition([0, 10]);
-                
+
                 expect(c.pageY).toEqual(10);
             });
         });
@@ -7014,7 +7644,7 @@ describe("Ext.Component", function(){
     describe("Component traversal", function() {
         var cq = Ext.ComponentQuery,
             result, f1, f2, f3, f4, f5, fieldset, p;
-        
+
         beforeEach(function() {
             p = new Ext.Panel({
                 layout: 'card',
@@ -7041,7 +7671,7 @@ describe("Ext.Component", function(){
                 })
             });
         });
-        
+
         afterEach(function() {
             p.destroy();
             p = fieldset = f1 = f2 = f3 = f4 = f5 = null;
@@ -7096,62 +7726,67 @@ describe("Ext.Component", function(){
             });
         });
 
-        describe("Component.up searches for a string", function () {
-            describe("Component.up('selector')", function () {
-                it("Should select panel", function () {
+        describe("Component.up searches for a string", function() {
+            describe("Component.up('selector')", function() {
+                it("Should select panel", function() {
                     result = f3.up('panel');
                     expect(result).toEqual(p);
                 });
             });
 
-            describe("Component.up() on outermost container", function () {
-                it("Should select undefined", function () {
+            describe("Component.up() on outermost container", function() {
+                it("Should select undefined", function() {
                     result = p.up();
                     expect(result).toBeUndefined();
                 });
             });
 
-            describe("Component.up('selector') on xtype which does not occur", function () {
-                it("Should select undefined", function () {
+            describe("Component.up('selector') on xtype which does not occur", function() {
+                it("Should select undefined", function() {
                     result = f3.up('gridpanel');
                     expect(result).toBeUndefined();
                 });
             });
 
-            describe("Component.up(':pseudo-class')", function () {
-                beforeEach(function () {
+            describe("Component.up(':pseudo-class')", function() {
+                beforeEach(function() {
                     cq.pseudos.cardLayout = function(items) {
-                        var result = [], c, i = 0, l = items.length;
+                        var result = [],
+                            c,
+                            i = 0,
+                            l = items.length;
+
                         for (; i < l; i++) {
                             if ((c = items[i]).getLayout() instanceof Ext.layout.CardLayout) {
                                 result.push(c);
                             }
                         }
+
                         return result;
                     };
                 });
 
-                afterEach(function () {
+                afterEach(function() {
                     delete cq.pseudos.cardLayout;
                 });
 
-                it("Should select the panel", function () {
+                it("Should select the panel", function() {
                     result = f3.up(':cardLayout');
                     expect(result).toEqual(p);
                 });
             });
         });
 
-        describe("Component.up searches for a Component", function () {
-            it("should not find children", function () {
+        describe("Component.up searches for a Component", function() {
+            it("should not find children", function() {
                 expect(p.up(f1)).toBe(undefined);
             });
 
-            it("should not find siblings", function () {
+            it("should not find siblings", function() {
                 expect(f3.up(f2)).toBe(undefined);
             });
 
-            it("should find ancestors at any level", function () {
+            it("should find ancestors at any level", function() {
                 expect(f3.up(p)).toBe(p);
                 expect(f5.up(f4)).toBe(f4);
                 expect(f5.up(p)).toBe(p);
@@ -7161,14 +7796,14 @@ describe("Ext.Component", function(){
 
     describe("getPosition of static Component", function() {
         it("should report the element position of a component rendered to the body", function() {
-            c = Ext.create('Ext.Component', {floating:true, x:10, y:10, renderTo:document.body});
+            c = Ext.create('Ext.Component', { floating: true, x: 10, y: 10, renderTo: document.body });
             expect(c.getPosition()).toEqual([10, 10]);
             expect(c.getPosition(true)).toEqual([10, 10]);
         });
-        
+
         // This test seems to be failing intermittently in all browsers
         xit("should report the element position when not local, and the container-relative position when local", function() {
-            c = Ext.create('Ext.container.Container', { 
+            c = Ext.create('Ext.container.Container', {
                 margin: 10,
                 renderTo: document.body,
                 items: {
@@ -7190,13 +7825,13 @@ describe("Ext.Component", function(){
         it("should use the natural width of the window to calculate the header's width", function() {
             document.body.style.height = '100%';
             var body = Ext.getBody(),
-                w = Math.floor(body.getWidth()/2),
-                h = Math.floor(Ext.dom.Element.getViewportHeight()/2);
-            
+                w = Math.floor(body.getWidth() / 2),
+                h = Math.floor(Ext.dom.Element.getViewportHeight() / 2);
+
             // account for rounding errors
             w = [w, w + (Ext.isIE9m ? 10 : 1)];
             h = [h, h + 1];
-    
+
             c = Ext.create('Ext.panel.Panel', {
                 floating: {
                     shadow: false
@@ -7225,16 +7860,16 @@ describe("Ext.Component", function(){
             document.body.style.height = '';
         });
 
-        it("should use the natural height of the window to calculate the header's height", function () {
+        it("should use the natural height of the window to calculate the header's height", function() {
             document.body.style.height = '100%';
             var body = Ext.getBody(),
-                w = Math.floor(body.getWidth()/2),
-                h = Math.floor(Ext.dom.Element.getViewportHeight()/2);
+                w = Math.floor(body.getWidth() / 2),
+                h = Math.floor(Ext.dom.Element.getViewportHeight() / 2);
 
             // account for rounding errors
             w = [w, w + (Ext.isIE9m ? 10 : 1)];
             h = [h, h + 1];
-    
+
             c = Ext.create('Ext.panel.Panel', {
                 floating: {
                     shadow: false
@@ -7264,7 +7899,7 @@ describe("Ext.Component", function(){
             document.body.style.height = '';
         });
     });
-    
+
     describe("scrollFlags", function() {
         it("should set default flags", function() {
             makeComponent({
@@ -7278,7 +7913,7 @@ describe("Ext.Component", function(){
                 both: false
             });
         });
-        
+
         it("should set flags with scrollable: true", function() {
             makeComponent({
                 scrollable: true,
@@ -7292,7 +7927,7 @@ describe("Ext.Component", function(){
                 both: true
             });
         });
-        
+
         it("should set flags with scrollable: false", function() {
             makeComponent({
                 scrollable: false,
@@ -7328,7 +7963,7 @@ describe("Ext.Component", function(){
                 both: false
             });
         });
-        
+
         it("should set flags with horizontal auto-scrolling", function() {
             makeComponent({
                 scrollable: 'x',
@@ -7342,7 +7977,7 @@ describe("Ext.Component", function(){
                 both: false
             });
         });
-        
+
         it("should set flags with horizontal scroll", function() {
             makeComponent({
                 scrollable: {
@@ -7359,7 +7994,7 @@ describe("Ext.Component", function(){
                 both: false
             });
         });
-        
+
         it("should set flags with vertical auto-scrolling", function() {
             makeComponent({
                 scrollable: 'y',
@@ -7373,7 +8008,7 @@ describe("Ext.Component", function(){
                 both: false
             });
         });
-        
+
         it("should set flags with vertical scroll", function() {
             makeComponent({
                 scrollable: {
@@ -7390,7 +8025,7 @@ describe("Ext.Component", function(){
                 both: false
             });
         });
-        
+
         function createBothScrollSuite(ox, oy, expectX, expectY) {
             it("should set flags with overflowX: " + ox + ' & overflowY: ' + oy, function() {
                 makeComponent({
@@ -7409,17 +8044,17 @@ describe("Ext.Component", function(){
                 });
             });
         }
-        
+
         // All x values, Y true
         createBothScrollSuite(true, true, 'auto', 'auto');
         createBothScrollSuite('auto', true, 'auto', 'auto');
         createBothScrollSuite('scroll', true, 'scroll', 'auto');
-        
+
         // All x values, Y 'auto'
         createBothScrollSuite(true, 'auto', 'auto', 'auto');
         createBothScrollSuite('auto', 'auto', 'auto', 'auto');
         createBothScrollSuite('scroll', 'auto', 'scroll', 'auto');
-        
+
         // All x values, Y 'scroll'
         createBothScrollSuite(true, 'scroll', 'auto', 'scroll');
         createBothScrollSuite('auto', 'scroll', 'auto', 'scroll');
@@ -7428,7 +8063,7 @@ describe("Ext.Component", function(){
 
     describe("initStyles", function() {
         function createSuite(scopeCss) {
-            describe("root classes" + (scopeCss ? ' - with Ext.scopeCss == true' : '') , function() {
+            describe("root classes" + (scopeCss ? ' - with Ext.scopeCss == true' : ''), function() {
                 if (scopeCss) {
                     beforeEach(function() {
                         Ext.scopeCss = true;
@@ -7437,6 +8072,7 @@ describe("Ext.Component", function(){
                         Ext.scopeCss = undefined;
                     });
                 }
+
                 it("should apply root classes to root level components", function() {
                     var container = Ext.widget({
                         xtype: 'container',
@@ -7507,6 +8143,7 @@ describe("Ext.Component", function(){
 
             });
         }
+
         createSuite();
         createSuite(true);
     });
@@ -7539,38 +8176,39 @@ describe("Ext.Component", function(){
                 style: 'background-color:red'
             });
         });
-        
+
         it('should render the mask into the Component el by default', function() {
             c.mask();
-            
+
             expect(c.el.dom.childNodes.length).toBe(1);
             expect(c.el.dom.firstChild.className).toBe(Ext.baseCSSPrefix + 'mask ' + Ext.baseCSSPrefix + 'border-box');
             expect(Ext.fly(c.el.dom.firstChild).getBox()).toEqual(c.el.getBox());
         });
-        
+
         it('should render the mask into the Component el if getMaskTarget has been overridden to return null', function() {
             c.getMaskTarget = function() { return null; };
+
             c.mask();
-            
+
             expect(c.el.dom.childNodes.length).toBe(1);
             expect(c.el.dom.firstChild.className).toBe(Ext.baseCSSPrefix + 'mask ' + Ext.baseCSSPrefix + 'border-box');
             expect(Ext.fly(c.el.dom.firstChild).getBox()).toEqual(c.el.getBox());
         });
-        
+
         it("should remove the mask on unmask()", function() {
             c.mask();
             expect(c.el.dom.childNodes.length).toBe(1);
-            
+
             c.unmask();
             expect(c.el.dom.childNodes.length).toBe(0);
         });
-        
+
         describe("tabbable elements", function() {
             beforeEach(function() {
                 if (c) {
                     Ext.destroy(c);
                 }
-                
+
                 makeComponent({
                     height: 100,
                     width: 100,
@@ -7588,70 +8226,70 @@ describe("Ext.Component", function(){
                         '</div>'
                     ]
                 });
-                
+
                 c.mask();
             });
-            
+
             describe("masking", function() {
                 it("should remove itself from tab order", function() {
                     expect(c.el.isTabbable()).toBeFalsy();
                 });
-                
+
                 it("should remove its children from tab order", function() {
                     var tabbables = c.el.findTabbableElements({
                         skipSelf: true
                     });
-                
+
                     expect(tabbables.length).toBe(0);
                 });
             });
-            
+
             describe("unmasking", function() {
                 beforeEach(function() {
                     c.unmask();
                 });
-                
+
                 it("should restore itself in tab order", function() {
                     expect(c.el.isTabbable()).toBeTruthy();
                 });
-                
+
                 it("should restore its children tabbable state", function() {
                     var tabbables = c.el.findTabbableElements({
                         skipSelf: true
                     });
-                    
+
                     expect(tabbables.length).toBe(2);
                 });
             });
         });
-        
+
         describe("masked hierarchy state", function() {
             it("should be undefined before masking", function() {
                 expect(c.getInherited().masked).not.toBeDefined();
             });
-            
+
             it("should be true when masked", function() {
                 c.mask();
-                
+
                 expect(c.getInherited().masked).toBe(true);
             });
-            
+
             it("should be undefined again after masking", function() {
                 c.mask();
                 c.unmask();
-                
+
                 expect(c.getInherited().masked).not.toBeDefined();
             });
         });
-        
+
         describe("isMasked", function() {
             var ct;
-            
+
             beforeEach(function() {
                 if (c) {
                     Ext.destroy(c);
                 }
-                
+
                 ct = new Ext.container.Container({
                     renderTo: document.body,
                     height: 100,
@@ -7663,44 +8301,44 @@ describe("Ext.Component", function(){
                         style: 'background-color: green'
                     }]
                 });
-                
+
                 c = ct.down();
             });
-            
+
             afterEach(function() {
                 if (ct) {
                     Ext.destroy(ct);
                 }
-                
+
                 ct = null;
             });
-            
+
             it("should return false when component is not masked", function() {
                 expect(c.isMasked()).toBeFalsy();
             });
-            
+
             it("should return false when parent is masked but !hierarchy", function() {
                 ct.mask();
-                
+
                 expect(c.isMasked()).toBeFalsy();
             });
-            
+
             it("should return true when component is masked", function() {
                 c.mask();
-                
+
                 expect(c.isMasked()).toBeTruthy();
             });
-            
+
             it("should return true when parent is masked && hierarchy", function() {
                 ct.mask();
-                
+
                 expect(c.isMasked(true)).toBeTruthy();
             });
-            
+
             it("should return false again when parent is unmasked", function() {
                 ct.mask();
                 ct.unmask();
-                
+
                 expect(c.isMasked(true)).toBeFalsy();
             });
         });
@@ -7716,76 +8354,76 @@ describe("Ext.Component", function(){
                     style: 'background-color:red',
                     maskElement: 'el'
                 });
-            
+
                 c.setLoading(true);
             });
-            
+
             it('should render the LoadMask into the Component', function() {
                 expect(c.el.dom.childNodes.length).toBe(1);
             });
-            
+
             it("should set " + Ext.baseCSSPrefix + "mask class on the mask", function() {
                 var maskEl = Ext.get(c.el.dom.firstChild);
-                
+
                 expect(maskEl.hasCls(Ext.baseCSSPrefix + 'mask')).toBe(true);
             });
-            
+
             it("should size the mask to target el", function() {
                 expect(Ext.fly(c.el.dom.firstChild).getBox()).toEqual(c.el.getBox());
             });
-            
+
             it("should move the mask with the Component", function() {
                 // Mask should follow target component
-                c.setXY([100,100]);
+                c.setXY([100, 100]);
                 expect(Ext.fly(c.el.dom.firstChild).getBox()).toEqual(c.el.getBox());
             });
         });
-        
+
         describe("Default mask target (document body)", function() {
-            var childNo, maskNode;
-            
+            var childNo, maskNode, body;
+
             beforeEach(function() {
                 body = document.body;
                 childNo = body.children.length;
-                
+
                 makeComponent({
                     height: 100,
                     width: 100,
                     renderTo: document.body,
                     style: 'background-color:red'
                 });
-                
+
                 c.setLoading(true);
-                
+
                 maskNode = body.children[childNo + 1];
             });
-            
+
             it("should render LoadMask", function() {
                 expect(body.childNodes.length).toBe(childNo + 2); // target + mask = 2
             });
-            
+
             it("should set " + Ext.baseCSSPrefix + "mask class on the mask el", function() {
                 var maskEl = Ext.get(maskNode);
-                
+
                 expect(maskEl.hasCls(Ext.baseCSSPrefix + 'mask')).toBe(true);
             });
-            
+
             it("should size the mask to the target component", function() {
                 expect(Ext.fly(maskNode).getBox()).toEqual(c.el.getBox());
             });
-        
+
             it("should unmask document.body on destroy", function() {
                 c.destroy();
-                
+
                 expect(body.childNodes.length).toBe(childNo);
-                
+
                 c = null;
             });
         });
-        
+
         describe("isMasked", function() {
             var ct;
-            
+
             beforeEach(function() {
                 ct = new Ext.container.Container({
                     renderTo: document.body,
@@ -7798,44 +8436,44 @@ describe("Ext.Component", function(){
                         style: 'background-color: red'
                     }]
                 });
-                
+
                 c = ct.down();
             });
-            
+
             afterEach(function() {
                 if (ct) {
                     Ext.destroy(ct);
                 }
-                
+
                 ct = c = null;
             });
-            
+
             it("should return false when component is not masked", function() {
                 expect(c.isMasked()).toBeFalsy();
             });
-            
+
             it("should return false when parent is masked but !hierarchy", function() {
                 ct.setLoading(true);
-                
+
                 expect(c.isMasked()).toBeFalsy();
             });
-            
+
             it("should return true when component is masked", function() {
                 c.setLoading(true);
-                
+
                 expect(c.isMasked()).toBeTruthy();
             });
-            
+
             it("should return true when parent is masked && hierarchy", function() {
                 ct.setLoading(true);
-                
+
                 expect(c.isMasked(true)).toBeTruthy();
             });
-            
+
             it("should return false again when parent is unmasked", function() {
                 ct.setLoading(true);
                 ct.setLoading(false);
-                
+
                 expect(c.isMasked(true)).toBeFalsy();
             });
         });
@@ -7867,53 +8505,88 @@ describe("Ext.Component", function(){
                     }
                 });
             });
-            
+
             it("should be tabbable initially (sanity check)", function() {
                 expect(c.el.isTabbable()).toBeTruthy();
             });
-            
+
             describe("masking", function() {
                 beforeEach(function() {
                     c.setLoading(true);
                 });
-                
+
                 it("should remove itself from tab order", function() {
                     expect(c.el.isTabbable()).toBeFalsy();
                 });
-                
+
                 it("should remove its children from tab order", function() {
                     var tabbables = c.el.findTabbableElements({
                         skipSelf: true
                     });
-                
+
                     expect(tabbables.length).toBe(0);
                 });
             });
-            
+
             describe("unmasking", function() {
                 beforeEach(function() {
                     c.setLoading(true);
                     c.setLoading(false);
                 });
-                
+
                 it("should restore itself in tab order", function() {
                     expect(c.el.isTabbable()).toBeTruthy();
                 });
-                
+
                 it("should restore its children tabbable state", function() {
                     var tabbables = c.el.findTabbableElements({
                         skipSelf: true
                     });
-                    
+
                     expect(tabbables.length).toBe(2);
                 });
             });
         });
-        
-        describe('function args', function () {
+
+        describe("maskDefaults", function() {
+            var c;
+
+            afterEach(function() {
+                c = Ext.destroy(c);
+            });
+
+            it("should display default message if no maskDefaults is used", function() {
+                c = new Ext.Component({
+                    height: 100,
+                    width: 100,
+                    renderTo: document.body
+                });
+
+                c.setLoading(true);
+
+                expect(c.loadMask.msgTextEl.dom.innerHTML).toBe('Loading...');
+            });
+
+            it("should not display message if supplied with maskDefaults", function() {
+                c = new Ext.Component({
+                    height: 100,
+                    width: 100,
+                    renderTo: document.body,
+                    maskDefaults: {
+                        useMsg: false
+                    }
+                });
+
+                c.setLoading(true);
+
+                expect(c.loadMask.msgWrapEl.isVisible(true)).toBe(false);
+            });
+        });
+
+        describe('function args', function() {
             var c, loadMask;
 
-            beforeEach(function () {
+            beforeEach(function() {
                 c = new Ext.Component({
                     height: 100,
                     width: 100,
@@ -7927,73 +8600,137 @@ describe("Ext.Component", function(){
                 spyOn(loadMask, 'show').andCallThrough();
             });
 
-            afterEach(function () {
+            afterEach(function() {
                 Ext.destroy(c, loadMask);
                 c = loadMask = null;
             });
 
-            describe('load mask message', function () {
-                describe('no message string is passed', function () {
-                    it('should render with a default loading message if no arguments are passed', function () {
+            describe('load mask message', function() {
+                describe('no message string is passed', function() {
+                    it('should render with a default loading message if no arguments are passed', function() {
                         c.setLoading();
                         expect(loadMask.msgTextEl.dom.innerHTML).toBe(loadMask.msg);
                     });
 
-                    it('should render with a default loading message if first arg is not a string', function () {
+                    it('should render with a default loading message if first arg is not a string', function() {
                         c.setLoading(true);
                         expect(loadMask.msgTextEl.dom.innerHTML).toBe(loadMask.msg);
                     });
 
-                    it('should render with a default loading message if config does not have a msg property', function () {
-                        c.setLoading({target: c});
+                    it('should render with a default loading message if config does not have a msg property', function() {
+                        c.setLoading({ target: c });
                         expect(loadMask.msgTextEl.dom.innerHTML).toBe(loadMask.msg);
                     });
                 });
 
-                describe('message string is passed', function () {
-                    it('should render with the passed message string', function () {
+                describe('message string is passed', function() {
+                    it('should render with the passed message string', function() {
                         c.setLoading('Lulz');
                         expect(loadMask.msgTextEl.dom.innerHTML).toBe('Lulz');
                     });
 
-                    it('should render with the passed message string in the config object', function () {
-                        c.setLoading({msg: 'Rupert!'});
+                    it('should render with the passed message string in the config object', function() {
+                        c.setLoading({ msg: 'Rupert!' });
                         expect(loadMask.msgTextEl.dom.innerHTML).toBe('Rupert!');
                     });
                 });
             });
 
-            describe('first argument is false', function () {
-                it('should not render the load mask if false', function () {
+            describe('first argument is false', function() {
+                it('should not render the load mask if false', function() {
                     c.setLoading(false);
                     expect(loadMask.show).not.toHaveBeenCalled();
                 });
             });
 
-            describe('first argument is truthy or no arguments are passed', function () {
-                it('should render the load mask if no arguments are passed', function () {
+            describe('first argument is truthy or no arguments are passed', function() {
+                it('should render the load mask if no arguments are passed', function() {
                     c.setLoading();
                     expect(loadMask.show).toHaveBeenCalled();
                 });
 
-                it('should render the load mask if true', function () {
+                it('should render the load mask if true', function() {
                     c.setLoading(true);
                     expect(loadMask.show).toHaveBeenCalled();
                 });
 
-                it('should render the load mask if a zero-length string', function () {
+                it('should render the load mask if a zero-length string', function() {
                     c.setLoading('');
                     expect(loadMask.show).toHaveBeenCalled();
                 });
 
-                it('should render the load mask if a non-zero-length string', function () {
+                it('should render the load mask if a non-zero-length string', function() {
                     c.setLoading('Motley');
                     expect(loadMask.show).toHaveBeenCalled();
                 });
 
-                it('should render the load mask if a config object', function () {
-                    c.setLoading({target: c});
+                it('should render the load mask if a config object', function() {
+                    c.setLoading({ target: c });
                     expect(loadMask.show).toHaveBeenCalled();
+                });
+
+                // EXTJS-21006
+                it("should be enabled when using load mask hide and disable on single panel", function() {
+
+                    c.disable();
+                    loadMask.show();
+                    loadMask.hide();
+                    c.enable();
+
+                    expect(c.isMasked()).toBeFalsy();
+                    expect(c.el.dom.firstChild).toBe(null);
+               });
+            });
+        });
+
+        describe("ARIA", function() {
+            beforeEach(function() {
+                makeComponent({
+                    height: 100,
+                    width: 100,
+                    renderTo: Ext.getBody(),
+                    style: 'background-color:red',
+                    ariaRole: 'button',
+                    focusable: true,
+                    tabIndex: 0
+                });
+            });
+
+            describe("masking", function() {
+                beforeEach(function() {
+                    c.setLoading(true);
+                });
+
+                it("should set aria-describedby", function() {
+                    expect(c).toHaveAttr('aria-describedby', c.loadMask.id);
+                });
+
+                it("should set aria-busy", function() {
+                    expect(c).toHaveAttr('aria-busy', 'true');
+                });
+            });
+
+            describe("unmasking", function() {
+                it("should remove aria-describedby", function() {
+                    c.setLoading(true);
+                    c.setLoading(false);
+
+                    expect(c).not.toHaveAttr('aria-describedby');
+                });
+
+                it("should preserve aria-describedby value if it was set", function() {
+                    c.ariaEl.dom.setAttribute('aria-describedby', 'foo');
+                    c.setLoading(true);
+                    c.setLoading(false);
+
+                    expect(c).toHaveAttr('aria-describedby', 'foo');
+                });
+
+                it("should remove aria-busy", function() {
+                    c.setLoading(true);
+                    c.setLoading(false);
+
+                    expect(c).not.toHaveAttr('aria-busy');
                 });
             });
         });
@@ -8178,7 +8915,6 @@ describe("Ext.Component", function(){
                 liquidLayout: true,
                 minWidth: 50
             });
-
 
             expect(c.el.isStyle('min-width', '50px')).toBe(true);
         });
@@ -8508,6 +9244,7 @@ describe("Ext.Component", function(){
                 // event options along to the element when we attach an event listener using
                 // the element event option.
                 var result = [];
+
                 foo.on({
                     element: 'el',
                     mousedown: function() {
@@ -8572,10 +9309,12 @@ describe("Ext.Component", function(){
                     delegated: false
                 });
 
-
                 jasmine.fireMouseEvent(foo.childEl, 'mousedown');
 
-                expect(result).toEqual(['pdc', 'cdc', 'cd', 'pd', 'pc', 'cc', 'c', 'p'])
+                expect(result).toEqual(['pdc', 'cdc', 'cd', 'pd', 'pc', 'cc', 'c', 'p']);
+
+                // Finish off active gestures
+                jasmine.fireMouseEvent(foo.childEl, 'mouseup');
             });
 
             it("should allow element options to be used as event names", function() {
@@ -8658,7 +9397,18 @@ describe("Ext.Component", function(){
             });
 
             afterEach(function() {
-                container.destroy();
+                container = Ext.destroy(container);
+            });
+
+            it("should not be case sensitive", function() {
+                container.on({
+                    rEnDeR: handler,
+                    delegate: '> button'
+                });
+
+                container.render(document.body);
+
+                expect(result).toEqual(['foo']);
             });
 
             it("should listen on direct children by xtype", function() {
@@ -8768,6 +9518,26 @@ describe("Ext.Component", function(){
                 container.render(document.body);
 
                 expect(result).toEqual(['bar myCmp', 'parentContainer myCmp']);
+            });
+
+            it("should be able to have a delegated listener when the container has an itemId", function() {
+                var spy = jasmine.createSpy();
+
+                container.destroy();
+                container = new Ext.container.Container({
+                    itemId: 'foo',
+                    items: {
+                        xtype: 'component',
+                        itemId: 'aChild'
+                    },
+                    listeners: {
+                        someevent: spy,
+                        delegate: '#aChild'
+                    }
+                });
+
+                container.items.first().fireEvent('someevent');
+                expect(spy.callCount).toBe(1);
             });
 
             describe("removal", function() {
@@ -8908,6 +9678,7 @@ describe("Ext.Component", function(){
 
                     runs(function() {
                         var elapsedTime = Ext.now() - startTime;
+
                         expect(elapsedTime >= 20).toBe(true);
                     });
                 });
@@ -9091,27 +9862,27 @@ describe("Ext.Component", function(){
         });
     });
 
-    describe('fromElement', function () {
+    describe('from', function() {
         var span;
 
-        beforeEach(function () {
+        beforeEach(function() {
             span = document.createElement('span');
         });
 
-        afterEach(function () {
+        afterEach(function() {
             span = null;
         });
 
-        it('should return null when a component cannot be found', function () {
+        it('should return null when a component cannot be found', function() {
             makeComponent({
                 el: span,
                 renderTo: document.body
             });
 
-            expect(Component.fromElement(span)).toBe(null);
+            expect(Component.from(span)).toBe(null);
         });
 
-        it('should return the owner component when found', function () {
+        it('should return the owner component when found', function() {
             makeComponent({
                 autoEl: {
                     tag: 'blockquote',
@@ -9120,38 +9891,30 @@ describe("Ext.Component", function(){
                 renderTo: document.body
             });
 
-            expect(Component.fromElement(c.el.dom)).toBe(c);
+            expect(Component.from(c.el.dom)).toBe(c);
         });
 
-        describe('when the el is configured', function () {
-            it('should work', function () {
+        describe('when the el is configured', function() {
+            it('should work', function() {
                 makeComponent({
                     el: span,
                     renderTo: document.body
                 }, true);
 
-                expect(Component.fromElement(span)).toBe(c);
+                expect(Component.from(span)).toBe(c);
             });
 
-            it('should find the component when the el is the document.body', function () {
+            it('should find the component when the el is the document.body', function() {
                 makeComponent({
                     plugins: 'viewport'
                 });
 
-                expect(Component.fromElement(document.body)).toBe(c);
+                expect(Component.from(document.body)).toBe(c);
             });
         });
     });
-    
+
     describe("ARIA attributes", function() {
-        function expectAttr(attr, value) {
-            jasmine.expectAriaAttr(c, attr, value);
-        }
-        
-        function expectNoAttr(attr) {
-            jasmine.expectNoAriaAttr(c, attr);
-        }
-        
         describe("static roles", function() {
             function createSuite(role) {
                 describe(role, function() {
@@ -9161,52 +9924,52 @@ describe("Ext.Component", function(){
                             renderTo: Ext.getBody()
                         });
                     });
-                    
+
                     describe('aria-hidden', function() {
                         it("should not be present after render", function() {
-                            expectNoAttr('aria-hidden');
+                            expect(c).not.toHaveAttr('aria-hidden');
                         });
-                        
+
                         it("should not be present after hiding", function() {
                             c.hide();
-                            
-                            expectNoAttr('aria-hidden');
+
+                            expect(c).not.toHaveAttr('aria-hidden');
                         });
-                        
+
                         it("should not be present after showing", function() {
                             c.hide();
                             c.show();
-                            
-                            expectNoAttr('aria-hidden');
+
+                            expect(c).not.toHaveAttr('aria-hidden');
                         });
                     });
-                    
+
                     describe('aria-disabled', function() {
                         it("should not be present after render", function() {
-                            expectNoAttr('aria-disabled');
+                            expect(c).not.toHaveAttr('aria-disabled');
                         });
-                        
+
                         it("should not be present after disabling", function() {
                             c.disable();
-                            
-                            expectNoAttr('aria-disabled');
+
+                            expect(c).not.toHaveAttr('aria-disabled');
                         });
-                        
+
                         it("should not be present after enabling", function() {
                             c.disable();
                             c.enable();
-                            
-                            expectNoAttr('aria-disabled');
+
+                            expect(c).not.toHaveAttr('aria-disabled');
                         });
                     });
                 });
             }
-            
+
             createSuite(undefined);
             createSuite('presentation');
             createSuite('document');
         });
-        
+
         describe("widget roles", function() {
             beforeEach(function() {
                 makeComponent({
@@ -9214,45 +9977,237 @@ describe("Ext.Component", function(){
                     renderTo: Ext.getBody()
                 });
             });
-            
+
             describe("aria-hidden", function() {
                 it("should be false after render", function() {
-                    expectAttr('aria-hidden', 'false');
+                    expect(c).toHaveAttr('aria-hidden', 'false');
                 });
-            
+
                 it("should be true after hiding", function() {
                     c.hide();
-                
-                    expectAttr('aria-hidden', 'true');
+
+                    expect(c).toHaveAttr('aria-hidden', 'true');
                 });
-            
+
                 it("should be false again after showing", function() {
                     c.hide();
                     c.show();
-                
-                    expectAttr('aria-hidden', 'false');
+
+                    expect(c).toHaveAttr('aria-hidden', 'false');
                 });
             });
-        
+
             describe("aria-disabled", function() {
                 it("should be false after render", function() {
-                    expectAttr('aria-disabled', 'false');
+                    expect(c).toHaveAttr('aria-disabled', 'false');
                 });
-            
+
                 it("should be true after disabling", function() {
                     c.disable();
-                
-                    expectAttr('aria-disabled', 'true');
+
+                    expect(c).toHaveAttr('aria-disabled', 'true');
                 });
-            
+
                 it("should be false again after enabling", function() {
                     c.disable();
                     c.enable();
-                
-                    expectAttr('aria-disabled', 'false');
+
+                    expect(c).toHaveAttr('aria-disabled', 'false');
                 });
             });
         });
     });
-});
 
+    (Ext.supports.TouchAction === 15 ? describe : xdescribe)("touchAction", function() {
+        var Cmp, cmp;
+
+        function makeCmpWithTouchAction(touchAction) {
+            Cmp = Ext.define(null, {
+                extend: 'Ext.Component',
+                childEls: [ 'child' ],
+                renderTpl: '<div id="{id}-child" data-ref="child">{%this.renderContent(out,values)%}</div>'
+            });
+            cmp = new Cmp({
+                renderTo: Ext.getBody(),
+                touchAction: touchAction
+            });
+        }
+
+        function expectTouchAction(el, value) {
+            // touch actions read from the dom are not always returned in the same order
+            // as they were set, so we have to parse theme out.
+            var expectedTouchAction = el.getStyle('touch-action').split(' '),
+                actualTouchAction = value.split(' ');
+
+            expect(actualTouchAction.length).toBe(expectedTouchAction.length);
+
+            Ext.each(expectedTouchAction, function(item) {
+                expect(Ext.Array.contains(actualTouchAction, item)).toBe(true);
+            });
+        }
+
+        afterEach(function() {
+            if (cmp) {
+                cmp.destroy();
+                cmp = null;
+            }
+        });
+
+        it("should default to auto", function() {
+            makeCmpWithTouchAction(null);
+
+            expectTouchAction(cmp.el, 'auto');
+            expectTouchAction(cmp.child, 'auto');
+        });
+
+        it("should disable panX", function() {
+            makeCmpWithTouchAction({
+                panX: false
+            });
+
+            expectTouchAction(cmp.el, 'pan-y pinch-zoom double-tap-zoom');
+        });
+
+        it("should disable panY", function() {
+            makeCmpWithTouchAction({
+                panY: false
+            });
+
+            expectTouchAction(cmp.el, 'pan-x pinch-zoom double-tap-zoom');
+        });
+
+        it("should disable panX and panY", function() {
+            makeCmpWithTouchAction({
+                panX: false,
+                panY: false
+            });
+
+            expectTouchAction(cmp.el, 'pinch-zoom double-tap-zoom');
+        });
+
+        it("should disable pinchZoom", function() {
+            makeCmpWithTouchAction({
+                pinchZoom: false
+            });
+
+            expectTouchAction(cmp.el, 'pan-x pan-y double-tap-zoom');
+        });
+
+        it("should disable panX and pinchZoom", function() {
+            makeCmpWithTouchAction({
+                panX: false,
+                pinchZoom: false
+            });
+
+            expectTouchAction(cmp.el, 'pan-y double-tap-zoom');
+        });
+
+        it("should disable panY and pinchZoom", function() {
+            makeCmpWithTouchAction({
+                panY: false,
+                pinchZoom: false
+            });
+
+            expectTouchAction(cmp.el, 'pan-x double-tap-zoom');
+        });
+
+        it("should disable panX, panY, and PinchZoom", function() {
+            makeCmpWithTouchAction({
+                panX: false,
+                panY: false,
+                pinchZoom: false
+            });
+
+            expectTouchAction(cmp.el, 'double-tap-zoom');
+        });
+
+        it("should disable doubleTapZoom", function() {
+            makeCmpWithTouchAction({
+                doubleTapZoom: false
+            });
+
+            expectTouchAction(cmp.el, 'pan-x pan-y pinch-zoom');
+        });
+
+        it("should disable panX and doubleTapZoom", function() {
+            makeCmpWithTouchAction({
+                panX: false,
+                doubleTapZoom: false
+            });
+
+            expectTouchAction(cmp.el, 'pan-y pinch-zoom');
+        });
+
+        it("should disable panY and doubleTapZoom", function() {
+            makeCmpWithTouchAction({
+                panY: false,
+                doubleTapZoom: false
+            });
+
+            expectTouchAction(cmp.el, 'pan-x pinch-zoom');
+        });
+
+        it("should disable panX, panY, and doubleTapZoom", function() {
+            makeCmpWithTouchAction({
+                panX: false,
+                panY: false,
+                doubleTapZoom: false
+            });
+
+            expectTouchAction(cmp.el, 'pinch-zoom');
+        });
+
+        it("should disable pinchZoom and doubleTapZoom", function() {
+            makeCmpWithTouchAction({
+                pinchZoom: false,
+                doubleTapZoom: false
+            });
+
+            expectTouchAction(cmp.el, 'pan-x pan-y');
+        });
+
+        it("should disable panX, pinchZoom, and doubleTapZoom", function() {
+            makeCmpWithTouchAction({
+                panX: false,
+                pinchZoom: false,
+                doubleTapZoom: false
+            });
+
+            expectTouchAction(cmp.el, 'pan-y');
+        });
+
+        it("should disable panY, pinchZoom, and doubleTapZoom", function() {
+            makeCmpWithTouchAction({
+                panY: false,
+                pinchZoom: false,
+                doubleTapZoom: false
+            });
+
+            expectTouchAction(cmp.el, 'pan-x');
+        });
+
+        it("should disable all touch actions", function() {
+            makeCmpWithTouchAction({
+                panX: false,
+                panY: false,
+                pinchZoom: false,
+                doubleTapZoom: false
+            });
+
+            expectTouchAction(cmp.el, 'none');
+        });
+
+        it("should set touch action on a child element", function() {
+            makeCmpWithTouchAction({
+                panX: false,
+                child: {
+                    panY: false,
+                    pinchZoom: false
+                }
+            });
+
+            expectTouchAction(cmp.el, 'pan-y pinch-zoom double-tap-zoom');
+            expectTouchAction(cmp.child, 'pan-x double-tap-zoom');
+        });
+    });
+});

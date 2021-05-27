@@ -1,4 +1,4 @@
-describe("Ext.util.CSV", function() {
+topSuite("Ext.util.CSV", function() {
     var CSV = Ext.util.CSV;
 
     // The "hostile" string is a single cell that has all of the special characters in
@@ -46,11 +46,11 @@ describe("Ext.util.CSV", function() {
             expect(CSV.encode([['foo"bar']])).toEqual('"foo""bar"');
         });
 
-        it('should handle empty rows', function () {
+        it('should handle empty rows', function() {
             expect(CSV.encode([[]])).toBe('');
         });
 
-        it('should handle null cell', function () {
+        it('should handle null cell', function() {
             expect(CSV.encode([[null]])).toBe('');
         });
 
@@ -102,6 +102,45 @@ describe("Ext.util.CSV", function() {
                 [ hostile, 'Normal String', '2010-01-01T21:45:32.004Z' ],
                 [ '3.141592653589793', '1', 'false' ]
             ]);
+        });
+
+        it("should return an empty array for null, undefined and empty string", function() {
+            expect(CSV.decode(undefined)).toEqual([]);
+            expect(CSV.decode(null)).toEqual([]);
+            expect(CSV.decode('')).toEqual([]);
+        });
+
+        it("should work when the first value is empty", function() {
+            var test = ',F,,O,,O,';
+
+            expect(CSV.decode(test)).toEqual([
+                ['', 'F', '', 'O', '', 'O', '']
+            ]);
+        });
+
+        it("should not create an empty row when a line feed is the last character in the input", function() {
+            var test1 = 'John,Doe,42' + CSV.lineBreak + 'Jane,Henry,31' + CSV.lineBreak + ',,\r\n',
+                test2 = 'John,Doe,42' + CSV.lineBreak + ',,' + CSV.lineBreak + 'Jane,Henry,31\n',
+                test3 = 'John,Doe,42\r';
+
+            // two rows of data, one empty row with \r\n end variant
+            expect(CSV.decode(test1)).toEqual([
+                ['John', 'Doe', '42'],
+                ['Jane', 'Henry', '31'],
+                ['', '', ''],
+                ['']
+            ]);
+
+            // one row of data, one empty row, another row of data with \n end variant
+            expect(CSV.decode(test2)).toEqual([
+                ['John', 'Doe', '42'],
+                ['', '', ''],
+                ['Jane', 'Henry', '31'],
+                ['']
+            ]);
+
+            // just one row of data with \r end variant
+            expect(CSV.decode(test3)).toEqual([['John', 'Doe', '42'], ['']]);
         });
     });
 });

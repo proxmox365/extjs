@@ -1,258 +1,668 @@
 /**
  * @class KitchenSink.controller.Main
- * @extends Ext.app.Controller
  *
- * This is an abstract base class that is extended by both the phone and tablet versions. This controller is
- * never directly instantiated, it just provides a set of common functionality that the phone and tablet
- * subclasses both extend.
+ * This is an abstract base class that is extended by both the phone and tablet versions. 
+ * This controller is never directly instantiated, it just provides a set of common functionality 
+ * that the phone and tablet subclasses both extend.
+ *
+ * We provide a default view source code behavior here that displays the source in a card that is 
+ * animated into view. The card fills the screen.  It optionally contains tabs for multiple source 
+ * files for those demos that have them.
  */
 Ext.define('KitchenSink.controller.Main', {
     extend: 'Ext.app.Controller',
 
     requires: [
-        'Ext.Deferred'
+        'Ext.Deferred',
+        'Ext.Package'
     ],
 
-    config: {
-        /**
-         * @private
-         */
-        viewCache: [],
+    stores: [
+        'Thumbnails'
+    ],
 
-        refs: {
-            nav: '#mainNestedList',
-            main: 'mainview',
-            toolbar: '#mainNavigationBar',
-            sourceButton: 'button[action=viewSource]',
-            themeToggleButton: 'button[action=toggleTheme]',
+    refs: {
+        cardPanel: '#cardPanel',
+        contentPanel: 'contentPanel',
+        sourceOverlay: 'sourceoverlay',
+        materialThemeMenuButton: '#materialThemeMenuButton'
+    },
 
-
-            sourceOverlay: {
-                selector: 'sourceoverlay',
-                xtype: 'sourceoverlay',
-                autoCreate: true
+    control: {
+        '#burgerButtonMenu': {
+            beforeShow: 'beforeBurgerMenuShow'
+        },
+        '#materialThemeMenu': {
+            beforeShow: 'beforeMaterialThemeMenuShow'
+        },
+        '#mainNavigationBar': {
+            painted: {
+                single: true,
+                fn: 'onNavigationBarPainted'
             }
-        },
+        }
+    },
 
-        control: {
-            sourceButton: {
-                tap: 'onSourceTap'
-            },
-            themeToggleButton: {
-                tap: 'onThemeToggleTap'
-            },
-            nav: {
-                itemtap: 'onNavTap',
-                leafitemtap: 'onNavLeafTap'
-
-            }
-        },
-
-        routes: {
-            'demo/:id': 'showViewById',
-            'menu/:id': 'showMenuById',
-            '': 'showMenuById'
-        },
-
-        /**
-         * @cfg {Ext.data.Model} currentDemo The Demo that is currently loaded. This is set whenever showViewById
-         * is called and used by functions like onSourceTap to fetch the source code for the current demo.
-         */
-        currentDemo: undefined
+    routes: {
+        ':id': {
+            action: 'handleRoute',
+            before: 'beforeHandleRoute'
+        }
     },
 
     /**
-     * Finds a given view by ID and shows it. End-point of the "demo/:id" route
+     * @cfg {Ext.data.Model} currentDemo The Demo that is currently loaded. This is set 
+     * whenever a new demo is shown and used to fetch the source code for the current demo.
      */
-    showViewById: function (id) {
-        var nav = this.getNav(),
-            view = nav.getStore().getNodeById(id);
+    currentDemo: undefined,
 
-        this.showView(view);
-        this.setCurrentDemo(view);
-        this.hideSheets();
-    },
+    /**
+     * RegExps used to replace ${foo} in the example source
+     * to the match in the profileInfo object on the class.
+     */
+    emptyLineRe: /^\s*$/,
+    noPropRe: /^ *:/,
+    exampleRe: /^\s*\/\/\s*(<\/?example>)\s*$/,
+    profilePropRe: /^(\n?)(\s*)(['${}\w]+) *: *'?([-${}\w ]+)'?(,?)$/g,
+    propVarRe: /^'?\${([\w-]+)}'?$/,
+    isNumberRe: /^[0-9]+$/,
 
-    isProfile: function(item) {
-        var profileName = item.get('profileName'),
-            ret = false;
+    availableThemes: [{
+        name: 'Material',
+        profile: 'material'
+    }, {
+        name: 'iOS',
+        profile: 'ios'
+    }, {
+        name: 'Triton',
+        profile: 'modern-triton'
+    }, {
+        name: 'Neptune',
+        profile: 'modern-neptune'
+    }],
 
-        if (profileName !== undefined) {
-            window.location = profileName ? (location.pathname + '?profile=' + profileName) : '';
-            ret = true;
+    availableLocales: [{
+        separator: true,
+        name: 'English',
+        locale: 'en'
+    }, {
+        name: 'French',
+        locale: 'fr'
+    }],
+
+    materialThemes: [{
+        text: 'America\'s Captain',
+        baseColor: 'red',
+        accentColor: 'blue'
+    }, {
+        text: 'Royal Appeal',
+        baseColor: 'deep-purple',
+        accentColor: 'indigo'
+    }, {
+        text: 'Creamsicle',
+        baseColor: 'deep-orange',
+        accentColor: 'grey'
+    }, {
+        text: 'Mocha Pop',
+        baseColor: 'brown',
+        accentColor: 'blue-grey'
+    }, {
+        text: 'Dry Shores',
+        baseColor: 'blue-grey',
+        accentColor: 'grey'
+    }, {
+        text: 'Bubble Gum',
+        baseColor: 'pink',
+        accentColor: 'light-blue'
+    }, {
+        text: '120° Compliments',
+        baseColor: 'green',
+        accentColor: 'deep-purple'
+    }, {
+        text: 'Roboto House',
+        baseColor: 'grey',
+        accentColor: 'blue-grey'
+    }, {
+        text: 'Daylight & Tungsten',
+        baseColor: 'light-blue',
+        accentColor: 'orange'
+    }],
+
+    init: function() {
+        var computedStyles = window.getComputedStyle(document.body),
+            darkModeProperty = computedStyles.getPropertyValue('--dark-mode'),
+            darkMode = Ext.String.trim(darkModeProperty) === 'true';
+
+        /**
+         * In a build, the path to the `KitchenSink` namespace
+         * is incorrect. Correct it here.
+         */
+        if (Ext.ClassManager.paths.KitchenSink === 'app') {
+            Ext.ClassManager.paths.KitchenSink = 'modern/src';
         }
 
-        return ret;
+        Ext.getBody().toggleCls('dark-mode', darkMode);
     },
 
-    /**
-     * Shows the source code for the {@link #currentDemo} in an overlay
-     */
-    onSourceTap: function () {
+    updateDetails: function(node) {
         var me = this,
-            overlay = this.getSourceOverlay(),
-            demo = this.getCurrentDemo(),
-            view = this.activeView,
+            description = node.get('description'),
+            demo = me.currentDemo,
+            view = me.activeView;
+
+        if (description || !demo) {
+            me.setOverlayContent([{
+                xtype: 'panel',
+                bodyPadding: 8,
+                title: 'Details',
+                html: description ||
+                    'Click on the tiles in the center area to drill into those examples ' +
+                    'or launch an individual example.'
+            }]);
+
+            me.setOverlayTier(node.get('tier'));
+        }
+        else {
+            me.loadOverlayContent(demo, view);
+        }
+
+        return me;
+    },
+
+    changeLocale: function(item) {
+        var params = Ext.Object.fromQueryString(location.search);
+
+        if (item.locale) {
+            params.locale = item.locale;
+        }
+        else {
+            delete params.locale;
+        }
+
+        params = '?' + Ext.Object.toQueryString(params).replace('modern=', 'modern');
+
+        if (location.search === params) {
+            location.reload();
+        }
+        else {
+            location.search = params;
+        }
+    },
+
+    changeProfile: function(item) {
+        var params = Ext.Object.fromQueryString(location.search);
+
+        if (item.profile) {
+            params.profile = item.profile;
+        }
+        else {
+            delete params.profile;
+        }
+
+        params = '?' + Ext.Object.toQueryString(params).replace('modern=', 'modern');
+
+        if (location.search === params) {
+            location.reload();
+        }
+        else {
+            location.search = params;
+        }
+    },
+
+    loadOverlayContent: function(demo, view) {
+        var me = this,
+            overlay = me.getSourceOverlay(),
             cls, files, content;
 
-        if (demo) {
-            if (!overlay.getParent()) {
-                Ext.Viewport.add(overlay);
-            }
-
-            overlay.show();
-
-            if (view.$cachedContent) {
-                me.setOverlayContent(overlay, view.$cachedContent);
-            } else {
-                overlay.setMasked({
-                    xtype: 'loadmask',
-                    message: 'Loading Source'
-                });
-
-                cls = demo.get('view') || demo.get('text');
-                cls = cls.replace(/\./g, '/');
-
-                files = [this.getFileContent({
-                    type: 'View',
-                    path: 'modern/src/view/' + cls + '.js'
-                })];
-
-                content = view.otherContent;
-                if (content) {
-                    content.forEach(function(content) {
-                        files.push(this.getFileContent(Ext.apply({}, content)));
-                    }, this);
-                }
-
-                Ext.Deferred.all(files).then(function(values) {
-                    values.forEach(function(item) {
-                        item.title = item.type;
-                        delete item.type;
-                    });
-                    me.setOverlayContent(overlay, values);
-                    overlay.unmask();
-
-                    view.self.prototype.$cachedContent = values;
-                });
-            }
+        if (view.self.prototype.$cachedContent) {
+            me.setOverlayContent(view.$cachedContent);
         }
+        else {
+            overlay.setMasked({
+                xtype: 'loadmask',
+                message: 'Loading Source'
+            });
+
+            cls = me.getViewClass(demo);
+
+            files = [me.getFileContent({
+                cls: cls,
+                type: 'View',
+                path: me.getSourcePath(cls)
+            })];
+
+            content = view.otherContent;
+
+            if (content) {
+                content.forEach(function(content) {
+                    var cls = content.cls;
+
+                    if (cls) {
+                        if (Ext.isString(cls)) {
+                            cls = Ext.ClassManager.get(cls);
+                        }
+                    }
+                    else {
+                        cls = me.getClassFromPath(content.path);
+                    }
+
+                    if (cls) {
+                        content.cls = cls;
+                    }
+
+                    files.push(me.getFileContent(Ext.apply({}, content)));
+                }, me);
+            }
+
+            Ext.Deferred.all(files).then(function(values) {
+                values.forEach(function(item) {
+                    item.title = item.type;
+                    delete item.type;
+                });
+
+                me.setOverlayContent(values);
+                me.setOverlayTier(demo.get('tier'));
+
+                overlay.unmask();
+
+                view.self.prototype.$cachedContent = values;
+            });
+        }
+
     },
 
-    setOverlayContent: function(overlay, items) {
-        overlay.removeAll();
-        overlay.add(items);
-        overlay.getTabBar().setHidden(items.length === 1);
+    /**
+     * Loads the sources into the overlay, optionally tabs for if the demo has multiple sources.
+     */
+    setOverlayContent: function(items) {
+        var overlay = this.getSourceOverlay();
+
+        overlay.setContent(items);
+    },
+
+    setOverlayTier: function(tier) {
+        var overlay = this.getSourceOverlay();
+
+        overlay.setTier(tier);
     },
 
     getFileContent: function(options) {
+        var me = this;
+
         return Ext.Ajax.request({
             url: options.path
         }).then(function(response) {
-            return {
-                type: options.type,
-                html: response.responseText
-            };
-        }, function() {
-            return null;
-        });
-    },
+            var src = response.responseText,
+                cls = options.cls,
+                profiles, info;
 
-    onThemeToggleTap: function() {
-        if (Ext.theme.name === 'Tizen') {
-            if (!KitchenSink.app.getThemeVariationTransitionCls()) {
-                KitchenSink.app.setThemeVariationTransitionCls("tizenThemeTransition");
-            }
+            if (cls && cls.prototype) {
+                profiles = cls.prototype.profiles;
 
-            if (KitchenSink.app.getThemeVariation() === "light") {
-                KitchenSink.app.setThemeVariation("dark");
-            } else {
-                KitchenSink.app.setThemeVariation("light");
-            }
-        }
-
-    },
-
-    /**
-     * @private
-     * In the kitchen sink we have a large number of dynamic views. If we were to keep all of them rendered
-     * we'd risk causing the browser to run out of memory, especially on older devices. If we destroy them as
-     * soon as we're done with them, the app can appear sluggish. Instead, we keep a small number of rendered
-     * views in a viewCache so that we can easily reuse recently used views while destroying those we haven't
-     * used in a while.
-     * @param {String} name The full class name of the view to create (e.g. "KitchenSink.view.Forms")
-     * @return {Ext.Component} The component, which may be from the cache
-     */
-    createView: function (item) {
-        var name = this.getViewName(item),
-            cache = this.getViewCache(),
-            ln = cache.length,
-            limit = item.get('limit') || 20,
-            view, i = 0, j, oldView;
-
-        for (; i < ln; i++) {
-            view = cache[i];
-            if (view.viewName === name) {
-                this.activeView = view;
-                return view;
-            }
-        }
-
-        if (ln >= limit) {
-            for (i = 0, j = 0; i < ln; i++) {
-                oldView = cache[i];
-                if (!oldView.isPainted()) {
-                    oldView.destroy();
-                } else {
-                    cache[j++] = oldView;
+                if (profiles) {
+                    info = KitchenSink.mergeProfileInfo(profiles);
                 }
             }
-            cache.length = j;
+
+            return {
+                prettyPrint: (options.prettyPrint !== false),
+                type: options.type,
+                html: me.processText(src, info)
+            };
+        }, function(e) {
+            //<debug>
+            Ext.raise(e);
+            //</debug>
+
+            return null;
+        //<debug>
+        })
+        .catch(function(e) {
+            Ext.raise(e);
+        //</debug>
+        });
+    },
+
+    processText: function(text, profileInfo) {
+        var me = this,
+            lines = text.split('\n'),
+            removing = false,
+            keepLines = [],
+            len = lines.length,
+            exampleRe = me.exampleRe,
+            emptyLineRe = me.emptyLineRe,
+            isNumberRe = me.isNumberRe,
+            noPropRe = me.noPropRe,
+            profilePropRe = me.profilePropRe,
+            propVarRe = me.propVarRe,
+            encodeTheme = function(text, newline, indention, property, value, comma) {
+                var propMatches = property.match(propVarRe),
+                    valueMatches = value.match(propVarRe);
+
+                if (!propMatches && !valueMatches) {
+                    return text;
+                }
+
+                if (propMatches) {
+                    property = profileInfo[propMatches[1]];
+                }
+
+                if (valueMatches) {
+                    value = profileInfo[valueMatches[1]];
+                }
+
+                if (property === undefined || value === undefined) {
+                    return '';
+                }
+
+                if (typeof value === 'object') {
+                    value = Ext.JSON.encodeValue(value, '\n' + indention);
+                }
+                else if (!isNumberRe.test(value)) {
+                    value = "'" + value + "'";
+                }
+
+                return indention + property + ': ' + value + (comma || '');
+            },
+            i, replaced, line, previous;
+
+        for (i = 0; i < len; ++i) {
+            line = lines[i];
+
+            if (removing) {
+                if (exampleRe.test(line)) {
+                    removing = false;
+                }
+            }
+            else if (exampleRe.test(line)) {
+                removing = true;
+            }
+            else if (profileInfo) {
+                /**
+                 * Replace `foo: '${foo}'` strings with match in the profile object.
+                 */
+                replaced = line.replace(profilePropRe, encodeTheme);
+
+                if (
+                    noPropRe.test(replaced) ||      // property was undefined
+                    (
+                        emptyLineRe.test(replaced) &&
+                        (
+                            // The config was undefined, line should be removed
+                            line !== replaced ||
+                            // Multiple blank lines in a row, line should be removed
+                            emptyLineRe.test(previous)
+                        )
+                    )
+                ) {
+                    previous = replaced;
+
+                    continue;
+                }
+                else {
+                    keepLines.push(previous = replaced);
+                }
+            }
+            else if (!emptyLineRe.test(line) || !emptyLineRe.test(previous)) {
+                previous = line;
+
+                keepLines.push(line);
+            }
         }
 
-        view = Ext.create(name);
-        view.viewName = name;
-        cache.push(view);
-        this.setViewCache(cache);
-
-        this.activeView = view;
-
-        return view;
+        return Ext.htmlEncode(keepLines.join('\n'));
     },
 
     /**
      * @private
-     * Returns the full class name of the view to construct for a given Demo
-     * @param {KitchenSink.model.Demo} item The demo
-     * @return {String} The full class name of the view
+     * Returns the view class associated to a node from the `Navigation` store.
+     * The class will be looked up via the node's id. If a class is not found,
+     * the class will then be looked up via the legacy (and deprecated) `view`
+     * config on the node.
      */
-    getViewName: function (item) {
-        var name = item.get('view') || item.get('text'),
-            ns = 'KitchenSink.view.';
+    getViewClass: function(node) {
+        var id = node.getId(),
+            viewName = Ext.ClassManager.getNameByAlias('widget.' + id);
 
-        if (name == 'TouchEvents') {
-            if (this.getApplication().getCurrentProfile().getName() === 'Tablet') {
-                return ns + 'tablet.' + name;
-            } else {
-                return ns + 'phone.' + name;
-            }
-        } else {
-            return ns + name;
+        if (!viewName) {
+            // fallback on the node's view data
+            viewName = this.getViewName(node);
         }
+
+        return Ext.ClassManager.get(viewName) || viewName;
     },
 
     /**
-     * we iterate over all of the floating sheet components and make sure they're hidden when we
-     * navigate to a new view. This stops things like Picker overlays staying visible when you hit
-     * the browser's back button
+     * Get the path to the class via the class name. This uses the
+     * {@link Ext.ClassManager#getPath} method to resolve the source.
+     *
+     * @param {String/Ext.Base} cls The class to resolve.
+     * @return {String} The path of the class.
      */
-    hideSheets: function () {
-        Ext.each(Ext.ComponentQuery.query('sheet, #editorPanel'), function (sheet) {
-            if(sheet instanceof Ext.Menu) {
-                Ext.Viewport.hideMenu(sheet);
-            }else {
-                sheet.setHidden(true);
+    getSourcePath: function(cls) {
+        if (cls && cls.prototype && cls.prototype.sourcePreviewPath) {
+            return cls.prototype.sourcePreviewPath;
+        }
+
+        if (!Ext.isString(cls)) {
+            cls = Ext.ClassManager.getName(cls);
+        }
+
+        return Ext.ClassManager.getPath(cls);
+    },
+
+    /**
+     * Resolves a class from a path. This can either be from
+     * `modern/src/` or from `app/`. So if the path is:
+     *
+     *     modern/src/view/foo/Bar.js
+     *
+     * This will attempt to find a class of `KitchenSink.view.foo.Bar`
+     *
+     * @param {String} path The path to the file.
+     * @return {Ext.Base} The resolved class.
+     */
+    getClassFromPath: function(path) {
+        var cls = path
+            .replace(/^(modern\/src|app)(.+)\.js$/, 'KitchenSink$2')
+            .replace(/\//g, '.');
+
+        return Ext.ClassManager.get(cls);
+    },
+
+    handleRoute: Ext.emptyFn,
+
+    beforeHandleRoute: function(id, action) {
+        var me = this,
+            node = Ext.StoreMgr.get('Navigation').getNodeById(id),
+            packages;
+
+        if (node) {
+            packages = node.get('packages');
+
+            if (packages) {
+                Ext.Promise
+                    .all(packages.map(Ext.Package.load.bind(Ext.Package)))
+                    .then(function() {
+                        action.resume();
+                    }); // TODO error handle
             }
+            else {
+                action.resume();
+            }
+        }
+        else {
+            Ext.Msg.alert(
+                'Route Failure',
+                'The view for ' + id +
+                ' could not be found. You will be taken to the application\'s start',
+                function() {
+                    me.redirectTo(
+                        me.getApplication().getDefaultToken(),
+                        {
+                            replace: true
+                        }
+                    );
+                }
+            );
+
+            action.stop();
+        }
+    },
+
+    beforeBurgerMenuShow: function(burgerMenu) {
+        var me = this,
+            items;
+
+        if (!this.burgerActions) {
+            items = this.getAvailableThemes();
+            me.burgerActions = burgerMenu;
+            burgerMenu.add(items);
+        }
+    },
+
+    onNavigationBarPainted: function() {
+        var materialThemeMenuButton = this.getMaterialThemeMenuButton();
+
+        if (materialThemeMenuButton &&
+            Ext.supports.CSSVariables &&
+            Ext.theme.is.Material &&
+            window.Fashion &&
+            Fashion.css &&
+            !!Fashion.css.setVariables
+        ) {
+            materialThemeMenuButton.show();
+        }
+    },
+
+    beforeMaterialThemeMenuShow: function(materialThemeMenu) {
+        var me = this,
+            items;
+
+        if (this.materialThemeMenu) {
+            return;
+        }
+
+        items = me.materialThemes.map(me.parseMaterialTheme(me));
+
+        me.materialThemeMenu = materialThemeMenu;
+
+        items.unshift({
+            xtype: 'togglefield',
+            listeners: {
+                change: 'onDarkModeChange',
+                scope: me
+            },
+            value: Ext.String.trim(window.getComputedStyle(document.body).getPropertyValue('--dark-mode')) === 'true',
+            boxLabel: 'Dark Mode',
+            margin: null,
+            shadow: false
         });
+
+        items.push({
+            text: 'Cancel',
+            ui: 'decline',
+            handler: function() {
+                materialThemeMenu.hide();
+            },
+            separator: true
+        });
+
+        materialThemeMenu.add(items);
+    },
+
+    onDarkModeChange: function(toggle) {
+        var me = this,
+            darkMode = toggle.getValue();
+
+        me.updateMaterialTheme(darkMode);
+        Ext.getBody().toggleCls('dark-mode', darkMode);
+    },
+
+    getAvailableThemes: function() {
+        var me = this,
+            items = me.availableThemes.map(me.parseAvailableThemes(me));
+
+        items.unshift({
+            xtype: 'menuradioitem',
+            group: 'theme_chooser',
+            handler: me.changeProfile,
+            scope: me,
+            text: 'Auto Detect Theme'
+        });
+
+        // TODO: Turn this back if we actually have a translated KS
+        // mobile apps will still need View Source button
+        // return items.concat(me.getAvailableLocales());
+        return items;
+    },
+
+    parseAvailableThemes: function(me) {
+        return function(theme) {
+            theme.xtype = 'menuradioitem';
+            theme.checked = Ext.theme.name === theme.name;
+            theme.group = 'theme_chooser';
+            theme.handler = me.changeProfile;
+            theme.scope = me;
+            theme.text = theme.name + ' Theme';
+
+            return theme;
+        };
+    },
+
+    parseMaterialTheme: function(me) {
+        return function(theme) {
+            theme.scope = me;
+            theme.handler = me.onMaterialThemeClick;
+
+            return theme;
+        };
+    },
+
+    onMaterialThemeClick: function(item) {
+        var me = this,
+            darkMode = Ext.String.trim(window.getComputedStyle(document.body).getPropertyValue('--dark-mode')) === 'true';
+
+        me.updateMaterialTheme(darkMode, item.baseColor, item.accentColor);
+    },
+
+    updateMaterialTheme: function(darkMode, base, accent) {
+        var me = this;
+
+        if (Ext.theme.Material) {
+            Ext.theme.Material.setColors({
+                'darkMode': darkMode,
+                'base': base || me._materialBaseColor,
+                'accent': accent || me._materialAccentColor
+            });
+        }
+
+        if (base) {
+            me._materialBaseColor = base;
+        }
+
+        if (accent) {
+            me._materialAccentColor = accent;
+        }
+    },
+
+    getAvailableLocales: function() {
+        var me = this,
+            items = me.availableLocales.map(me.parseAvailableLocales(me));
+
+        return items;
+    },
+
+    parseAvailableLocales: function(me) {
+        return function(locale) {
+            locale.xtype = 'menuradioitem';
+            locale.checked = KitchenSink.locale === locale.locale;
+            locale.group = 'theme_chooser';
+            locale.handler = me.changeLocale;
+            locale.scope = me;
+            locale.text = locale.name;
+
+            return locale;
+        };
     }
 });

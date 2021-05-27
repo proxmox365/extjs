@@ -28,23 +28,31 @@ Ext.define('Ext.dom.ElementEvent', {
         var me = this,
             added = false,
             name = me.name,
+            isDirectEvent = Ext.event.publisher.Dom.instance.directEvents[name],
             captures, directs, directCaptures;
 
         options = options || {};
 
-        if (options.delegated === false || Ext.event.publisher.Dom.instance.directEvents[name]) {
+        if (options.delegated === false || isDirectEvent) {
+            if (isDirectEvent && options.delegate) {
+                options.capture = true;
+            }
+
             if (options.capture) {
                 directCaptures = me.directCaptures ||
                     (me.directCaptures = new Ext.util.Event(me.observable, name));
                 added = directCaptures.addListener(fn, scope, options, caller, manager);
-            } else {
+            }
+            else {
                 directs = me.directs || (me.directs = new Ext.util.Event(me.observable, name));
                 added = directs.addListener(fn, scope, options, caller, manager);
             }
-        } else if (options.capture) {
+        }
+        else if (options.capture) {
             captures = me.captures || (me.captures = new Ext.util.Event(me.observable, name));
             added = captures.addListener(fn, scope, options, caller, manager);
-        } else {
+        }
+        else {
             added = me.callParent([fn, scope, options, caller, manager]);
         }
 
@@ -61,22 +69,26 @@ Ext.define('Ext.dom.ElementEvent', {
 
         if (index !== -1) {
             removed = me.callParent([fn, scope, index]);
-        } else {
+        }
+        else {
             if (directs) {
                 index = directs.findListener(fn, scope);
             }
 
             if (index !== -1) {
                 removed = directs.removeListener(fn, scope, index);
-            } else {
+            }
+            else {
                 if (captures) {
                     index = captures.findListener(fn, scope);
                 }
 
                 if (index !== -1) {
                     removed = captures.removeListener(fn, scope, index);
-                } else if (directCaptures) {
+                }
+                else if (directCaptures) {
                     index = directCaptures.findListener(fn, scope);
+
                     if (index !== -1) {
                         removed = directCaptures.removeListener(fn, scope, index);
                     }

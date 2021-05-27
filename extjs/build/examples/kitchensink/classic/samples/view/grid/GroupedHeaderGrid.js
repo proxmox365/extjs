@@ -9,93 +9,120 @@
 Ext.define('KitchenSink.view.grid.GroupedHeaderGrid', {
     extend: 'Ext.grid.Panel',
     xtype: 'grouped-header-grid',
-    store: 'Companies',
-    columnLines: true,
-    height: 350,
-    title: 'Grouped Header Grid',
+    controller: 'basicgrid',
+
     //<example>
     otherContent: [{
+        type: 'Controller',
+        path: 'classic/samples/view/grid/BasicGridController.js'
+    }, {
         type: 'Store',
-        path: 'classic/samples/store/Companies.js'
-    },{
+        path: 'app/store/Companies.js'
+    }, {
         type: 'Model',
-        path: 'classic/samples/model/Company.js'
+        path: 'app/model/Company.js'
     }],
     profiles: {
         classic: {
             width: 600,
+            priceWidth: 75,
             changeColumnWidth: 80,
             lastUpdatedColumnWidth: 85,
-            percentChangeColumnWidth: 75
+            percentChangeColumnWidth: 75,
+            gainColor: 'green',
+            lossColor: 'red'
         },
         neptune: {
             width: 675,
+            priceWidth: 75,
             changeColumnWidth: 80,
             lastUpdatedColumnWidth: 115,
-            percentChangeColumnWidth: 100
+            percentChangeColumnWidth: 100,
+            gainColor: '#73b51e',
+            lossColor: '#cf4c35'
         },
         'neptune-touch': {
             width: 720,
+            priceWidth: 75,
             changeColumnWidth: 90,
             lastUpdatedColumnWidth: 125,
             percentChangeColumnWidth: 115
+        },
+        graphite: {
+            width: 750,
+            priceWidth: 85,
+            changeColumnWidth: 110,
+            lastUpdatedColumnWidth: 155,
+            percentChangeColumnWidth: 135,
+            gainColor: 'unset',
+            lossColor: 'unset'
+        },
+        'classic-material': {
+            width: 750,
+            priceWidth: 85,
+            changeColumnWidth: 110,
+            lastUpdatedColumnWidth: 155,
+            percentChangeColumnWidth: 135,
+            gainColor: 'unset',
+            lossColor: 'unset'
         }
     },
     //</example>
 
-    initComponent: function () {
-        this.width = this.profileInfo.width;
-        this.columns = [{
-                text     : 'Company',
-                flex     : 1,
-                sortable : true,
-                dataIndex: 'name'
-            }, {
-                text: 'Stock Price',
-                columns: [{
-                    text     : 'Price',
-                    width    : 75,
-                    sortable : true,
-                    formatter: 'usMoney',
-                    dataIndex: 'price'
-                }, {
-                    text     : 'Change',
-                    width    : this.profileInfo.changeColumnWidth,
-                    sortable : true,
-                    renderer :  function(val) {
-                        if (val > 0) {
-                            return '<span style="color:green;">' + val + '</span>';
-                        } else if (val < 0) {
-                            return '<span style="color:red;">' + val + '</span>';
-                        }
-                        return val;
-                    },
-                    dataIndex: 'change'
-                }, {
-                    text     : '% Change',
-                    width    : this.profileInfo.percentChangeColumnWidth,
-                    sortable : true,
-                    renderer : function(val) {
-                        if (val > 0) {
-                            return '<span style="color:green;">' + val + '</span>';
-                        } else if (val < 0) {
-                            return '<span style="color:red;">' + val + '</span>';
-                        }
-                        return val;
-                    },
-                    dataIndex: 'pctChange'
-                }]
-            }, {
-                text     : 'Last Updated',
-                width    : this.profileInfo.lastUpdatedColumnWidth,
-                sortable : true,
-                formatter: 'date("m/d/Y")',
-                dataIndex: 'lastChange'
-            }];
+    title: 'Grouped Header Grid',
+    width: '${width}',
+    height: 350,
 
-        //Sorting store
-        Ext.getStore('Companies').sort({property:'name', direction:'ASC'});
+    columnLines: true,
+    signTpl: '<span style="' +
+            'color:{value:sign(\'${lossColor}\',\'${gainColor}\')}"' +
+        '>{text}</span>',
 
-        this.callParent();
-    }
+    store: {
+        type: 'companies',
+        sorters: {
+            property: 'name',
+            direction: 'DESC'
+        }
+    },
+
+    columns: [{
+        text: 'Company',
+        dataIndex: 'name',
+
+        flex: 1,
+        sortable: true
+    }, {
+        text: 'Stock Price',
+
+        columns: [{
+            text: 'Price',
+            dataIndex: 'price',
+
+            width: '${priceWidth}',
+            sortable: true,
+            formatter: 'usMoney'
+        }, {
+            text: 'Change',
+            dataIndex: 'priceChange',
+
+            width: '${changeColumnWidth}',
+            sortable: true,
+            renderer: 'renderChange'
+        }, {
+            text: '% Change',
+            dataIndex: 'priceChangePct',
+
+            width: '${percentChangeColumnWidth}',
+            sortable: true,
+            renderer: 'renderPercent'
+        }]
+    }, {
+        text: 'Last Updated',
+        dataIndex: 'priceLastChange',
+
+        width: '${lastUpdatedColumnWidth}',
+        sortable: true,
+        formatter: 'date("m/d/Y")'
+    }]
 });

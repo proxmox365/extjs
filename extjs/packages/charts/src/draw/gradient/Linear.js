@@ -43,32 +43,35 @@ Ext.define('Ext.draw.gradient.Linear', {
         radians: 0
     },
 
-    applyRadians: function (radians, oldRadians) {
+    applyRadians: function(radians, oldRadians) {
         if (Ext.isNumber(radians)) {
             return radians;
         }
+
         return oldRadians;
     },
 
-    applyDegrees: function (degrees, oldDegrees) {
+    applyDegrees: function(degrees, oldDegrees) {
         if (Ext.isNumber(degrees)) {
             return degrees;
         }
+
         return oldDegrees;
     },
 
-    updateRadians: function (radians) {
+    updateRadians: function(radians) {
         this.setDegrees(Ext.draw.Draw.degrees(radians));
     },
 
-    updateDegrees: function (degrees) {
+    updateDegrees: function(degrees) {
         this.setRadians(Ext.draw.Draw.rad(degrees));
     },
 
     /**
+     * @method generateGradient
      * @inheritdoc
      */
-    generateGradient: function (ctx, bbox) {
+    generateGradient: function(ctx, bbox) {
         var angle = this.getRadians(),
             cos = Math.cos(angle),
             sin = Math.sin(angle),
@@ -81,7 +84,7 @@ Ext.define('Ext.draw.gradient.Linear', {
             gradient,
             l, i;
 
-        if (Ext.isNumber(cx + cy) && h > 0 && w > 0) {
+        if (Ext.isNumber(cx) && Ext.isNumber(cy) && h > 0 && w > 0) {
             l = (Math.sqrt(h * h + w * w) * Math.abs(Math.cos(angle - Math.atan(h / w)))) / 2;
             gradient = ctx.createLinearGradient(
                 cx + cos * l, cy + sin * l,
@@ -91,8 +94,10 @@ Ext.define('Ext.draw.gradient.Linear', {
             for (i = 0; i < ln; i++) {
                 gradient.addColorStop(stops[i].offset, stops[i].color);
             }
+
             return gradient;
         }
-        return Ext.draw.Color.NONE;
+
+        return Ext.util.Color.NONE;
     }
 });

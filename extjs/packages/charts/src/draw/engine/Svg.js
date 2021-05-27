@@ -7,20 +7,17 @@
 Ext.define('Ext.draw.engine.Svg', {
     extend: 'Ext.draw.Surface',
     requires: ['Ext.draw.engine.SvgContext'],
-
-    statics: {
-        BBoxTextCache: {}
-    },
+    isSVG: true,
 
     config: {
         /**
+         * @cfg {Boolean} highPrecision
          * Nothing needs to be done in high precision mode.
          */
         highPrecision: false
     },
 
-    getElementConfig: function () {
-        //TODO:ps In the Ext world, use renderTpl to create the children
+    getElementConfig: function() {
         return {
             reference: 'element',
             style: {
@@ -28,7 +25,7 @@ Ext.define('Ext.draw.engine.Svg', {
             },
             children: [
                 {
-                    reference: 'innerElement',
+                    reference: 'bodyElement',
                     style: {
                         width: '100%',
                         height: '100%',
@@ -49,14 +46,15 @@ Ext.define('Ext.draw.engine.Svg', {
         };
     },
 
-    constructor: function (config) {
+    constructor: function(config) {
         var me = this;
+
         me.callParent([config]);
         me.mainGroup = me.createSvgNode("g");
-        me.defElement = me.createSvgNode("defs");
+        me.defsElement = me.createSvgNode("defs");
         // me.svgElement is assigned in element creation of Ext.Component.
         me.svgElement.appendChild(me.mainGroup);
-        me.svgElement.appendChild(me.defElement);
+        me.svgElement.appendChild(me.defsElement);
         me.ctx = new Ext.draw.engine.SvgContext(me);
     },
 
@@ -65,38 +63,52 @@ Ext.define('Ext.draw.engine.Svg', {
      * @param {String} type The type of the SVG DOM element.
      * @return {*} The created element.
      */
-    createSvgNode: function (type) {
+    createSvgNode: function(type) {
         var node = document.createElementNS("http://www.w3.org/2000/svg", type);
+
         return Ext.get(node);
     },
 
     /**
      * @private
-     * Returns the SVG DOM element at the given position. If it does not already exist or is a different element tag
+     * Returns the SVG DOM element at the given position.
+     * If it does not already exist or is a different element tag,
      * it will be created and inserted into the DOM.
      * @param {Ext.dom.Element} group The parent DOM element.
      * @param {String} tag The SVG element tag.
      * @param {Number} position The position of the element in the DOM.
      * @return {Ext.dom.Element} The SVG element.
      */
-    getSvgElement: function (group, tag, position) {
-        var element;
-        if (group.dom.childNodes.length > position) {
-            element = group.dom.childNodes[position];
+    getSvgElement: function(group, tag, position) {
+        var childNodes = group.dom.childNodes,
+            length = childNodes.length,
+            element;
+
+        if (position < length) {
+            element = childNodes[position];
+
             if (element.tagName === tag) {
                 return Ext.get(element);
-            } else {
+            }
+            else {
                 Ext.destroy(element);
             }
         }
+        else if (position > length) {
+            Ext.raise("Invalid position.");
+        }
 
         element = Ext.get(this.createSvgNode(tag));
+
         if (position === 0) {
             group.insertFirst(element);
-        } else {
-            element.insertAfter(Ext.fly(group.dom.childNodes[position - 1]));
         }
+        else {
+            element.insertAfter(Ext.fly(childNodes[position - 1]));
+        }
+
         element.cache = {};
+
         return element;
     },
 
@@ -106,12 +118,14 @@ Ext.define('Ext.draw.engine.Svg', {
      * @param {Ext.dom.Element} element The DOM element to be applied.
      * @param {Object} attributes The attributes to apply to the element.
      */
-    setElementAttributes: function (element, attributes) {
+    setElementAttributes: function(element, attributes) {
         var dom = element.dom,
             cache = element.cache,
             name, value;
+
         for (name in attributes) {
             value = attributes[name];
+
             if (cache[name] !== value) {
                 cache[name] = value;
                 dom.setAttribute(name, value);
@@ -125,72 +139,127 @@ Ext.define('Ext.draw.engine.Svg', {
      * @param {String} tagName The type of reference element.
      * @return {Ext.dom.Element} The reference element.
      */
-    getNextDef: function (tagName) {
-        return this.getSvgElement(this.defElement, tagName, this.defPosition++);
+    getNextDef: function(tagName) {
+        return this.getSvgElement(this.defsElement, tagName, this.defsPosition++);
     },
 
     /**
+     * @method clearTransform
      * @inheritdoc
      */
-    clearTransform: function () {
+    clearTransform: function() {
         var me = this;
-        me.mainGroup.set({transform: me.matrix.toSvg()});
+
+        me.mainGroup.set({ transform: me.matrix.toSvg() });
     },
 
     /**
+     * @method clear
      * @inheritdoc
      */
-    clear: function () {
+    clear: function() {
         this.ctx.clear();
-        this.defPosition = 0;
+        this.removeSurplusDefs();
+        this.defsPosition = 0;
+    },
+
+    removeSurplusDefs: function() {
+        var defsElement = this.defsElement,
+            defs = defsElement.dom.childNodes,
+            ln = defs.length,
+            i;
+
+        for (i = ln - 1; i > this.defsPosition; i--) {
+            defsElement.removeChild(defs[i]);
+        }
     },
 
     /**
+     * @method renderSprite
      * @inheritdoc
      */
-    renderSprite: function (sprite) {
+    renderSprite: function(sprite) {
         var me = this,
             rect = me.getRect(),
             ctx = me.ctx;
 
+        // This check is simplistic, but should result in a better performance
+        // compared to !sprite.isVisible() when most surface sprites are visible.
         if (sprite.attr.hidden || sprite.attr.globalAlpha === 0) {
+            // Create an empty group for each hidden sprite,
+            // so that when these sprites do become visible,
+            // they don't need groups to be created and don't
+            // mess up the previous order of elements in the
+            // document, i.e. sprites rendered in the next
+            // frame reuse the same elements they used in the
+            // previous frame.
             ctx.save();
             ctx.restore();
+
             return;
         }
 
+        // Each sprite is rendered in its own group ('g' element),
+        // returned by the `ctx.save` method.
+        // Essentially, the group _is_ the sprite.
         sprite.element = ctx.save();
         sprite.preRender(this);
         sprite.useAttributes(ctx, rect);
+
         if (false === sprite.render(this, ctx, [0, 0, rect[2], rect[3]])) {
             return false;
         }
+
         sprite.setDirty(false);
         ctx.restore();
     },
 
-    flatten: function (size, surfaces) {
-        var svg = '<?xml version="1.0" standalone="yes"?>',
-            className = Ext.getClassName(this),
-            surface, rect, i;
+    /**
+     * @private
+     */
+    toSVG: function(size, surfaces) {
+        var className = Ext.getClassName(this),
+            svg, surface, rect, i;
 
-        svg += '<svg version="1.1" baseProfile="full" xmlns="http://www.w3.org/2000/svg"' +
+        svg = '<svg version="1.1" baseProfile="full" xmlns="http://www.w3.org/2000/svg"' +
             ' width="' + size.width + '"' +
             ' height="' + size.height + '">';
 
         for (i = 0; i < surfaces.length; i++) {
             surface = surfaces[i];
+
             if (Ext.getClassName(surface) !== className) {
                 continue;
             }
+
             rect = surface.getRect();
             svg += '<g transform="translate(' + rect[0] + ',' + rect[1] + ')">';
             svg += this.serializeNode(surface.svgElement.dom);
             svg += '</g>';
         }
+
         svg += '</svg>';
+
+        return svg;
+    },
+
+    b64EncodeUnicode: function(str) {
+        // Since DOMStrings are 16-bit-encoded strings, in most browsers calling window.btoa
+        // on a Unicode string will cause a Character Out Of Range exception if a character
+        // exceeds the range of a 8-bit ASCII-encoded character. More information:
+        // https://developer.mozilla.org/en/docs/Web/API/WindowBase64/Base64_encoding_and_decoding
+        return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, function(match, p1) {
+            return String.fromCharCode('0x' + p1);
+        }));
+    },
+
+    flatten: function(size, surfaces) {
+        var svg = '<?xml version="1.0" standalone="yes"?>';
+
+        svg += this.toSVG(size, surfaces);
+
         return {
-            data: 'data:image/svg+xml;utf8,' + encodeURIComponent(svg),
+            data: 'data:image/svg+xml;base64,' + this.b64EncodeUnicode(svg),
             type: 'svg'
         };
     },
@@ -201,52 +270,61 @@ Ext.define('Ext.draw.engine.Svg', {
      * @param {Object} node DOM element to serialize.
      * @return {String}
      */
-    serializeNode: function (node) {
+    serializeNode: function(node) {
         var result = '',
             i, n, attr, child;
+
         if (node.nodeType === document.TEXT_NODE) {
             return node.nodeValue;
         }
+
         result += '<' + node.nodeName;
+
         if (node.attributes.length) {
             for (i = 0, n = node.attributes.length; i < n; i++) {
                 attr = node.attributes[i];
-                result += ' ' + attr.name + '="' + attr.value + '"';
+                result += ' ' + attr.name + '="' + Ext.String.htmlEncode(attr.value) + '"';
             }
         }
+
         result += '>';
+
         if (node.childNodes && node.childNodes.length) {
             for (i = 0, n = node.childNodes.length; i < n; i++) {
                 child = node.childNodes[i];
                 result += this.serializeNode(child);
             }
         }
+
         result += '</' + node.nodeName + '>';
+
         return result;
     },
 
     /**
      * Destroys the Canvas element and prepares it for Garbage Collection.
      */
-    destroy: function () {
+    destroy: function() {
         var me = this;
+
         me.ctx.destroy();
         me.mainGroup.destroy();
+        me.defsElement.destroy();
+
         delete me.mainGroup;
+        delete me.defsElement;
         delete me.ctx;
+
         me.callParent();
     },
 
-    remove: function (sprite, destroySprite) {
+    remove: function(sprite, destroySprite) {
         if (sprite && sprite.element) {
             // If sprite has an associated SVG element, remove it from the surface.
-            if (this.ctx) {
-                this.ctx.removeElement(sprite.element);
-            } else {
-                sprite.element.destroy();
-            }
+            sprite.element.destroy();
             sprite.element = null;
         }
+
         this.callParent(arguments);
     }
 });

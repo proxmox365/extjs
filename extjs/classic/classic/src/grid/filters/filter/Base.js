@@ -35,7 +35,16 @@ Ext.define('Ext.grid.filters.filter.Base', {
          * Number of milliseconds to wait after user interaction to fire an update. Only supported
          * by filters: 'list', 'numeric', and 'string'.
          */
-        updateBuffer: 500
+        updateBuffer: 500,
+
+        /**
+         * @cfg {Function} [serializer]
+         * A function to post-process any serialization. Accepts a filter state object
+         * containing `property`, `value` and `operator` properties, and may either
+         * mutate it, or return a completely new representation.
+         * @since 6.2.0
+         */
+        serializer: null
     },
 
     /**
@@ -64,7 +73,8 @@ Ext.define('Ext.grid.filters.filter.Base', {
 
     /**
      * @property {Ext.menu.Menu} menu
-     * The filter configuration menu that will be installed into the filter submenu of a column menu.
+     * The filter configuration menu that will be installed into the filter submenu
+     * of a column menu.
      */
     menu: null,
 
@@ -79,35 +89,40 @@ Ext.define('Ext.grid.filters.filter.Base', {
     filterIdPrefix: Ext.baseCSSPrefix + 'gridfilter',
 
     /**
-     * @event activate
+     * @event filteractivate
      * Fires when an inactive filter becomes active
      * @param {Ext.grid.filters.Filters} this
+     * @param {Ext.grid.column.Column} column This filter's assigned column
+     * @since 6.5.0
+     * @member Ext.panel.Table
      */
 
     /**
-     * @event deactivate
+     * @event filterdeactivate
      * Fires when an active filter becomes inactive
      * @param {Ext.grid.filters.Filters} this
-     */
-
-    /**
-     * @event update
-     * Fires when a filter configuration has changed
-     * @param {Ext.grid.filters.Filters} this The filter object.
+     * @param {Ext.grid.column.Column} column This filter's assigned column
+     * @since 6.5.0
+     * @member Ext.panel.Table
      */
 
     /**
      * Initializes the filter given its configuration.
      * @param {Object} config
      */
-    constructor: function (config) {
+    constructor: function(config) {
         var me = this,
             column;
+
+        // Calling Base constructor is very desirable for testing
+        //<debug>
+        me.callParent([config]);
+        //</debug>
 
         me.initConfig(config);
 
         column = me.column;
-        column.on('destroy', me.destroy, me);
+        me.columnListeners = column.on('destroy', me.destroy, me, { destroyable: true });
         me.dataIndex = me.dataIndex || column.dataIndex;
 
         me.task = new Ext.util.DelayedTask(me.setValue, me);
@@ -117,20 +132,42 @@ Ext.define('Ext.grid.filters.filter.Base', {
      * Destroys this filter by purging any event listeners, and removing any menus.
      */
     destroy: function() {
-        this.grid = this.menu = Ext.destroy(this.menu);
-        this.callParent();
+        var me = this;
+
+        if (me.task) {
+            me.task.cancel();
+            me.task = null;
+        }
+
+        me.columnListeners = me.columnListeners.destroy();
+        me.grid = me.menu = Ext.destroy(me.menu);
+
+        me.callParent();
     },
 
-    addStoreFilter: function (filter) {
-        this.getGridStore().getFilters().add(filter);
+    addStoreFilter: function(filter) {
+        var filters = this.getGridStore().getFilters(),
+            idx = filters.indexOf(filter),
+            existing = idx !== -1 ? filters.getAt(idx) : null;
+
+        // If the filter being added doesn't exist in the collection we should add it.
+        // But if there is a filter with the same id (indexOf tests for the same id), we should
+        // check if the filter being added has the same properties as the existing one
+        if (!existing || !Ext.util.Filter.isEqual(existing, filter)) {
+            filters.add(filter);
+        }
     },
 
-    createFilter: function (config, key) {
-        return new Ext.util.Filter(this.getFilterConfig(config, key));
+    createFilter: function(config, key) {
+        var filter = new Ext.util.Filter(this.getFilterConfig(config, key));
+
+        filter.isGridFilter = true;
+
+        return filter;
     },
 
-    // Note that some derived classes may need to do specific processing and will have its own version of this method
-    // before calling parent (see the List filter).
+    // Note that some derived classes may need to do specific processing
+    // and will have its own version of this method before calling parent (see the List filter).
     getFilterConfig: function(config, key) {
         config.id = this.getBaseIdPrefix();
 
@@ -145,6 +182,9 @@ Ext.define('Ext.grid.filters.filter.Base', {
         if (key) {
             config.id += '-' + key;
         }
+
+        config.serializer = this.getSerializer();
+
         return config;
     },
 
@@ -154,22 +194,22 @@ Ext.define('Ext.grid.filters.filter.Base', {
      * @param {Object} config Filter configuration
      * @return {Ext.menu.Menu}
      */
-    createMenu: function () {
+    createMenu: function() {
         this.menu = Ext.widget(this.getMenuConfig());
     },
 
-    getActiveState: function (config, value) {
+    getActiveState: function(config, value) {
         // An `active` config must take precedence over a `value` config.
         var active = config.active;
 
         return (active !== undefined) ? active : value !== undefined;
     },
 
-    getBaseIdPrefix: function () {
+    getBaseIdPrefix: function() {
         return this.filterIdPrefix + '-' + this.dataIndex;
     },
 
-    getMenuConfig: function () {
+    getMenuConfig: function() {
         return Ext.apply({}, this.getMenuDefaults());
     },
 
@@ -177,7 +217,7 @@ Ext.define('Ext.grid.filters.filter.Base', {
         return this.grid.getStore();
     },
 
-    getStoreFilter: function (key) {
+    getStoreFilter: function(key) {
         var id = this.getBaseIdPrefix();
 
         if (key) {
@@ -191,9 +231,16 @@ Ext.define('Ext.grid.filters.filter.Base', {
      * @private
      * Handler method called when there is a significant event on an input item.
      */
-    onValueChange: function (field, e) {
+    onValueChange: function(field, e) {
         var me = this,
-            updateBuffer = me.updateBuffer;
+            keyCode = e.getKey(),
+            updateBuffer = me.updateBuffer,
+            value;
+
+        // Don't process tabs!
+        if (keyCode === e.TAB) {
+            return;
+        }
 
         //<debug>
         if (!field.isFormField) {
@@ -202,15 +249,23 @@ Ext.define('Ext.grid.filters.filter.Base', {
         //</debug>
 
         if (field.isValid()) {
-            if (e.getKey() === e.RETURN) {
+            if (keyCode === e.RETURN) {
                 me.menu.hide();
+
+                return;
+            }
+
+            value = me.getValue(field);
+
+            if (value === me.value) {
                 return;
             }
 
             if (updateBuffer) {
-                me.task.delay(updateBuffer, null, null, [me.getValue(field)]);
-            } else {
-                me.setValue(me.getValue(field));
+                me.task.delay(updateBuffer, null, null, [value]);
+            }
+            else {
+                me.setValue(value);
             }
         }
     },
@@ -224,7 +279,7 @@ Ext.define('Ext.grid.filters.filter.Base', {
      */
     preprocess: Ext.emptyFn,
 
-    removeStoreFilter: function (filter) {
+    removeStoreFilter: function(filter) {
         this.getGridStore().getFilters().remove(filter);
     },
 
@@ -242,17 +297,16 @@ Ext.define('Ext.grid.filters.filter.Base', {
      * @private
      * @method setValue
      * Template method to be implemented by all subclasses that is to
-     * set the value of the filter and fire the 'update' event.
+     * set the value of the filter and fire the grid's 'filterchange' event.
      * @param {Object} data The value to set the filter
      * @template
      */
-    
+
     /**
      * Sets the status of the filter and fires the appropriate events.
      * @param {Boolean} active The new filter state.
-     * @param {String} key The filter key for columns that support multiple filters.
      */
-    setActive: function (active) {
+    setActive: function(active) {
         var me = this,
             menuItem = me.owner.activeFilterMenuItem,
             filterCollection;
@@ -260,21 +314,17 @@ Ext.define('Ext.grid.filters.filter.Base', {
         if (me.active !== active) {
             me.active = active;
 
-            // The store filter will be updated, but we don't want to recreate the list store or the menu items in the
-            // onDataChanged listener so we need to set this flag.
-            me.preventDefault = true;
-
             filterCollection = me.getGridStore().getFilters();
             filterCollection.beginUpdate();
+
             if (active) {
                 me.activate();
-            } else {
+            }
+            else {
                 me.deactivate();
             }
 
             filterCollection.endUpdate();
-
-            me.preventDefault = false;
 
             // Make sure we update the 'Filters' menu item.
             if (menuItem && menuItem.activeFilter === me) {
@@ -282,7 +332,7 @@ Ext.define('Ext.grid.filters.filter.Base', {
             }
 
             me.setColumnActive(active);
-            // TODO: fire activate/deactivate
+            me.grid.fireEventArgs(active ? 'filteractivate' : 'filterdeactivate', [me, me.column]);
         }
     },
 
@@ -290,7 +340,7 @@ Ext.define('Ext.grid.filters.filter.Base', {
         this.column[active ? 'addCls' : 'removeCls'](this.owner.filterCls);
     },
 
-    showMenu: function (menuItem) {
+    showMenu: function(menuItem) {
         var me = this;
 
         if (!me.menu) {
@@ -301,13 +351,15 @@ Ext.define('Ext.grid.filters.filter.Base', {
 
         menuItem.setMenu(me.menu, false);
         menuItem.setChecked(me.active);
+
         // Disable the menu if filter.disabled explicitly set to true.
         menuItem.setDisabled(me.disabled === true);
 
-        me.activate(/*showingMenu*/ true);
+        me.activate(/* showingMenu */ true);
     },
 
-    updateStoreFilter: function () {
+    updateStoreFilter: function() {
         this.getGridStore().getFilters().notify('endupdate');
     }
 });
+

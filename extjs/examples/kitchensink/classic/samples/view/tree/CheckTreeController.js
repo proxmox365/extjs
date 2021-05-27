@@ -13,7 +13,8 @@ Ext.define('KitchenSink.view.tree.CheckTreeController', {
 
     onBeforeCheckChange: function(record, checkedState, e) {
         if (record.get('text') === 'Take a nap' && !checkedState) {
-            Ext.toast('No rest for the wicked!', null, 't');
+            Ext.toast('No rest for the weary!', null, 't');
+
             return false;
         }
     },
@@ -21,11 +22,11 @@ Ext.define('KitchenSink.view.tree.CheckTreeController', {
     onCheckedNodesClick: function() {
         var records = this.getView().getChecked(),
             names = [];
-                   
-        Ext.Array.each(records, function(rec){
+
+        Ext.Array.each(records, function(rec) {
             names.push(rec.get('text'));
         });
-                    
+
         Ext.MessageBox.show({
             title: 'Selected Nodes',
             msg: names.join('<br />'),

@@ -1,5 +1,6 @@
-describe("Ext.Img", function() {
-    var img, defaultFamily;
+topSuite("Ext.Img", function() {
+    var senchaPng = '../../../../test/local/sencha.png',
+        img, defaultFamily;
 
     function makeBaseImage(cfg) {
         img = new Ext.Img(Ext.apply({
@@ -11,10 +12,6 @@ describe("Ext.Img", function() {
             renderTo: Ext.getBody(),
             alt: 'Image'
         }, cfg));
-    }
-    
-    function expectAria(attr, value) {
-        jasmine.expectAriaAttr(img, attr, value);
     }
 
     beforeEach(function() {
@@ -72,13 +69,13 @@ describe("Ext.Img", function() {
                 expectFontFamily('BarFont');
                 expect(img.el.getStyle('font-size')).toBe('40px');
             });
-            
+
             it("should have img role", function() {
                 makeImage({
                     glyph: '1234'
                 });
-                
-                expectAria('role', 'img');
+
+                expect(img).toHaveAttr('role', 'img');
             });
         });
 
@@ -161,19 +158,19 @@ describe("Ext.Img", function() {
             });
         });
     });
-    
+
     describe("img tag", function() {
         beforeEach(function() {
             // Warning here is expected
             spyOn(Ext.log, 'warn');
-            
+
             img = new Ext.Img({ renderTo: Ext.getBody() });
         });
-        
+
         it("should have default alt attribute", function() {
             expect(img.el.dom.hasAttribute('alt')).toBe(true);
         });
-        
+
         it("should not have role attribute", function() {
             expect(img.el.dom.hasAttribute('role')).toBe(false);
         });
@@ -189,7 +186,7 @@ describe("Ext.Img", function() {
 
                 it("should be able to set alt value", function() {
                     makeBaseImage();
-                    img.setAlt('Test Alt')
+                    img.setAlt('Test Alt');
                     expect(img.getAlt()).toBe('Test Alt');
                     img.render(document.body);
                     expect(img.el.dom.alt).toBe('Test Alt');
@@ -204,12 +201,12 @@ describe("Ext.Img", function() {
 
                 it("should be able to set title value", function() {
                     makeBaseImage();
-                    img.setTitle('Test Title')
+                    img.setTitle('Test Title');
                     expect(img.getTitle()).toBe('Test Title');
-                    
+
                     // Warning here is expected
                     spyOn(Ext.log, 'warn');
-                    
+
                     img.render(document.body);
                     expect(img.el.dom.title).toBe('Test Title');
                 });
@@ -218,12 +215,12 @@ describe("Ext.Img", function() {
             describe("src attribute", function() {
                 it("should be able to set src value", function() {
                     makeBaseImage();
-                    img.setSrc('sencha.png')
-                    expect(img.getSrc()).toBe('sencha.png');
-                    
+                    img.setSrc(senchaPng);
+                    expect(img.getSrc()).toBe(senchaPng);
+
                     // Warning here is expected
                     spyOn(Ext.log, 'warn');
-                    
+
                     img.render(document.body);
                     expect(img.el.dom.src.indexOf('sencha.png')).not.toBe(-1);
                 });
@@ -250,10 +247,10 @@ describe("Ext.Img", function() {
                     img.setAlt();
                     expect(img.getTitle()).toBe('');
                     expect(img.getAlt()).toBe('');
-                    
+
                     // Warning here is expected
                     spyOn(Ext.log, 'warn');
-                    
+
                     img.render(document.body);
                     expect(img.el.dom.alt).toBe('');
                     expect(img.el.dom.title).toBe('');
@@ -262,13 +259,13 @@ describe("Ext.Img", function() {
         });
 
         describe("after render", function() {
-            describe("alt attribute",function() {
+            describe("alt attribute", function() {
                 it("should not have default alt value", function() {
                     // Warning here is expected
                     spyOn(Ext.log, 'warn');
-                    
+
                     img = new Ext.Img({
-                        renderTo : document.body
+                        renderTo: document.body
                     });
                     expect(img.el.dom.alt).toBe('');
                 });
@@ -276,18 +273,18 @@ describe("Ext.Img", function() {
                 it("should be able to set alt value", function() {
                     // Warning here is expected
                     spyOn(Ext.log, 'warn');
-                    
+
                     img = new Ext.Img({
-                        renderTo : document.body
+                        renderTo: document.body
                     });
-                    img.setAlt('Test Alt')
+                    img.setAlt('Test Alt');
                     expect(img.getAlt()).toBe('Test Alt');
                     expect(img.el.dom.alt).toBe('Test Alt');
                 });
 
             });
 
-            describe("title attribute",function() {
+            describe("title attribute", function() {
                 it("should not have default title attribute", function() {
                     makeImage();
                     expect(img.el.dom.hasAttribute('title')).toBe(false);
@@ -295,17 +292,17 @@ describe("Ext.Img", function() {
 
                 it("should be able to set title value", function() {
                     makeImage();
-                    img.setTitle('Test Title')
+                    img.setTitle('Test Title');
                     expect(img.getTitle()).toBe('Test Title');
                     expect(img.el.dom.title).toBe('Test Title');
                 });
             });
 
-            describe("src attribute",function() {
+            describe("src attribute", function() {
                 it("should be able to set src value", function() {
                     makeImage();
-                    img.setSrc('sencha.png')
-                    expect(img.getSrc()).toBe('sencha.png');
+                    img.setSrc(senchaPng);
+                    expect(img.getSrc()).toBe(senchaPng);
                     expect(img.el.dom.src.indexOf('sencha.png')).not.toBe(-1);
                 });
             });

@@ -2,7 +2,7 @@
  *
  */
 Ext.define('Ext.layout.Float', {
-    extend: 'Ext.layout.Default',
+    extend: 'Ext.layout.Auto',
 
     alias: 'layout.float',
 
@@ -10,24 +10,13 @@ Ext.define('Ext.layout.Float', {
         direction: 'left'
     },
 
-    layoutClass: 'layout-float',
+    cls: Ext.baseCSSPrefix + 'layout-float',
 
-    itemClass: 'layout-float-item',
-
-    setContainer: function(container) {
-        this.callParent(arguments);
-
-        container.innerElement.addCls(this.layoutClass);
-    },
-
-    onItemInnerStateChange: function(item, isInner) {
-        this.callParent(arguments);
-        item.toggleCls(this.itemClass, isInner);
-    },
+    itemCls: Ext.baseCSSPrefix + 'layout-float-item',
 
     updateDirection: function(direction, oldDirection) {
         var prefix = 'direction-';
 
-        this.container.innerElement.swapCls(prefix + direction, prefix + oldDirection);
+        this.getContainer().getRenderTarget().swapCls(prefix + direction, prefix + oldDirection);
     }
 });

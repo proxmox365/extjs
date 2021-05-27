@@ -38,7 +38,7 @@ Ext.define('Admin.view.main.Main', {
                 {
                     margin: '0 0 0 8',
                     ui: 'header',
-                    iconCls:'x-fa fa-navicon',
+                    iconCls:'x-fa fa-bars',
                     id: 'main-navigation-btn',
                     handler: 'onToggleNavigationSize'
                 },
@@ -58,7 +58,8 @@ Ext.define('Admin.view.main.Main', {
                         pressed: true
                     }, {
                         iconCls: 'x-fa fa-tablet',
-                        handler: 'onSwitchToModern'
+                        handler: 'onSwitchToModern',
+                        tooltip: 'Switch to modern toolkit'
                     }]
                 },
                 {
@@ -114,7 +115,7 @@ Ext.define('Admin.view.main.Main', {
                     xtype: 'treelist',
                     reference: 'navigationTreeList',
                     itemId: 'navigationTreeList',
-                    ui: 'navigation',
+                    ui: 'nav',
                     store: 'NavigationTree',
                     width: 250,
                     expanderFirst: false,

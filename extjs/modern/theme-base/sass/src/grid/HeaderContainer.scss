@@ -1,6 +1,5 @@
-.x-grid-header-container > .x-body,
-.x-grid-headergroup-inner {
-    // height: auto is required to ensure headercontainer and headergroup are sized
-    // correctly in firefox and IE11 (overrides height:100% from x-body)
-    height: auto;
+.#{$prefix}headercontainer-body-el > :last-child {
+    // Prevent the resize el from escaping the right side and affecting the
+    // flexbox inner's reported clientWidth which is used to source totalColumnWidth
+    overflow: hidden;
 }

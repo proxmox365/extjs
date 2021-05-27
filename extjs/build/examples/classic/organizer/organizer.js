@@ -1,4 +1,4 @@
-Ext.Loader.setConfig({enabled: true});
+Ext.Loader.setConfig({ enabled: true });
 Ext.Loader.setPath('Ext.org', '.');
 
 Ext.require([
@@ -20,7 +20,7 @@ Ext.require([
 Ext.onReady(function() {
     Ext.create('Ext.org.OrgPanel', {
         renderTo: Ext.getBody(),
-        height: 490,
-        width : 700
+        height: 450,
+        width: 700
     });
 });

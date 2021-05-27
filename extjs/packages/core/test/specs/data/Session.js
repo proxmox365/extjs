@@ -1,4 +1,8 @@
-describe("Ext.data.Session", function() {
+topSuite("Ext.data.Session", [
+    'Ext.data.Connection',
+    'Ext.data.ArrayStore',
+    'Ext.data.identifier.*'
+], function() {
     function completeRequest(data, requestId) {
         Ext.Ajax.mockComplete({
             status: 200,
@@ -6,27 +10,17 @@ describe("Ext.data.Session", function() {
         }, requestId);
     }
 
-    var session;
-
-    function idSort(a, b) {
-        if (Ext.isObject(a)) {
-            a = a.id;
-            b = b.id;
-        }
-        return a - b;
-    }
-
-    var adminGroup, peonGroup;
-    var rufusGroups, billGroups, tedGroups;
-    var adminUsers, peonUsers;
-    var userRufus, userBill, userTed;
+    var session, adminGroup, peonGroup, rufusGroups, billGroups, tedGroups, adminUsers, peonUsers,
+        userRufus, userBill, userTed;
 
     function getAndComplete(type, id, theSession, data) {
         theSession = theSession || session;
         data = data || {};
         var rec = theSession.getRecord(type, id);
+
         data.id = data.id || id;
         completeRequest(data);
+
         return rec;
     }
 
@@ -64,12 +58,13 @@ describe("Ext.data.Session", function() {
 
     afterEach(function() {
         MockAjaxManager.removeMethods();
-        Ext.destroy(session);
-        session = null;
+        session = Ext.destroy(session);
+        Ext.data.Model.schema.clear(true);
     });
 
     describe("record access", function() {
         var User, parent, rec;
+
         beforeEach(function() {
             Ext.data.Model.schema.setNamespace('spec');
             User = Ext.define('spec.User', {
@@ -89,7 +84,6 @@ describe("Ext.data.Session", function() {
             parent.destroy();
             User = rec = parent = null;
             Ext.undefine('spec.User');
-            Ext.data.Model.schema.clear(true);
         });
 
         describe("adopt", function() {
@@ -129,6 +123,7 @@ describe("Ext.data.Session", function() {
 
                 it("should raise an error if add a model the schema does not know about", function() {
                     var customSchema = new Ext.data.schema.Schema();
+
                     Ext.define('spec.CustomModel', {
                         extend: 'Ext.data.Model',
                         schema: customSchema
@@ -185,6 +180,7 @@ describe("Ext.data.Session", function() {
                             });
 
                             var spy = spyOn(User.getProxy(), 'read');
+
                             session.adopt(post);
                             expect(spy).not.toHaveBeenCalled();
                         });
@@ -207,6 +203,7 @@ describe("Ext.data.Session", function() {
                             makeUser(1);
                             user.posts();
                             var spy = spyOn(User.getProxy(), 'read');
+
                             session.adopt(user);
                             expect(spy).not.toHaveBeenCalled();
                         });
@@ -214,6 +211,7 @@ describe("Ext.data.Session", function() {
                         it("should set the session onto the store", function() {
                             makeUser(1);
                             var posts = user.posts();
+
                             session.adopt(user);
                             expect(posts.getSession()).toBe(session);
                         });
@@ -221,7 +219,8 @@ describe("Ext.data.Session", function() {
                         it("should adopt existing children", function() {
                             makeUser(1);
                             var posts = user.posts();
-                            posts.add({id: 101}, {id: 102}, {id: 103});
+
+                            posts.add({ id: 101 }, { id: 102 }, { id: 103 });
                             session.adopt(user);
                             expect(posts.getAt(0).session).toBe(session);
                             expect(posts.getAt(1).session).toBe(session);
@@ -231,9 +230,10 @@ describe("Ext.data.Session", function() {
                         it("should adopt any newly loaded items after adopting", function() {
                             makeUser(1);
                             var posts = user.posts();
+
                             session.adopt(user);
                             posts.load();
-                            completeRequest([{id: 101, userId: 1}, {id: 102, userId: 1}, {id: 103, userId: 1}]);
+                            completeRequest([{ id: 101, userId: 1 }, { id: 102, userId: 1 }, { id: 103, userId: 1 }]);
                             expect(posts.getAt(0).session).toBe(session);
                             expect(posts.getAt(1).session).toBe(session);
                             expect(posts.getAt(2).session).toBe(session);
@@ -259,7 +259,9 @@ describe("Ext.data.Session", function() {
                                 id: 1,
                                 addressId: 101
                             });
+
                             var spy = spyOn(spec.Address.getProxy(), 'read');
+
                             session.adopt(user);
                             expect(spy).not.toHaveBeenCalled();
                         });
@@ -284,7 +286,9 @@ describe("Ext.data.Session", function() {
                             var address = new spec.Address({
                                 id: 101
                             });
+
                             var spy = spyOn(User.getProxy(), 'read');
+
                             session.adopt(address);
                             expect(spy).not.toHaveBeenCalled();
                         });
@@ -297,6 +301,7 @@ describe("Ext.data.Session", function() {
                             var user = new User({
                                 id: 1
                             });
+
                             address.setUser(user);
 
                             session.adopt(address);
@@ -322,15 +327,17 @@ describe("Ext.data.Session", function() {
 
                     describe("the left", function() {
                         it("should not load the store", function() {
-                            var group = new Group({id: 1});
+                            var group = new Group({ id: 1 });
+
                             group.users();
                             var spy = spyOn(Group.getProxy(), 'read');
+
                             session.adopt(group);
                             expect(spy).not.toHaveBeenCalled();
                         });
 
                         it("should set the session onto the store", function() {
-                            var group = new Group({id: 1}),
+                            var group = new Group({ id: 1 }),
                                 users = group.users();
 
                             session.adopt(group);
@@ -338,10 +345,10 @@ describe("Ext.data.Session", function() {
                         });
 
                         it("should adopt existing children", function() {
-                            var group = new Group({id: 1}),
+                            var group = new Group({ id: 1 }),
                                 users = group.users();
 
-                            users.add({id: 101}, {id: 102}, {id: 103});
+                            users.add({ id: 101 }, { id: 102 }, { id: 103 });
                             session.adopt(group);
                             expect(users.getAt(0).session).toBe(session);
                             expect(users.getAt(1).session).toBe(session);
@@ -349,12 +356,12 @@ describe("Ext.data.Session", function() {
                         });
 
                         it("should adopt any newly loaded items after adopting", function() {
-                            var group = new Group({id: 1}),
+                            var group = new Group({ id: 1 }),
                                 users = group.users();
 
                             session.adopt(group);
                             users.load();
-                            completeRequest([{id: 101}, {id: 102}, {id: 103}]);
+                            completeRequest([{ id: 101 }, { id: 102 }, { id: 103 }]);
                             expect(users.getAt(0).session).toBe(session);
                             expect(users.getAt(1).session).toBe(session);
                             expect(users.getAt(2).session).toBe(session);
@@ -363,15 +370,17 @@ describe("Ext.data.Session", function() {
 
                     describe("the right", function() {
                         it("should not load the store", function() {
-                            var user = new User({id: 1});
+                            var user = new User({ id: 1 });
+
                             user.groups();
                             var spy = spyOn(Group.getProxy(), 'read');
+
                             session.adopt(user);
                             expect(spy).not.toHaveBeenCalled();
                         });
 
                         it("should set the session onto the store", function() {
-                            var user = new User({id: 1}),
+                            var user = new User({ id: 1 }),
                                 groups = user.groups();
 
                             session.adopt(user);
@@ -379,10 +388,10 @@ describe("Ext.data.Session", function() {
                         });
 
                         it("should adopt existing children", function() {
-                            var user = new User({id: 1}),
+                            var user = new User({ id: 1 }),
                                 groups = user.groups();
 
-                            groups.add({id: 101}, {id: 102}, {id: 103});
+                            groups.add({ id: 101 }, { id: 102 }, { id: 103 });
                             session.adopt(user);
                             expect(groups.getAt(0).session).toBe(session);
                             expect(groups.getAt(1).session).toBe(session);
@@ -390,12 +399,12 @@ describe("Ext.data.Session", function() {
                         });
 
                         it("should adopt any newly loaded items after adopting", function() {
-                            var user = new User({id: 1}),
+                            var user = new User({ id: 1 }),
                                 groups = user.groups();
 
                             session.adopt(user);
                             groups.load();
-                            completeRequest([{id: 101}, {id: 102}, {id: 103}]);
+                            completeRequest([{ id: 101 }, { id: 102 }, { id: 103 }]);
                             expect(groups.getAt(0).session).toBe(session);
                             expect(groups.getAt(1).session).toBe(session);
                             expect(groups.getAt(2).session).toBe(session);
@@ -439,6 +448,7 @@ describe("Ext.data.Session", function() {
 
                     it("should adopt data deeply", function() {
                         var user = User.load(1);
+
                         completeRequest({
                             id: 1,
                             orders: [{
@@ -472,6 +482,7 @@ describe("Ext.data.Session", function() {
                         session.adopt(user);
 
                         var order = user.orders().getAt(0);
+
                         expect(order.session).toBe(session);
                         expect(order.getAddress().session).toBe(session);
                         expect(order.orderItems().getAt(0).session).toBe(session);
@@ -544,6 +555,7 @@ describe("Ext.data.Session", function() {
 
             it("should be able to create a phantom with no data", function() {
                 var rec;
+
                 expect(function() {
                     rec = session.createRecord('User');
                 }).not.toThrow();
@@ -571,6 +583,7 @@ describe("Ext.data.Session", function() {
 
                 it("should be able to create a phantom with no data", function() {
                     var rec;
+
                     expect(function() {
                         rec = session.createRecord('User');
                     }).not.toThrow();
@@ -631,18 +644,21 @@ describe("Ext.data.Session", function() {
                 describe("autoLoad", function() {
                     it("should autoLoad by default", function() {
                         var spy = spyOn(spec.User.getProxy(), 'read');
+
                         session.getRecord('User', 1);
                         expect(spy).toHaveBeenCalled();
                     });
 
                     it("should not autoLoad when passed: false", function() {
                         var spy = spyOn(spec.User.getProxy(), 'read');
+
                         session.getRecord('User', 1, false);
                         expect(spy).not.toHaveBeenCalled();
                     });
 
                     it("should pass parameters to load", function() {
                         var spy = spyOn(spec.User.getProxy(), 'read');
+
                         session.getRecord('User', 1, {
                             params: {
                                 someId: 1
@@ -661,23 +677,26 @@ describe("Ext.data.Session", function() {
 
                     describe("record exists in the parent", function() {
                         beforeEach(function() {
-                            rec = getAndComplete('User', 1, parent, {name: 'Foo'});
+                            rec = getAndComplete('User', 1, parent, { name: 'Foo' });
                         });
 
                         describe("with type/id", function() {
                             it("should return an existing record from the parent", function() {
                                 var child = session.getRecord('User', 1);
+
                                 expect(child.get('name')).toBe('Foo');
                                 expect(child.$className).toBe('spec.User');
                             });
 
                             it("should return a copy, not the same instance", function() {
                                 var child = session.getRecord('User', 1);
+
                                 expect(child).not.toBe(rec);
                             });
 
                             it("should set the session to be the child session", function() {
                                 var child = session.getRecord('User', 1);
+
                                 expect(child.session).toBe(session);
                             });
 
@@ -690,12 +709,14 @@ describe("Ext.data.Session", function() {
 
                             it("should not update the parent record when the child changes", function() {
                                 var child = session.getRecord('User', 1);
+
                                 child.set('name', 'Bar');
                                 expect(rec.get('name')).toBe('Foo');
                             });
 
                             it("should not update the child record when the parent changes", function() {
                                 var child = session.getRecord('User', 1);
+
                                 rec.set('name', 'Bar');
                                 expect(child.get('name')).toBe('Foo');
                             });
@@ -704,7 +725,7 @@ describe("Ext.data.Session", function() {
                                 rec = parent.getRecord('User', 2);
                                 var child = session.getRecord('User', 2);
 
-                                completeRequest({name: 'Foo'});
+                                completeRequest({ name: 'Foo' });
                                 expect(rec.get('name')).toBe('Foo');
                                 expect(child.isLoading()).toBe(true);
                                 expect(child.get('name')).toBeUndefined();
@@ -715,17 +736,20 @@ describe("Ext.data.Session", function() {
                         describe("with parent instance", function() {
                             it("should return an existing record from the parent", function() {
                                 var child = session.getRecord(rec);
+
                                 expect(child.get('name')).toBe('Foo');
                                 expect(child.$className).toBe('spec.User');
                             });
 
                             it("should return a copy, not the same instance", function() {
                                 var child = session.getRecord(rec);
+
                                 expect(child).not.toBe(rec);
                             });
 
                             it("should set the session to be the child session", function() {
                                 var child = session.getRecord(rec);
+
                                 expect(child.session).toBe(session);
                             });
 
@@ -738,12 +762,14 @@ describe("Ext.data.Session", function() {
 
                             it("should not update the parent record when the child changes", function() {
                                 var child = session.getRecord(rec);
+
                                 child.set('name', 'Bar');
                                 expect(rec.get('name')).toBe('Foo');
                             });
 
                             it("should not update the child record when the parent changes", function() {
                                 var child = session.getRecord(rec);
+
                                 rec.set('name', 'Bar');
                                 expect(child.get('name')).toBe('Foo');
                             });
@@ -752,7 +778,7 @@ describe("Ext.data.Session", function() {
                                 rec = parent.getRecord('User', 2);
                                 var child = session.getRecord(rec);
 
-                                completeRequest({name: 'Foo'});
+                                completeRequest({ name: 'Foo' });
                                 expect(rec.get('name')).toBe('Foo');
                                 expect(child.isLoading()).toBe(true);
                                 expect(child.get('name')).toBeUndefined();
@@ -777,13 +803,13 @@ describe("Ext.data.Session", function() {
 
                         describe("with an instance", function() {
                             it("should use the passed instance", function() {
-                                rec = new spec.User({id: 1});
+                                rec = new spec.User({ id: 1 });
                                 expect(session.getRecord(rec)).toBe(rec);
                                 expect(rec.session).toBe(session);
                             });
 
                             it("not push the instance into the parent", function() {
-                                rec = new spec.User({id: 1});
+                                rec = new spec.User({ id: 1 });
                                 session.getRecord(rec);
                                 expect(parent.peekRecord('User', 1)).toBeNull();
                             });
@@ -815,6 +841,7 @@ describe("Ext.data.Session", function() {
 
                 it("should not attempt to load the record", function() {
                     var spy = spyOn(spec.User.getProxy(), 'read');
+
                     session.getRecord('User', 1);
                     expect(spy).not.toHaveBeenCalled();
                 });
@@ -853,6 +880,7 @@ describe("Ext.data.Session", function() {
 
             it("should return the model instance", function() {
                 var result = session.peekRecord('User', 1);
+
                 expect(result.isModel).toBe(true);
                 expect(result).toBe(rec);
             });
@@ -903,12 +931,14 @@ describe("Ext.data.Session", function() {
                     data = data || {};
                     data.id = id;
                     data.userId = userId;
+
                     return getAndComplete('Post', id, session, data);
                 }
 
                 function makeUser(id, data) {
                     data = data || {};
                     data.id = id;
+
                     return getAndComplete('User', id, session, data);
                 }
 
@@ -946,6 +976,7 @@ describe("Ext.data.Session", function() {
 
                 describe("the many", function() {
                     var user;
+
                     beforeEach(function() {
                         user = makeUser(1);
                     });
@@ -956,20 +987,23 @@ describe("Ext.data.Session", function() {
 
                     it("should be empty by default and not complete", function() {
                         var posts = user.posts();
+
                         expect(posts.getCount()).toBe(0);
                         expect(posts.complete).toBe(false);
                     });
 
                     it("should not trigger a load", function() {
                         var spy = spyOn(spec.Post.getProxy(), 'read');
+
                         user.posts();
                         expect(spy).not.toHaveBeenCalled();
                     });
 
                     it("should create records on loading", function() {
                         var posts = user.posts();
+
                         posts.load();
-                        completeRequest([{id: 101, userId: 1}, {id: 102, userId: 1}, {id: 103, userId: 1}]);
+                        completeRequest([{ id: 101, userId: 1 }, { id: 102, userId: 1 }, { id: 103, userId: 1 }]);
                         expect(posts.getAt(0)).toBe(session.peekRecord('Post', 101));
                         expect(posts.getAt(1)).toBe(session.peekRecord('Post', 102));
                         expect(posts.getAt(2)).toBe(session.peekRecord('Post', 103));
@@ -977,6 +1011,7 @@ describe("Ext.data.Session", function() {
 
                     it("should set the complete flag on loading", function() {
                         var posts = user.posts();
+
                         posts.load();
                         completeRequest([]);
                         expect(posts.complete).toBe(true);
@@ -1004,7 +1039,7 @@ describe("Ext.data.Session", function() {
                                 posts = user.posts();
 
                             posts.load();
-                            completeRequest([{id: 103, userId: 1}, {id: 102, userId: 1}, {id: 101, userId: 1}]);
+                            completeRequest([{ id: 103, userId: 1 }, { id: 102, userId: 1 }, { id: 101, userId: 1 }]);
 
                             expect(posts.getAt(0)).toBe(post3);
                             expect(posts.getAt(1)).toBe(post2);
@@ -1018,7 +1053,7 @@ describe("Ext.data.Session", function() {
                                 posts = user.posts();
 
                             posts.load();
-                            completeRequest([{id: 103, userId: 1}, {id: 101, userId: 1}]);
+                            completeRequest([{ id: 103, userId: 1 }, { id: 101, userId: 1 }]);
                             expect(posts.getAt(0)).toBe(session.peekRecord('Post', 103));
                             expect(posts.getAt(1)).toBe(session.peekRecord('Post', 101));
                             expect(posts.getAt(2)).toBe(session.peekRecord('Post', 102));
@@ -1028,11 +1063,13 @@ describe("Ext.data.Session", function() {
                             // We had a record with a matching key which was subsequently changed.
                             // Reject it from the server load since the local copy is correct.
                             var post2 = makePost(102, 1);
+
                             post2.set('userId', null);
 
                             var posts = user.posts();
+
                             posts.load();
-                            completeRequest([{id: 101, userId: 1}, {id: 102, userId: 1}, {id: 103, userId: 1}]);
+                            completeRequest([{ id: 101, userId: 1 }, { id: 102, userId: 1 }, { id: 103, userId: 1 }]);
                             expect(posts.getCount()).toBe(2);
                             expect(posts.getAt(0)).toBe(session.peekRecord('Post', 101));
                             expect(posts.getAt(1)).toBe(session.peekRecord('Post', 103));
@@ -1052,6 +1089,7 @@ describe("Ext.data.Session", function() {
                 function makeAddress(id, data) {
                     data = data || {};
                     data.id = id;
+
                     return getAndComplete('Address', id, session, data);
                 }
 
@@ -1059,6 +1097,7 @@ describe("Ext.data.Session", function() {
                     data = data || {};
                     data.id = id;
                     data.addressId = addressId;
+
                     return getAndComplete('User', id, session, data);
                 }
 
@@ -1117,6 +1156,7 @@ describe("Ext.data.Session", function() {
 
                 describe("the left", function() {
                     var user;
+
                     beforeEach(function() {
                         user = makeUser(1);
                     });
@@ -1127,20 +1167,23 @@ describe("Ext.data.Session", function() {
 
                     it("should be empty by default and not complete", function() {
                         var groups = user.groups();
+
                         expect(groups.getCount()).toBe(0);
                         expect(groups.complete).toBe(false);
                     });
 
                     it("should not trigger a load", function() {
                         var spy = spyOn(spec.Group.getProxy(), 'read');
+
                         user.groups();
                         expect(spy).not.toHaveBeenCalled();
                     });
 
                     it("should create records on loading", function() {
                         var groups = user.groups();
+
                         groups.load();
-                        completeRequest([{id: 101}, {id: 102}, {id: 103}]);
+                        completeRequest([{ id: 101 }, { id: 102 }, { id: 103 }]);
                         expect(groups.getAt(0)).toBe(session.peekRecord('Group', 101));
                         expect(groups.getAt(1)).toBe(session.peekRecord('Group', 102));
                         expect(groups.getAt(2)).toBe(session.peekRecord('Group', 103));
@@ -1148,6 +1191,7 @@ describe("Ext.data.Session", function() {
 
                     it("should set the complete flag on loading", function() {
                         var groups = user.groups();
+
                         groups.load();
                         completeRequest([]);
                         expect(groups.complete).toBe(true);
@@ -1160,7 +1204,7 @@ describe("Ext.data.Session", function() {
 
                             groups.add(group2);
                             groups.load();
-                            completeRequest([{id: 103}, {id: 102}, {id: 101}]);
+                            completeRequest([{ id: 103 }, { id: 102 }, { id: 101 }]);
 
                             expect(groups.getAt(0)).toBe(session.peekRecord('Group', 103));
                             expect(groups.getAt(1)).toBe(group2);
@@ -1173,7 +1217,7 @@ describe("Ext.data.Session", function() {
 
                             groups.add(group2);
                             groups.load();
-                            completeRequest([{id: 103}, {id: 101}]);
+                            completeRequest([{ id: 103 }, { id: 101 }]);
                             expect(groups.getAt(0)).toBe(session.peekRecord('Group', 103));
                             expect(groups.getAt(1)).toBe(session.peekRecord('Group', 101));
                             expect(groups.getAt(2)).toBe(group2);
@@ -1183,6 +1227,7 @@ describe("Ext.data.Session", function() {
 
                 describe("the right", function() {
                     var group;
+
                     beforeEach(function() {
                         group = makeGroup(1);
                     });
@@ -1193,20 +1238,23 @@ describe("Ext.data.Session", function() {
 
                     it("should be empty by default and not complete", function() {
                         var users = group.users();
+
                         expect(users.getCount()).toBe(0);
                         expect(users.complete).toBe(false);
                     });
 
                     it("should not trigger a load", function() {
                         var spy = spyOn(spec.User.getProxy(), 'read');
+
                         group.users();
                         expect(spy).not.toHaveBeenCalled();
                     });
 
                     it("should create records on loading", function() {
                         var users = group.users();
+
                         users.load();
-                        completeRequest([{id: 101}, {id: 102}, {id: 103}]);
+                        completeRequest([{ id: 101 }, { id: 102 }, { id: 103 }]);
                         expect(users.getAt(0)).toBe(session.peekRecord('User', 101));
                         expect(users.getAt(1)).toBe(session.peekRecord('User', 102));
                         expect(users.getAt(2)).toBe(session.peekRecord('User', 103));
@@ -1214,6 +1262,7 @@ describe("Ext.data.Session", function() {
 
                     it("should set the complete flag on loading", function() {
                         var users = group.users();
+
                         users.load();
                         completeRequest([]);
                         expect(users.complete).toBe(true);
@@ -1226,7 +1275,7 @@ describe("Ext.data.Session", function() {
 
                             users.add(user2);
                             users.load();
-                            completeRequest([{id: 103}, {id: 102}, {id: 101}]);
+                            completeRequest([{ id: 103 }, { id: 102 }, { id: 101 }]);
 
                             expect(users.getAt(0)).toBe(session.peekRecord('User', 103));
                             expect(users.getAt(1)).toBe(user2);
@@ -1239,7 +1288,7 @@ describe("Ext.data.Session", function() {
 
                             users.add(user2);
                             users.load();
-                            completeRequest([{id: 103}, {id: 101}]);
+                            completeRequest([{ id: 103 }, { id: 101 }]);
                             expect(users.getAt(0)).toBe(session.peekRecord('User', 103));
                             expect(users.getAt(1)).toBe(session.peekRecord('User', 101));
                             expect(users.getAt(2)).toBe(user2);
@@ -1247,6 +1296,125 @@ describe("Ext.data.Session", function() {
                     });
                 });
             });
+        });
+    });
+
+    describe("id generation", function() {
+        var User, Order, Job, identifier;
+
+        beforeEach(function() {
+            identifier = new Ext.data.identifier.Sequential({
+                id: 'spec-session',
+                seed: 10
+            });
+
+            Ext.data.Model.schema.setNamespace('spec');
+            session = new Ext.data.Session();
+
+            User = Ext.define('spec.User', {
+                extend: 'Ext.data.Model',
+                identifier: 'spec-session',
+                fields: ['id']
+            });
+
+            Order = Ext.define('spec.Order', {
+                extend: 'Ext.data.Model',
+                identifier: 'spec-session',
+                fields: ['id']
+            });
+
+            Job = Ext.define('spec.Job', {
+                extend: 'Ext.data.Model',
+                identifier: {
+                    id: 'sequential'
+                },
+                fields: ['id']
+            });
+        });
+
+        afterEach(function() {
+            Ext.undefine('spec.User');
+            Ext.undefine('spec.Order');
+            Ext.undefine('spec.Job');
+            Job = Order = User = identifier = Ext.destroy(identifier);
+
+            var Generator = Ext.data.identifier.Generator;
+
+            Generator.all = {
+                uuid: Generator.all.uuid
+            };
+        });
+
+        it("should start generation fresh", function() {
+            expect((new User()).id).toBe(10);
+            expect((new User()).id).toBe(11);
+            expect((new User()).id).toBe(12);
+
+            expect((new User({}, session)).id).toBe(10);
+            expect((new User({}, session)).id).toBe(11);
+            expect((new User({}, session)).id).toBe(12);
+
+            var other = new Ext.data.Session();
+
+            expect((new User({}, other)).id).toBe(10);
+            expect((new User({}, other)).id).toBe(11);
+            expect((new User({}, other)).id).toBe(12);
+
+            other.destroy();
+        });
+
+        it("should share identifiers in the way that happens outside sessions", function() {
+            expect((new User()).id).toBe(10);
+            expect((new Order()).id).toBe(11);
+            expect((new Order()).id).toBe(12);
+            expect((new Order()).id).toBe(13);
+            expect((new User()).id).toBe(14);
+            expect((new Order()).id).toBe(15);
+
+            expect((new User({}, session)).id).toBe(10);
+            expect((new Order({}, session)).id).toBe(11);
+            expect((new Order({}, session)).id).toBe(12);
+            expect((new Order({}, session)).id).toBe(13);
+            expect((new User({}, session)).id).toBe(14);
+            expect((new Order({}, session)).id).toBe(15);
+
+            var other = new Ext.data.Session();
+
+            expect((new User({}, other)).id).toBe(10);
+            expect((new Order({}, other)).id).toBe(11);
+            expect((new Order({}, other)).id).toBe(12);
+            expect((new Order({}, other)).id).toBe(13);
+            expect((new User({}, other)).id).toBe(14);
+            expect((new Order({}, other)).id).toBe(15);
+
+            other.destroy();
+        });
+
+        it("should not share ids for generators that are not the same", function() {
+            expect((new User()).id).toBe(10);
+            expect((new Job()).id).toBe(1);
+            expect((new Job()).id).toBe(2);
+            expect((new Job()).id).toBe(3);
+            expect((new User()).id).toBe(11);
+            expect((new Job()).id).toBe(4);
+
+            expect((new User({}, session)).id).toBe(10);
+            expect((new Job({}, session)).id).toBe(1);
+            expect((new Job({}, session)).id).toBe(2);
+            expect((new Job({}, session)).id).toBe(3);
+            expect((new User({}, session)).id).toBe(11);
+            expect((new Job({}, session)).id).toBe(4);
+
+            var other = new Ext.data.Session();
+
+            expect((new User({}, other)).id).toBe(10);
+            expect((new Job({}, other)).id).toBe(1);
+            expect((new Job({}, other)).id).toBe(2);
+            expect((new Job({}, other)).id).toBe(3);
+            expect((new User({}, other)).id).toBe(11);
+            expect((new Job({}, other)).id).toBe(4);
+
+            other.destroy();
         });
     });
 
@@ -1288,7 +1456,7 @@ describe("Ext.data.Session", function() {
                     name: 'userId',
                     reference: 'User'
                 }]
-            })
+            });
         });
 
         afterEach(function() {
@@ -1296,7 +1464,6 @@ describe("Ext.data.Session", function() {
             Ext.undefine('spec.Address');
             Ext.undefine('spec.Post');
             Ext.undefine('spec.Group');
-            Ext.data.Model.schema.clear(true);
             User = null;
         });
 
@@ -1305,6 +1472,7 @@ describe("Ext.data.Session", function() {
                 var user = session.createRecord('User', {
                     serializeField: 1000
                 });
+
                 expect(session.getChanges()).toEqual({
                     User: {
                         C: [{
@@ -1323,6 +1491,7 @@ describe("Ext.data.Session", function() {
                         name: 'Foo',
                         age: 34
                     });
+
                     expect(session.getChanges()).toEqual({
                         User: {
                             C: [{
@@ -1339,6 +1508,7 @@ describe("Ext.data.Session", function() {
                         name: 'Foo',
                         age: 34
                     });
+
                     user.set('name', 'Bar');
                     user.set('age', 5000);
                     expect(session.getChanges()).toEqual({
@@ -1359,18 +1529,20 @@ describe("Ext.data.Session", function() {
 
                     expect(session.getChanges()).toEqual({
                         User: {
-                            C: [{id: user1.getId()}, {id: user2.getId()}, {id: user3.getId()}]
+                            C: [{ id: user1.getId() }, { id: user2.getId() }, { id: user3.getId() }]
                         }
                     });
                 });
 
                 it("should not include non-phantoms", function() {
                     var user = getAndComplete('User', 1);
+
                     expect(session.getChanges()).toBeNull();
                 });
 
                 it("should not include phantom records that are dropped", function() {
                     var user = session.createRecord('User');
+
                     user.drop();
                     expect(session.getChanges()).toBeNull();
                 });
@@ -1379,6 +1551,7 @@ describe("Ext.data.Session", function() {
             describe("update", function() {
                 it("should include the updated record", function() {
                     var user = getAndComplete('User', 1);
+
                     user.set('name', 'Foo');
                     expect(session.getChanges()).toEqual({
                         User: {
@@ -1392,6 +1565,7 @@ describe("Ext.data.Session", function() {
 
                 it("should include the most recently updated state", function() {
                     var user = getAndComplete('User', 1);
+
                     user.set('name', 'Foo');
                     user.set('name', 'Bar');
                     user.set('name', 'Baz');
@@ -1432,6 +1606,7 @@ describe("Ext.data.Session", function() {
 
                 it("should not include a non-dirty record", function() {
                     var user = getAndComplete('User', 1);
+
                     user.set('name', 'Foo');
                     user.commit();
                     expect(session.getChanges()).toBeNull();
@@ -1439,6 +1614,7 @@ describe("Ext.data.Session", function() {
 
                 it("should not include a dropped record", function() {
                     var user = getAndComplete('User', 1);
+
                     user.set('name', 'Foo');
                     user.drop();
                     expect(session.getChanges().User.U).toBeUndefined();
@@ -1446,6 +1622,7 @@ describe("Ext.data.Session", function() {
 
                 it("should not include changes to phantoms", function() {
                     var user = session.createRecord('User');
+
                     user.set('name', 'Foo');
                     expect(session.getChanges().User.U).toBeUndefined();
                 });
@@ -1454,6 +1631,7 @@ describe("Ext.data.Session", function() {
             describe("drop", function() {
                 it("should include dropped records", function() {
                     var user = getAndComplete('User', 1);
+
                     user.drop();
                     expect(session.getChanges()).toEqual({
                         User: {
@@ -1479,6 +1657,7 @@ describe("Ext.data.Session", function() {
 
                 it("should not include phantom records", function() {
                     var user = session.createRecord('User');
+
                     user.drop();
                     expect(session.getChanges()).toBeNull();
                 });
@@ -1520,6 +1699,7 @@ describe("Ext.data.Session", function() {
                     });
 
                     var address = order.getAddress();
+
                     getAndComplete('Address', 101);
 
                     var orderItems = order.orderItems();
@@ -1532,7 +1712,7 @@ describe("Ext.data.Session", function() {
                         id: 202,
                         orderId: 1
                     }]);
-                    
+
                     var orderItem = orderItems.getAt(0);
 
                     order.setAddress(null);
@@ -1558,7 +1738,7 @@ describe("Ext.data.Session", function() {
             });
             describe("one to one", function() {
                 var user, address;
-                
+
                 afterEach(function() {
                     user = address = null;
                 });
@@ -1585,7 +1765,7 @@ describe("Ext.data.Session", function() {
                                     addressId: 3
                                 }]
                             }
-                        })
+                        });
                     });
 
                     it("should read the non key holder when nulling out a reference", function() {
@@ -1597,7 +1777,7 @@ describe("Ext.data.Session", function() {
                                     addressId: null
                                 }]
                             }
-                        })
+                        });
                     });
                 });
 
@@ -1636,7 +1816,7 @@ describe("Ext.data.Session", function() {
                         user = getAndComplete('User', 1);
                         posts = user.posts();
                         posts.load();
-                        completeRequest([{id: 101, userId: 1}, {id: 102, userId: 1}, {id: 103, userId: 1}]);
+                        completeRequest([{ id: 101, userId: 1 }, { id: 102, userId: 1 }, { id: 103, userId: 1 }]);
                     });
 
                     it("should not include any read records", function() {
@@ -1657,6 +1837,7 @@ describe("Ext.data.Session", function() {
 
                     it("should push store adds as updates", function() {
                         var post = getAndComplete('Post', 104);
+
                         posts.add(post);
                         expect(session.getChanges()).toEqual({
                             Post: {
@@ -1670,6 +1851,7 @@ describe("Ext.data.Session", function() {
 
                     it("should push store adds of phantoms as creates", function() {
                         var post = session.createRecord('Post');
+
                         posts.add(post);
                         expect(session.getChanges()).toEqual({
                             Post: {
@@ -1678,7 +1860,7 @@ describe("Ext.data.Session", function() {
                                     userId: 1
                                 }]
                             }
-                        })
+                        });
                     });
                 });
 
@@ -1686,6 +1868,7 @@ describe("Ext.data.Session", function() {
                     it("should update when changing the id of the non key holder", function() {
                         user = session.createRecord('User');
                         var post = session.createRecord('Post');
+
                         user.posts().add(post);
 
                         user.setId(1000);
@@ -1722,6 +1905,7 @@ describe("Ext.data.Session", function() {
                     describe("store not loaded", function() {
                         it("should include local adds", function() {
                             var group1 = getAndComplete('Group', 101);
+
                             groups.add(group1);
                             expect(session.getChanges()).toEqual({
                                 User: {
@@ -1757,6 +1941,7 @@ describe("Ext.data.Session", function() {
 
                         it("should ignore adds & cancelling removes", function() {
                             var group1 = getAndComplete('Group', 101);
+
                             groups.add(group1);
                             groups.removeAt(0);
                             expect(session.getChanges()).toBeNull();
@@ -1766,7 +1951,7 @@ describe("Ext.data.Session", function() {
                     describe("store loaded", function() {
                         beforeEach(function() {
                             groups.load();
-                            completeRequest([{id: 101}, {id: 102}, {id: 103}]);
+                            completeRequest([{ id: 101 }, { id: 102 }, { id: 103 }]);
                         });
 
                         it("should not include any records loaded into the store", function() {
@@ -1775,6 +1960,7 @@ describe("Ext.data.Session", function() {
 
                         it("should include a local add to existing records", function() {
                             var group4 = getAndComplete('Group', 104);
+
                             groups.add(group4);
                             expect(session.getChanges()).toEqual({
                                 User: {
@@ -1810,6 +1996,7 @@ describe("Ext.data.Session", function() {
 
                         it("should ignore adds & cancelling removes", function() {
                             var group4 = getAndComplete('Group', 104);
+
                             groups.add(group4);
                             groups.remove(group4);
                             expect(session.getChanges()).toBeNull();
@@ -1911,6 +2098,7 @@ describe("Ext.data.Session", function() {
                         group.setId(1000);
 
                         var o = {};
+
                         o[user.getId()] = [1000];
 
                         expect(session.getChanges()).toEqual({
@@ -1940,10 +2128,6 @@ describe("Ext.data.Session", function() {
             session = new Ext.data.Session();
         });
 
-        afterEach(function() {
-            Ext.data.Model.schema.clear(true);
-        }); 
-
         describe("basic operations", function() {
             var User;
 
@@ -1951,7 +2135,9 @@ describe("Ext.data.Session", function() {
                 var o = {
                     User: {}
                 };
+
                 o.User[action] = data;
+
                 return o;
             }
 
@@ -1990,6 +2176,7 @@ describe("Ext.data.Session", function() {
                         age: 32
                     }]));
                     var user = session.getRecord('User', 17);
+
                     expect(user.get('name')).toBe('Foo');
                     expect(user.get('age')).toBe(32);
                 });
@@ -2001,6 +2188,7 @@ describe("Ext.data.Session", function() {
                         age: 32
                     }]));
                     var user = session.getRecord('User', 17);
+
                     expect(user.dirty).toBe(false);
                 });
 
@@ -2010,6 +2198,7 @@ describe("Ext.data.Session", function() {
                         age: 32
                     }]));
                     var user = session.getRecord('User', 'User-1');
+
                     expect(user.phantom).toBe(false);
                 });
 
@@ -2054,6 +2243,7 @@ describe("Ext.data.Session", function() {
                         age: 32
                     }]));
                     var user = session.getRecord('User', 17);
+
                     expect(user.get('name')).toBe('Foo');
                     expect(user.get('age')).toBe(32);
                 });
@@ -2064,6 +2254,7 @@ describe("Ext.data.Session", function() {
                         age: 32
                     }]));
                     var user = session.getRecord('User', 'User-1');
+
                     expect(user.phantom).toBe(true);
                 });
 
@@ -2093,6 +2284,7 @@ describe("Ext.data.Session", function() {
             describe("drop", function() {
                 it("should drop the record", function() {
                     var user = getAndComplete('User', 100);
+
                     session.update(wrapBlock('D', [100]));
                     expect(user.dropped).toBe(true);
                 });
@@ -2119,6 +2311,7 @@ describe("Ext.data.Session", function() {
                         name: 'Foo',
                         age: 100
                     });
+
                     session.update(wrapBlock('D', [{
                         id: 100,
                         name: 'Foo',
@@ -2134,6 +2327,7 @@ describe("Ext.data.Session", function() {
                         id: 100,
                         name: 'Foo'
                     });
+
                     session.update(wrapBlock('U', [{
                         id: 100,
                         name: 'Bar'
@@ -2147,6 +2341,7 @@ describe("Ext.data.Session", function() {
                         name: 'Foo',
                         age: 10
                     });
+
                     session.update(wrapBlock('U', [{
                         id: 100,
                         name: 'Bar',
@@ -2163,6 +2358,7 @@ describe("Ext.data.Session", function() {
                         name: 'Foo',
                         age: 23
                     });
+
                     session.update(wrapBlock('U', [{
                         id: 100,
                         name: 'Foo',
@@ -2176,10 +2372,12 @@ describe("Ext.data.Session", function() {
                         id: 101,
                         name: 'Foo'
                     });
+
                     var user102 = session.createRecord('User', {
                         id: 102,
                         name: 'Bar'
                     });
+
                     var user103 = session.createRecord('User', {
                         id: 103,
                         name: 'Baz'
@@ -2206,10 +2404,12 @@ describe("Ext.data.Session", function() {
                         id: 101,
                         name: 'Foo'
                     });
+
                     var user102 = session.createRecord('User', {
                         id: 102,
                         name: 'Bar'
                     });
+
                     var user103 = session.createRecord('User', {
                         id: 103,
                         name: 'Baz'
@@ -2242,6 +2442,7 @@ describe("Ext.data.Session", function() {
 
                 it("should throw an exception if the record is dropped", function() {
                     var user = getAndComplete('User', 1);
+
                     user.drop();
                     expect(function() {
                         session.update(wrapBlock('U', [{
@@ -2318,6 +2519,7 @@ describe("Ext.data.Session", function() {
                         });
 
                         var address = order.getAddress();
+
                         getAndComplete('Address', 101);
 
                         var orderItems = order.orderItems();
@@ -2330,7 +2532,7 @@ describe("Ext.data.Session", function() {
                             id: 202,
                             orderId: 1
                         }]);
-                        
+
                         var orderItem = orderItems.getAt(0);
 
                         order.setAddress(null);
@@ -2355,7 +2557,7 @@ describe("Ext.data.Session", function() {
                     it("should process any CRUD operations before associations", function() {
                         session.update({
                             User: {
-                                R: [{id: 1}],
+                                R: [{ id: 1 }],
                                 posts: {
                                     R: {
                                         1: [101]
@@ -2371,6 +2573,7 @@ describe("Ext.data.Session", function() {
                         });
 
                         var user = session.getRecord('User', 1);
+
                         expect(user.posts().indexOfId(101)).toBe(0);
                     });
 
@@ -2431,7 +2634,7 @@ describe("Ext.data.Session", function() {
                             expect(function() {
                                 session.update({
                                     User: {
-                                        R: [{id: 1}],
+                                        R: [{ id: 1 }],
                                         posts: {
                                             R: {
                                                 1: [101]
@@ -2470,6 +2673,7 @@ describe("Ext.data.Session", function() {
                             });
 
                             var posts = user.posts();
+
                             expect(posts.getCount()).toBe(3);
                             expect(posts.getAt(0)).toBe(session.peekRecord('Post', 101));
                             expect(posts.getAt(1)).toBe(session.peekRecord('Post', 102));
@@ -2496,8 +2700,9 @@ describe("Ext.data.Session", function() {
                                 }
                             });
                             var posts = user.posts();
+
                             expect(posts.getCount()).toBe(1);
-                            expect(posts.loadCount).toBe(1);
+                            expect(posts.loadCount).toBe(2);
                             expect(posts.complete).toBe(true);
                             expect(spy).not.toHaveBeenCalled();
                         });
@@ -2525,6 +2730,7 @@ describe("Ext.data.Session", function() {
                             });
 
                             var posts = user.posts();
+
                             expect(posts.getCount()).toBe(2);
                         });
 
@@ -2544,6 +2750,7 @@ describe("Ext.data.Session", function() {
                             });
 
                             var posts = user.posts();
+
                             expect(posts.getCount()).toBe(1);
                             expect(posts.getAt(0)).toBe(post1);
                         });
@@ -2566,6 +2773,7 @@ describe("Ext.data.Session", function() {
                             });
 
                             var posts = user.posts();
+
                             expect(posts.getCount()).toBe(0);
                         });
                     });
@@ -2658,8 +2866,8 @@ describe("Ext.data.Session", function() {
 
                             it("should exclude locally removed records", function() {
                                 var user = getAndComplete('User', 1),
-                                    post1 = getAndComplete('Post', 101, session, {userId: 1}),
-                                    post2 = getAndComplete('Post', 102, session, {userId: 1}),
+                                    post1 = getAndComplete('Post', 101, session, { userId: 1 }),
+                                    post2 = getAndComplete('Post', 102, session, { userId: 1 }),
                                     posts = user.posts();
 
                                 posts.removeAt(0);
@@ -2681,8 +2889,8 @@ describe("Ext.data.Session", function() {
 
                             it("should exclude records with local foreign key modifications", function() {
                                 var user = getAndComplete('User', 1),
-                                    post1 = getAndComplete('Post', 101, session, {userId: 1}),
-                                    post2 = getAndComplete('Post', 102, session, {userId: 1}),
+                                    post1 = getAndComplete('Post', 101, session, { userId: 1 }),
+                                    post2 = getAndComplete('Post', 102, session, { userId: 1 }),
                                     posts = user.posts();
 
                                 post1.set('userId', null);
@@ -2737,7 +2945,7 @@ describe("Ext.data.Session", function() {
                                     posts = user.posts();
 
                                 posts.load();
-                                completeRequest([{id: 101, userId: 1}, {id: 102, userId: 1}, {id: 103, userId: 1}]);
+                                completeRequest([{ id: 101, userId: 1 }, { id: 102, userId: 1 }, { id: 103, userId: 1 }]);
                                 posts.removeAt(0);
                                 session.update({
                                     User: {
@@ -2752,9 +2960,9 @@ describe("Ext.data.Session", function() {
                                 expect(posts.getAt(0)).toBe(session.peekRecord('Post', 102));
                                 expect(posts.getAt(1)).toBe(session.peekRecord('Post', 103));
                             });
-                        })
-                    }); 
-                    
+                        });
+                    });
+
                 });
 
                 describe("many to many", function() {
@@ -2762,7 +2970,7 @@ describe("Ext.data.Session", function() {
                         it("should read CRUD records before processing", function() {
                             session.update({
                                 User: {
-                                    R: [{id: 1}],
+                                    R: [{ id: 1 }],
                                     groups: {
                                         R: {
                                             1: [101, 102]
@@ -2770,7 +2978,7 @@ describe("Ext.data.Session", function() {
                                     }
                                 },
                                 Group: {
-                                    R: [{id: 101}, {id: 102}]
+                                    R: [{ id: 101 }, { id: 102 }]
                                 }
                             });
                             var user = session.getRecord('User', 1),
@@ -2786,7 +2994,7 @@ describe("Ext.data.Session", function() {
                             expect(function() {
                                 session.update({
                                     User: {
-                                        R: [{id: 1}],
+                                        R: [{ id: 1 }],
                                         groups: {
                                             R: {
                                                 1: [101, 102]
@@ -2836,6 +3044,7 @@ describe("Ext.data.Session", function() {
                                     }
                                 });
                                 var groups = user.groups();
+
                                 expect(groups.getCount()).toBe(1);
                                 expect(groups.getAt(0)).toBe(session.peekRecord('Group', 101));
                             });
@@ -2911,6 +3120,7 @@ describe("Ext.data.Session", function() {
 
                                 getAndComplete('Group', 101);
                                 var groups = user.groups();
+
                                 expect(groups.getCount()).toBe(2);
                                 expect(groups.indexOfId(102)).toBe(0);
                                 expect(groups.indexOfId(101)).toBe(1);
@@ -2947,6 +3157,7 @@ describe("Ext.data.Session", function() {
                                 });
 
                                 var groups = user.groups();
+
                                 expect(groups.getCount()).toBe(1);
                                 expect(groups.indexOfId(102)).toBe(0);
                             });
@@ -3045,7 +3256,7 @@ describe("Ext.data.Session", function() {
                                         group4 = getAndComplete('Group', 104);
 
                                     groups.load();
-                                    completeRequest([{id: 101}, {id: 102}, {id: 103}]);
+                                    completeRequest([{ id: 101 }, { id: 102 }, { id: 103 }]);
                                     groups.add(group4);
 
                                     session.update({
@@ -3066,7 +3277,7 @@ describe("Ext.data.Session", function() {
                                         groups = user.groups();
 
                                     groups.load();
-                                    completeRequest([{id: 101}, {id: 102}]);
+                                    completeRequest([{ id: 101 }, { id: 102 }]);
                                     groups.removeAt(0);
 
                                     session.update({
@@ -3102,6 +3313,7 @@ describe("Ext.data.Session", function() {
                                     });
 
                                     var groups = user.groups();
+
                                     expect(groups.getCount()).toBe(1);
                                     expect(groups.getAt(0)).toBe(group1);
                                 });
@@ -3122,8 +3334,10 @@ describe("Ext.data.Session", function() {
                                     });
 
                                     var groups = user.groups();
+
                                     expect(groups.getCount()).toBe(0);
                                     var group1 = getAndComplete('Group', 101);
+
                                     expect(groups.getCount()).toBe(1);
                                     expect(groups.getAt(0)).toBe(group1);
                                 });
@@ -3169,6 +3383,7 @@ describe("Ext.data.Session", function() {
                                         });
                                         expect(groups.getCount()).toBe(0);
                                         var group1 = getAndComplete('Group', 101);
+
                                         expect(groups.getAt(0)).toBe(group1);
                                     });
                                 });
@@ -3182,7 +3397,7 @@ describe("Ext.data.Session", function() {
                                             group3 = getAndComplete('Group', 103);
 
                                         groups.load();
-                                        completeRequest([{id: 101}, {id: 102}]);
+                                        completeRequest([{ id: 101 }, { id: 102 }]);
 
                                         expect(groups.getCount()).toBe(2);
 
@@ -3206,7 +3421,7 @@ describe("Ext.data.Session", function() {
                                             groups = user.groups();
 
                                         groups.load();
-                                        completeRequest([{id: 101}, {id: 102}]);
+                                        completeRequest([{ id: 101 }, { id: 102 }]);
 
                                         session.update({
                                             User: {
@@ -3245,8 +3460,9 @@ describe("Ext.data.Session", function() {
                                 });
 
                                 var groups = user.groups();
+
                                 groups.load();
-                                completeRequest([{id: 101}, {id: 102}]);
+                                completeRequest([{ id: 101 }, { id: 102 }]);
                                 expect(groups.getCount()).toBe(1);
                                 expect(groups.getAt(0)).toBe(session.peekRecord('Group', 102));
                             });
@@ -3269,7 +3485,7 @@ describe("Ext.data.Session", function() {
                                     });
 
                                     groups.load();
-                                    completeRequest([{id: 101}, {id: 102}]);
+                                    completeRequest([{ id: 101 }, { id: 102 }]);
                                     expect(groups.getCount()).toBe(1);
                                     expect(groups.getAt(0)).toBe(session.peekRecord('Group', 102));
                                 });
@@ -3281,7 +3497,7 @@ describe("Ext.data.Session", function() {
                                         groups = user.groups();
 
                                     groups.load();
-                                    completeRequest([{id: 101}, {id: 102}]);
+                                    completeRequest([{ id: 101 }, { id: 102 }]);
 
                                     session.update({
                                         User: {
@@ -3315,7 +3531,6 @@ describe("Ext.data.Session", function() {
 
         afterEach(function() {
             Ext.undefine('spec.User');
-            Ext.data.Model.schema.clear(true);
         });
 
         it("should evict a phantom when it is dropped", function() {
@@ -3327,13 +3542,15 @@ describe("Ext.data.Session", function() {
         });
 
         it("should not evict a non-phantom when it is dropped", function() {
-            var user = new spec.User({id: 1}, session);
+            var user = new spec.User({ id: 1 }, session);
+
             user.drop();
             expect(session.peekRecord('User', 1)).toBe(user);
         });
 
         it("should evict a non-phantom when it is erased", function() {
-            var user = new spec.User({id: 1}, session);
+            var user = new spec.User({ id: 1 }, session);
+
             user.erase();
             expect(session.peekRecord('User', 1)).toBe(user);
             completeRequest({});
@@ -3346,7 +3563,7 @@ describe("Ext.data.Session", function() {
 
         beforeEach(function() {
             Ext.data.Model.schema.setNamespace('spec');
-            User =Ext.define('spec.User', {
+            User = Ext.define('spec.User', {
                 extend: 'Ext.data.Model',
                 fields: ['name']
             });
@@ -3356,11 +3573,11 @@ describe("Ext.data.Session", function() {
         afterEach(function() {
             User = null;
             Ext.undefine('spec.User');
-            Ext.data.Model.schema.clear(true);
         });
 
         it("should call commit on created records", function() {
             var user = new spec.User({}, session);
+
             expect(session.getChanges()).toEqual({
                 User: {
                     C: [{
@@ -3373,7 +3590,8 @@ describe("Ext.data.Session", function() {
         });
 
         it("should call commit on updated records", function() {
-            var user = new spec.User({id: 1, name: 'Foo'}, session);
+            var user = new spec.User({ id: 1, name: 'Foo' }, session);
+
             user.set('name', 'Bar');
             expect(session.getChanges()).toEqual({
                 User: {
@@ -3388,7 +3606,8 @@ describe("Ext.data.Session", function() {
         });
 
         it("should call commit on dropped records", function() {
-            var user = new spec.User({id: 1}, session);
+            var user = new spec.User({ id: 1 }, session);
+
             user.drop();
             expect(session.getChanges()).toEqual({
                 User: {
@@ -3479,7 +3698,6 @@ describe("Ext.data.Session", function() {
             Ext.destroy(parent);
             parent = null;
             Ext.undefine('spec.User');
-            Ext.data.Model.schema.clear(true);
         });
 
         it("should set the schema from the parent", function() {
@@ -3504,6 +3722,7 @@ describe("Ext.data.Session", function() {
                 parent = new Ext.data.Session();
 
                 var user = getAndComplete('User', 1, parent);
+
                 // Local change
                 user.set('name', 'Foo');
 
@@ -3517,10 +3736,10 @@ describe("Ext.data.Session", function() {
                         url: 'fakeUrl'
                     }
                 });
-                store.load();
-                completeRequest([{id: 1, name: 'Bar'}]);
-                expect(session.peekRecord('User', 1).get('name')).toBe('Foo');
 
+                store.load();
+                completeRequest([{ id: 1 }]);
+                expect(session.peekRecord('User', 1).get('name')).toBe('Foo');
             });
         });
 
@@ -3566,6 +3785,17 @@ describe("Ext.data.Session", function() {
             });
         });
 
+        describe("record copying", function() {
+            it("should mark child records as non-phantoms even if the parent record is", function() {
+                parent = new Ext.data.Session();
+
+                var user = parent.createRecord('User', {});
+
+                session = parent.spawn();
+                expect(session.getRecord('User', user.id).phantom).toBe(false);
+            });
+        });
+
         describe("associations", function() {
             beforeEach(function() {
                 Ext.define('spec.Post', {
@@ -3592,6 +3822,7 @@ describe("Ext.data.Session", function() {
                     session = parent.spawn();
 
                     var posts = session.getRecord('User', 1).posts();
+
                     expect(posts.getAt(0).id).toBe(post.id);
                     expect(posts.getAt(0)).not.toBe(post);
                 });
@@ -3606,52 +3837,90 @@ describe("Ext.data.Session", function() {
                     session = parent.spawn();
 
                     var posts = session.getRecord('User', 1).posts();
+
                     expect(posts.getAt(0).id).toBe(101);
                     expect(posts.getAt(0)).not.toBe(post);
                 });
             });
 
             describe("stores", function() {
-                it("should mark loaded stores as complete", function() {
+                beforeEach(function() {
                     parent = new Ext.data.Session();
-                    getAndComplete('User', 1, parent, {
-                        id: 1,
-                        posts: [{
-                            id: 101,
-                            userId: 1
-                        }, {
-                            id: 102,
-                            userId: 1
-                        }]
-                    });
-
-                    session = parent.spawn();
-
-                    var parentPosts = parent.getRecord('User', 1).posts(),
-                        posts = session.getRecord('User', 1).posts();
-
-                    expect(posts.complete).toBe(true);
-                    expect(posts.getAt(0)).not.toBe(parentPosts.getAt(0));
-                    expect(posts.getAt(0).getId()).toBe(parentPosts.getAt(0).getId());
-                    expect(posts.getAt(1)).not.toBe(parentPosts.getAt(1));
-                    expect(posts.getAt(1).getId()).toBe(parentPosts.getAt(1).getId());
                 });
 
-                it("should not mark stores as complete if not loaded", function() {
-                    parent = new Ext.data.Session();
-                    getAndComplete('User', 1, parent);
-                    getAndComplete('Post', 101, parent, {
-                        userId: 1
-                    })
+                describe("store exists in the parent", function() {
+                    it("should mark loaded stores as complete", function() {
+                        getAndComplete('User', 1, parent, {
+                            id: 1,
+                            posts: [{
+                                id: 101,
+                                userId: 1
+                            }, {
+                                id: 102,
+                                userId: 1
+                            }]
+                        });
 
-                    session = parent.spawn();
+                        session = parent.spawn();
 
-                    var parentPosts = parent.getRecord('User', 1).posts(),
-                        posts = session.getRecord('User', 1).posts();
+                        var parentPosts = parent.getRecord('User', 1).posts(),
+                            posts = session.getRecord('User', 1).posts();
 
-                    expect(posts.complete).toBe(false);
-                    expect(posts.getAt(0)).not.toBe(parentPosts.getAt(0));
-                    expect(posts.getAt(0).getId()).toBe(parentPosts.getAt(0).getId());
+                        expect(posts.complete).toBe(true);
+                        expect(posts.getAt(0)).not.toBe(parentPosts.getAt(0));
+                        expect(posts.getAt(0).getId()).toBe(parentPosts.getAt(0).getId());
+                        expect(posts.getAt(1)).not.toBe(parentPosts.getAt(1));
+                        expect(posts.getAt(1).getId()).toBe(parentPosts.getAt(1).getId());
+                    });
+
+                    it("should not mark stores as complete if not loaded", function() {
+                        getAndComplete('User', 1, parent);
+                        getAndComplete('Post', 101, parent, {
+                            userId: 1
+                        });
+
+                        session = parent.spawn();
+
+                        var parentPosts = parent.getRecord('User', 1).posts(),
+                            posts = session.getRecord('User', 1).posts();
+
+                        expect(posts.complete).toBe(false);
+                        expect(posts.getAt(0)).not.toBe(parentPosts.getAt(0));
+                        expect(posts.getAt(0).getId()).toBe(parentPosts.getAt(0).getId());
+                    });
+
+                    it("should mark the store as complete if the parent record is a phantom", function() {
+                        var user = parent.createRecord('User', {}),
+                            childUser;
+
+                        // Trigger store creation
+                        user.posts();
+                        session = parent.spawn();
+                        childUser = session.getRecord('User', user.id);
+                        expect(childUser.posts().complete).toBe(true);
+                    });
+                });
+
+                describe("store does not exist in the parent", function() {
+                    it("should mark the store as complete if the parent record is a phantom", function() {
+                        var user = parent.createRecord('User', {}),
+                            childUser;
+
+                        session = parent.spawn();
+                        childUser = session.getRecord('User', user.id);
+                        expect(childUser.posts().complete).toBe(true);
+                    });
+
+                    it("should not mark the store as complete if the parent record is not a phantom", function() {
+                        var user = parent.createRecord('User', {
+                                id: 1
+                            }),
+                            childUser;
+
+                        session = parent.spawn();
+                        childUser = session.getRecord('User', 1);
+                        expect(childUser.posts().complete).toBe(false);
+                    });
                 });
             });
         });
@@ -3659,6 +3928,7 @@ describe("Ext.data.Session", function() {
 
     describe("updating from child to parent sessions", function() {
         var child, rec;
+
         beforeEach(function() {
             Ext.data.Model.schema.setNamespace('spec');
             Ext.define('spec.User', {
@@ -3676,7 +3946,6 @@ describe("Ext.data.Session", function() {
 
         afterEach(function() {
             Ext.undefine('spec.User');
-            Ext.data.Model.schema.clear(true);
             Ext.destroy(child);
             child = null;
         });
@@ -3694,6 +3963,7 @@ describe("Ext.data.Session", function() {
                 serializeField: 1000
             });
             var spy = spyOn(rec.getField('serializeField'), 'serialize');
+
             child.save();
             expect(spy).not.toHaveBeenCalled();
             expect(session.getRecord('User', rec.id).get('serializeField')).toBe(1000);
@@ -3735,8 +4005,9 @@ describe("Ext.data.Session", function() {
 
             it("should use a record that is a phantom in the parent as an update from the child", function() {
                 var rec = session.createRecord('User', {
-                    name: 'Foo'
-                }), id = rec.getId();
+                        name: 'Foo'
+                    }),
+                    id = rec.getId();
 
                 child = session.spawn();
                 child.getRecord('User', id).set('name', 'Bar');
@@ -3820,6 +4091,7 @@ describe("Ext.data.Session", function() {
                     });
 
                     var address = order.getAddress();
+
                     getAndComplete('Address', 101, child);
 
                     var orderItems = order.orderItems();
@@ -3832,7 +4104,7 @@ describe("Ext.data.Session", function() {
                         id: 202,
                         orderId: 1
                     }]);
-                    
+
                     var orderItem = orderItems.getAt(0);
 
                     order.setAddress(null);
@@ -3881,12 +4153,11 @@ describe("Ext.data.Session", function() {
                         posts = user.posts();
 
                         posts.load();
-                        completeRequest([{id: 101, userId: 1}, {id: 102, userId: 1}]);
+                        completeRequest([{ id: 101, userId: 1 }, { id: 102, userId: 1 }]);
                         child = session.spawn();
 
                         posts = child.getRecord('User', 1).posts();
                     });
-
 
                     afterEach(function() {
                         user = posts = null;
@@ -3921,6 +4192,7 @@ describe("Ext.data.Session", function() {
 
                     it("should push a new phantom record as a creation", function() {
                         var id = posts.add({})[0].getId();
+
                         child.save();
 
                         expect(session.getChanges()).toEqual({
@@ -3936,6 +4208,7 @@ describe("Ext.data.Session", function() {
 
                     it("should push an added record as an update to the FK", function() {
                         var post = getAndComplete('Post', 105, child);
+
                         posts.add(post);
                         child.save();
 
@@ -3968,7 +4241,7 @@ describe("Ext.data.Session", function() {
 
                     it("should read & update for a foreign key change", function() {
                         posts.load();
-                        completeRequest([{id: 101, userId: 1}, {id: 102, userId: 1}, {id: 103, userId: 1}]);
+                        completeRequest([{ id: 101, userId: 1 }, { id: 102, userId: 1 }, { id: 103, userId: 1 }]);
                         posts.removeAt(1);
                         child.save();
 
@@ -3985,7 +4258,7 @@ describe("Ext.data.Session", function() {
 
                     it("should read and update for a drop", function() {
                         posts.load();
-                        completeRequest([{id: 101, userId: 1}, {id: 102, userId: 1}, {id: 103, userId: 1}]);
+                        completeRequest([{ id: 101, userId: 1 }, { id: 102, userId: 1 }, { id: 103, userId: 1 }]);
                         posts.getAt(1).drop();
                         child.save();
 
@@ -4001,6 +4274,7 @@ describe("Ext.data.Session", function() {
                         var id = posts.add({
                             content: 'Foo'
                         })[0].getId();
+
                         child.save();
 
                         expect(session.getChanges()).toEqual({
@@ -4017,7 +4291,7 @@ describe("Ext.data.Session", function() {
 
                     it("should have no changes if the store is loaded", function() {
                         posts.load();
-                        completeRequest([{id: 101, userId: 1}, {id: 102, userId: 1}, {id: 103, userId: 1}]);
+                        completeRequest([{ id: 101, userId: 1 }, { id: 102, userId: 1 }, { id: 103, userId: 1 }]);
                         child.save();
                         expect(session.getChanges()).toBeNull();
                     });
@@ -4045,7 +4319,7 @@ describe("Ext.data.Session", function() {
                         group = getAndComplete('Group', 1);
                         users = group.users();
                         users.load();
-                        completeRequest([{id: 101}, {id: 102}, {id: 103}]);
+                        completeRequest([{ id: 101 }, { id: 102 }, { id: 103 }]);
                         child = session.spawn();
                         childGroup = child.getRecord('Group', 1);
                         childUsers = childGroup.users();
@@ -4058,6 +4332,7 @@ describe("Ext.data.Session", function() {
                     it("should add an existing record to the parent collection", function() {
                         // Gets it in the parent, we get a copy in the child below
                         var user = getAndComplete('User', 104);
+
                         childUsers.add(child.getRecord('User', 104));
                         child.save();
                         expect(session.getChanges()).toEqual({
@@ -4075,6 +4350,7 @@ describe("Ext.data.Session", function() {
 
                     it("should have a pending add in the parent, not read the record up", function() {
                         var user = getAndComplete('User', 104, child);
+
                         childUsers.add(user);
                         child.save();
                         expect(session.getChanges()).toEqual({
@@ -4113,6 +4389,7 @@ describe("Ext.data.Session", function() {
 
                 describe("store not loaded, created in the parent", function() {
                     var user1, user2;
+
                     beforeEach(function() {
                         group = getAndComplete('Group', 1);
                         users = group.users();
@@ -4136,6 +4413,7 @@ describe("Ext.data.Session", function() {
                     it("should add an existing record to the parent collection", function() {
                         // Gets it in the parent, we get a copy in the child below
                         var user = getAndComplete('User', 104);
+
                         childUsers.add(child.getRecord('User', 104));
                         child.save();
                         expect(session.getChanges()).toEqual({
@@ -4153,6 +4431,7 @@ describe("Ext.data.Session", function() {
 
                     it("should have a pending add in the parent, not read the record up", function() {
                         var user = getAndComplete('User', 104, child);
+
                         childUsers.add(user);
                         child.save();
                         expect(session.getChanges()).toEqual({
@@ -4195,12 +4474,13 @@ describe("Ext.data.Session", function() {
                         childGroup = child.getRecord('Group', 1);
                         childUsers = childGroup.users();
                         childUsers.load();
-                        completeRequest([{id: 101}, {id: 102}, {id: 103}]);
+                        completeRequest([{ id: 101 }, { id: 102 }, { id: 103 }]);
                     });
 
                     it("should add an existing record to the parent collection", function() {
                         // Gets it in the parent, we get a copy in the child below
                         var user = getAndComplete('User', 104);
+
                         childUsers.add(child.getRecord('User', 104));
                         child.save();
                         expect(session.getChanges()).toEqual({
@@ -4219,6 +4499,7 @@ describe("Ext.data.Session", function() {
 
                     it("should have a pending add in the parent, not read the record up", function() {
                         var user = getAndComplete('User', 104, child);
+
                         childUsers.add(user);
                         child.save();
                         expect(session.getChanges()).toEqual({
@@ -4255,7 +4536,7 @@ describe("Ext.data.Session", function() {
                         // We don't have any users in the session
                         expect(users.getCount()).toBe(0);
                         users.load();
-                        completeRequest([{id: 101}, {id: 102}, {id: 103}]);
+                        completeRequest([{ id: 101 }, { id: 102 }, { id: 103 }]);
                         // Now that we have loaded, we exclude 101
                         expect(users.getCount()).toBe(2);
                     });
@@ -4281,6 +4562,7 @@ describe("Ext.data.Session", function() {
                     it("should add an existing record to the parent collection", function() {
                         // Gets it in the parent, we get a copy in the child below
                         var user = getAndComplete('User', 104);
+
                         childUsers.add(child.getRecord('User', 104));
                         child.save();
                         expect(session.getChanges()).toEqual({
@@ -4366,17 +4648,821 @@ describe("Ext.data.Session", function() {
                     });
                 });
 
+                describe("setting state", function() {
+                    it("should ignore a removal and add in the child", function() {
+                        group = getAndComplete('Group', 1, session, {
+                            id: 1,
+                            users: [{
+                                id: 101
+                            }, {
+                                id: 102
+                            }, {
+                                id: 103
+                            }]
+                        });
+                        child = session.spawn();
+
+                        var group = child.getRecord('Group', 1),
+                            users = group.users(),
+                            user = users.getById(102);
+
+                        users.remove(user);
+                        users.add(user);
+
+                        child.save();
+                        expect(session.getChanges()).toBeNull();
+                    });
+                });
+
             });
         });
     });
 
-    describe('Provisional identifiers', function () {
-        function makeSuite (title, schema, expectations) {
-            describe('Schema with ' + title, function () {
+    describe("data collisions", function() {
+        var User;
+
+        beforeEach(function() {
+            Ext.data.Model.schema.setNamespace('spec');
+            User = Ext.define('spec.User', {
+                extend: 'Ext.data.Model',
+                fields: ['name']
+            });
+            session = new Ext.data.Session();
+        });
+
+        afterEach(function() {
+            User = null;
+            Ext.undefine('spec.User');
+        });
+
+        describe("via model load", function() {
+            describe("instance load", function() {
+                it("should not call the model mergeData method and pass the new data", function() {
+                    var rec = getAndComplete(User, 1, session, {
+                        id: 1,
+                        name: 'Foo'
+                    });
+
+                    rec.load();
+                    spyOn(rec, 'mergeData');
+                    completeRequest([{
+                        id: 1,
+                        name: 'Bar'
+                    }]);
+                    expect(rec.mergeData).not.toHaveBeenCalled();
+                });
+            });
+
+            describe("static load", function() {
+                it("should not call the model mergeData method and pass the new data", function() {
+                    var rec = User.load(1, null, session);
+
+                    spyOn(rec, 'mergeData');
+                    completeRequest([{
+                        id: 1,
+                        name: 'Bar'
+                    }]);
+                    expect(rec.mergeData).not.toHaveBeenCalled();
+                });
+            });
+        });
+
+        describe("via store load", function() {
+            it("should call the model mergeData method and pass the new data", function() {
+                var rec = getAndComplete(User, 1, session, {
+                    id: 1,
+                    name: 'Foo'
+                });
+
+                var store = new Ext.data.Store({
+                    model: User,
+                    asynchronousLoad: false,
+                    session: session
+                });
+
+                store.load();
+                spyOn(rec, 'mergeData');
+                completeRequest([{
+                    id: 1,
+                    name: 'Bar'
+                }]);
+                expect(rec.mergeData.callCount).toBe(1);
+                expect(rec.mergeData.mostRecentCall.args[0]).toEqual({
+                    id: 1,
+                    name: 'Bar'
+                });
+            });
+        });
+    });
+
+    describe("dirty state", function() {
+        var spy;
+
+        function expectDirty() {
+            expect(session.getDirty()).toBe(true);
+        }
+
+        function expectNotDirty() {
+            expect(session.getDirty()).toBe(false);
+        }
+
+        function expectDirtySpy(dirty) {
+            expect(spy.callCount).toBe(1);
+            expect(spy.mostRecentCall.args[0]).toBe(session);
+            expect(spy.mostRecentCall.args[1]).toBe(dirty);
+        }
+
+        beforeEach(function() {
+            session = new Ext.data.Session();
+            expect(session.getDirty()).toBe(false);
+            Ext.data.Model.schema.setNamespace('spec');
+
+            Ext.define('spec.User', {
+                extend: 'Ext.data.Model',
+                fields: ['name']
+            });
+
+            spy = jasmine.createSpy();
+        });
+
+        afterEach(function() {
+            Ext.undefine('spec.User');
+            spy = null;
+        });
+
+        function createUser(data) {
+            return session.createRecord('User', Ext.apply({ name: 'X' }, data || {}));
+        }
+
+        describe("record operations", function() {
+            describe("create", function() {
+                it("should be dirty after creating a record", function() {
+                    createUser();
+                    expectDirty();
+                });
+
+                it("should not be dirty if the create is reverted", function() {
+                    var rec = createUser();
+
+                    rec.drop();
+                    expectNotDirty();
+                });
+
+                it("should be dirty if only some creates are reverted", function() {
+                    var rec = createUser();
+
+                    createUser();
+
+                    rec.drop();
+                    expectDirty();
+                });
+
+                it("should be dirty if encountering the record in a create state", function() {
+                    var rec = new spec.User();
+
+                    session.adopt(rec);
+                    expectDirty();
+                });
+
+                it("should be dirty when the store add handler is invoked", function() {
+                    var store = new Ext.data.Store({
+                        model: 'spec.User',
+                        session: session
+                    });
+
+                    store.on('add', function() {
+                        expectDirty();
+                    });
+
+                    store.add({
+                        name: 'Foo'
+                    });
+                });
+
+                describe("events", function() {
+                    var rec;
+
+                    beforeEach(function() {
+                        session.on('dirtychange', spy);
+                        rec = createUser();
+                    });
+
+                    afterEach(function() {
+                        rec = null;
+                    });
+
+                    it("should fire the event when the first record is created", function() {
+                        expectDirtySpy(true);
+                    });
+
+                    it("should not fire on subsequent creates", function() {
+                        spy.reset();
+                        createUser();
+                        createUser();
+                        createUser();
+                        expect(spy).not.toHaveBeenCalled();
+                    });
+
+                    it("should fire if a create was reverted", function() {
+                        spy.reset();
+                        rec.drop();
+                        expectDirtySpy(false);
+                    });
+
+                    it("should not fire if only some creates are reverted", function() {
+                        spy.reset();
+                        createUser();
+                        rec.drop();
+                        expect(spy).not.toHaveBeenCalled();
+                    });
+                });
+            });
+
+            describe("update", function() {
+                it("should be dirty after updating a record", function() {
+                    var rec = getAndComplete('User', 1, session, { name: 'Foo' });
+
+                    expectNotDirty();
+                    rec.set('name', 'Bar');
+                    expectDirty();
+                });
+
+                it("should not be dirty if the update was reverted", function() {
+                    var rec = getAndComplete('User', 1, session, { name: 'Foo' });
+
+                    expectNotDirty();
+                    rec.set('name', 'Bar');
+                    rec.set('name', 'Foo');
+                    expectNotDirty();
+                });
+
+                it("should be dirty if only some updates are reverted", function() {
+                    var rec = getAndComplete('User', 1, session, { name: 'Foo' });
+
+                    var other = getAndComplete('User', 2, session, { name: 'Foo' });
+
+                    rec.set('name', 'Bar');
+                    other.set('name', 'Baz');
+                    rec.set('name', 'Foo');
+                    expectDirty();
+                });
+
+                it("should be dirty if encountering the record in an updated state", function() {
+                    var rec = new spec.User({
+                        id: 1
+                    });
+
+                    rec.set('name', 'Foo');
+                    session.adopt(rec);
+                    expectDirty();
+                });
+
+                it("should be dirty when the store update handler is invoked", function() {
+                    var rec = new spec.User({
+                        id: 1
+                    });
+
+                    var store = new Ext.data.Store({
+                        model: 'spec.User',
+                        session: session
+                    });
+
+                    store.add(rec);
+
+                    store.on('update', function() {
+                        expectDirty();
+                    });
+
+                    rec.set('name', 'Foo');
+                });
+
+                describe("events", function() {
+                    var rec;
+
+                    beforeEach(function() {
+                        session.on('dirtychange', spy);
+                        rec = getAndComplete('User', 1, session, {
+                            name: 'Foo'
+                        });
+                        rec.set('name', 'Bar');
+                    });
+
+                    afterEach(function() {
+                        rec = null;
+                    });
+
+                    it("should fire the event when the record is first updated", function() {
+                        expectDirtySpy(true);
+                    });
+
+                    it("should not fire on subsequent updates", function() {
+                        spy.reset();
+                        rec.set('name', 'A');
+                        rec.set('name', 'B');
+                        rec.set('name', 'C');
+                        rec.set('name', 'D');
+                        expect(spy).not.toHaveBeenCalled();
+                    });
+
+                    it("should fire if the update is reverted", function() {
+                        spy.reset();
+                        rec.set('name', 'Foo');
+                        expectDirtySpy(false);
+                    });
+
+                    it("should not fire if only some updates are reverted", function() {
+                        var other = getAndComplete('User', 2, session, { name: 'Foo' });
+
+                        spy.reset();
+                        other.set('name', 'Baz');
+                        rec.set('name', 'Foo');
+                        expect(spy).not.toHaveBeenCalled();
+                    });
+                });
+            });
+
+            describe("drop", function() {
+                it("should not be dirty if a phantom is dropped", function() {
+                    var rec = createUser();
+
+                    rec.drop();
+                    expectNotDirty();
+                });
+
+                it("should be dirty after dropping a record", function() {
+                    var rec = getAndComplete('User', 1);
+
+                    rec.drop();
+                    expectDirty();
+                });
+
+                it("should not be dirty if the drop is reverted", function() {
+                    var rec = getAndComplete('User', 1);
+
+                    rec.drop();
+                    rec.reject();
+                    expectNotDirty();
+                });
+
+                it("should be dirty if only some drops are reverted", function() {
+                    var rec = getAndComplete('User', 1),
+                        other = getAndComplete('User', 2);
+
+                    rec.drop();
+                    other.drop();
+
+                    rec.reject();
+                    expectDirty();
+                });
+
+                it("should be dirty if encountering the record in a dropped state", function() {
+                    var rec = new spec.User({
+                        id: 1
+                    });
+
+                    rec.drop();
+                    session.adopt(rec);
+                    expectDirty();
+                });
+
+                it("should be dirty when the store remove handler is invoked", function() {
+                    var rec = new spec.User({
+                        id: 1
+                    });
+
+                    var store = new Ext.data.Store({
+                        model: 'spec.User',
+                        session: session
+                    });
+
+                    store.add(rec);
+
+                    store.on('remove', function() {
+                        expectDirty();
+                    });
+
+                    rec.drop();
+                });
+
+                describe("events", function() {
+                    var rec;
+
+                    beforeEach(function() {
+                        session.on('dirtychange', spy);
+                        rec = getAndComplete('User', 1);
+                        rec.drop();
+                    });
+
+                    afterEach(function() {
+                        rec = null;
+                    });
+
+                    it("should fire the event when the first record is dropped", function() {
+                        expectDirtySpy(true);
+                    });
+
+                    it("should not fire on subsequent drops", function() {
+                        spy.reset();
+                        getAndComplete('User', 2).drop();
+                        getAndComplete('User', 3).drop();
+                        expect(spy).not.toHaveBeenCalled();
+                    });
+
+                    it("should fire if a drop was reverted", function() {
+                        spy.reset();
+                        rec.reject();
+                        expectDirtySpy(false);
+                    });
+
+                    it("should not fire if only some drops are reverted", function() {
+                        spy.reset();
+                        getAndComplete('User', 2).drop();
+                        rec.reject();
+                        expect(spy).not.toHaveBeenCalled();
+                    });
+                });
+            });
+        });
+
+        describe("associations", function() {
+            beforeEach(function() {
+                Ext.define('spec.AssocUser', {
+                    extend: 'Ext.data.Model',
+                    fields: ['name', {
+                        name: 'passportId',
+                        unique: true,
+                        reference: 'Passport',
+                        defaultValue: null
+                    }]
+                });
+
+                Ext.define('spec.Order', {
+                    extend: 'Ext.data.Model',
+                    fields: [{
+                        name: 'userId',
+                        reference: {
+                            type: 'AssocUser',
+                            inverse: {
+                                role: 'orders'
+                            }
+                        }
+                    }]
+                });
+
+                Ext.define('spec.Passport', {
+                    extend: 'Ext.data.Model'
+                });
+            });
+
+            afterEach(function() {
+                Ext.undefine('spec.AssocUser');
+                Ext.undefine('spec.Order');
+                Ext.undefine('spec.Passport');
+            });
+
+            describe("many to one", function() {
+                it("should not be dirty after dropping a phantom associated record", function() {
+                    var user = getAndComplete('AssocUser', 1);
+
+                    var rec = user.orders().add({})[0];
+
+                    rec.drop();
+                    expectNotDirty();
+                });
+            });
+
+            describe("one to one", function() {
+                it("should not be dirty after dropping a phantom associated record", function() {
+                    getAndComplete('Passport', 101);
+
+                    var user = session.createRecord('AssocUser', { passportId: 101 });
+
+                    user.drop();
+                    expectNotDirty();
+                });
+            });
+        });
+
+        describe("session operations", function() {
+            describe("commit", function() {
+                it("should not be dirty after a commit", function() {
+                    createUser();
+                    var rec1 = getAndComplete('User', 1, session, { name: 'Foo' }),
+                        rec2 = getAndComplete('User', 2);
+
+                    rec1.set('name', 'Bar');
+                    rec2.drop();
+
+                    expectDirty();
+                    session.commit();
+                    expectNotDirty();
+                });
+
+                describe("events", function() {
+                    it("should not fire an event if the session was not dirty", function() {
+                        getAndComplete('User', 1, session, { name: 'Foo' });
+                        session.on('dirtychange', spy);
+                        session.commit();
+                        expect(spy).not.toHaveBeenCalled();
+                    });
+
+                    it("should fire an event if the session was dirty", function() {
+                        getAndComplete('User', 1, session, { name: 'Foo' }).set('name', 'Bar');
+                        session.on('dirtychange', spy);
+                        session.commit();
+                        expectDirtySpy(false);
+                    });
+
+                    it("should fire the event after all changes have been completed", function() {
+                        var a = createUser(),
+                            b = getAndComplete('User', 1, session, { name: 'Foo' }),
+                            c = getAndComplete('User', 2);
+
+                        b.set('name', 'Bar');
+                        c.drop();
+
+                        var info;
+
+                        session.on('dirtychange', function() {
+                            info = [a.phantom, b.dirty, c.erased];
+                        });
+                        session.commit();
+                        expect(info).toEqual([false, false, true]);
+                    });
+                });
+            });
+
+            describe("save", function() {
+                it("should not be dirty if the save makes no changes", function() {
+                    var child = session.spawn();
+
+                    child.save();
+                    expectNotDirty();
+                });
+
+                it("should be dirty if the save introduces changes", function() {
+                    getAndComplete('User', 1);
+                    var child = session.spawn();
+
+                    child.getRecord('User', 1).set('name', 'Foo');
+                    child.save();
+                    expectDirty();
+                });
+
+                it("should remain dirty if the save has extra changes", function() {
+                    session.createRecord('User');
+                    var child = session.spawn();
+
+                    child.createRecord('User');
+                    child.save();
+                    expectDirty();
+                });
+
+                describe("single change", function() {
+                    it("should be dirty after doing a create", function() {
+                        var child = session.spawn();
+
+                        child.createRecord('User');
+                        child.save();
+
+                        expectDirty();
+                    });
+
+                    it("should be dirty after doing an update", function() {
+                        getAndComplete('User', 1);
+                        var child = session.spawn();
+
+                        child.getRecord('User', 1).set('name', 'Foo');
+                        child.save();
+
+                        expectDirty();
+                    });
+
+                    it("should be dirty after doing a drop", function() {
+                        getAndComplete('User', 1);
+                        var child = session.spawn();
+
+                        child.getRecord('User', 1).drop();
+                        child.save();
+
+                        expectDirty();
+                    });
+                });
+
+                describe("undoing changes", function() {
+                    it("should not be dirty after undoing a create", function() {
+                        var child = session.spawn();
+
+                        var id = createUser().id;
+
+                        child.save();
+                        expectDirty();
+                        session.getRecord('User', id).drop();
+                        expectNotDirty();
+                    });
+
+                    it("should not be dirty after undoing an update", function() {
+                        var rec = getAndComplete('User', 1, session, { name: 'Foo' });
+
+                        var child = session.spawn();
+
+                        child.getRecord('User', 1).set('name', 'Bar');
+                        child.save();
+                        expectDirty();
+                        rec.set('name', 'Foo');
+                        expectNotDirty();
+                    });
+
+                    it("should not be dirty after undoing a drop", function() {
+                        var rec = getAndComplete('User', 1);
+
+                        var child = session.spawn();
+
+                        child.getRecord('User', 1).drop();
+                        child.save();
+                        expectDirty();
+                        rec.reject();
+                        expectNotDirty();
+                    });
+                });
+
+                describe("events", function() {
+                    beforeEach(function() {
+                        session.on('dirtychange', spy);
+                    });
+
+                    it("should not fire if the save doesn't trigger changes", function() {
+                        var child = session.spawn();
+
+                        child.save();
+                        expect(spy).not.toHaveBeenCalled();
+                    });
+
+                    it("should not fire if the state is already dirty", function() {
+                        getAndComplete('User', 1).set('name', 'Foo');
+                        spy.reset();
+                        var child = session.spawn();
+
+                        child.getRecord('User', 1).set('name', 'Bar');
+                        child.save();
+                        expect(spy).not.toHaveBeenCalled();
+                    });
+
+                    it("should fire if the state is made to be dirty", function() {
+                        getAndComplete('User', 1);
+                        var child = session.spawn();
+
+                        child.getRecord('User', 1).set('name', 'Foo');
+                        child.save();
+                        expectDirtySpy(true);
+                    });
+
+                    it("should fire the event after all changes are completed", function() {
+                        function g(id) {
+                            return child.getRecord('User', id);
+                        }
+
+                        getAndComplete('User', 1);
+                        getAndComplete('User', 2);
+                        var child = session.spawn(),
+                            info;
+
+                        var id = child.createRecord('User', { passportId: null }).id;
+
+                        g(1).set('name', 'Foo');
+                        g(2).drop();
+
+                        session.on('dirtychange', function() {
+                            info = [g(id).phantom, g(1).dirty, g(2).dropped];
+                        });
+                        child.save();
+                        expect(info).toEqual([true, true, true]);
+                    });
+                });
+            });
+
+            describe("update", function() {
+                it("should not be dirty if the update only contained reads", function() {
+                    session.update({
+                        User: {
+                            R: [{ id: 1 }]
+                        }
+                    });
+                    expectNotDirty();
+                });
+
+                it("should be dirty if the update includes changes", function() {
+                    getAndComplete('User', 1);
+                    getAndComplete('User', 2);
+                    session.update({
+                        User: {
+                            C: [{}],
+                            U: [{
+                                id: 1,
+                                name: 'Foo'
+                            }],
+                            D: [2]
+                        }
+                    });
+                    expectDirty();
+                });
+
+                describe("events", function() {
+                    beforeEach(function() {
+                        session.on('dirtychange', spy);
+                    });
+
+                    it("should not fire an event if the session was not dirty and the update contained reads", function() {
+                        session.update({
+                            User: {
+                                R: [{ id: 1 }]
+                            }
+                        });
+                        expect(spy).not.toHaveBeenCalled();
+                    });
+
+                    it("should not fire if the session was dirty and new changes were added", function() {
+                        getAndComplete('User', 1, session, { name: 'Foo' }).set('name', 'Bar');
+                        getAndComplete('User', 2);
+
+                        spy.reset();
+                        session.update({
+                            User: {
+                                U: [{
+                                    id: 2,
+                                    name: 'Baz'
+                                }]
+                            }
+                        });
+                        expect(spy).not.toHaveBeenCalled();
+                    });
+
+                    it("should fire if the session was not dirty and changes are included", function() {
+                        getAndComplete('User', 1);
+
+                        spy.reset();
+                        session.update({
+                            User: {
+                                U: [{
+                                    id: 1,
+                                    name: 'Baz'
+                                }]
+                            }
+                        });
+                        expectDirtySpy(true);
+                    });
+
+                    it("should fire if the update causes the session to not be dirty", function() {
+                        getAndComplete('User', 1, session, { name: 'Foo' }).set('name', 'Bar');
+
+                        spy.reset();
+                        session.update({
+                            User: {
+                                U: [{
+                                    id: 1,
+                                    name: 'Foo'
+                                }]
+                            }
+                        });
+                        expectDirtySpy(false);
+                    });
+
+                    it("should defer firing the event until all updates are complete", function() {
+                        var a = getAndComplete('User', 1),
+                            b = getAndComplete('User', 2);
+
+                        var info;
+
+                        session.on('dirtychange', function() {
+                            info = [session.peekRecord('User', 3) !== null, a.dirty, b.dropped];
+                        });
+
+                        session.update({
+                            User: {
+                                C: [{ id: 3 }],
+                                U: [{
+                                    id: 1,
+                                    name: 'Foo'
+                                }],
+                                D: [2]
+                            }
+                        });
+
+                        expect(info).toEqual([true, true, true]);
+                    });
+                });
+            });
+        });
+    });
+
+    describe('Provisional identifiers', function() {
+        function makeSuite(title, schema, expectations) {
+            describe('Schema with ' + title, function() {
                 var Base, Derived;
 
                 beforeEach(function() {
                     schema.setNamespace('spec');
+                    // @define Base
                     Base = Ext.define('spec.Base', {
                         extend: Ext.data.Model,
 
@@ -4403,7 +5489,7 @@ describe("Ext.data.Session", function() {
                 });
 
                 describe("record creation", function() {
-                    it('should isolate id generation to the session', function () {
+                    it('should isolate id generation to the session', function() {
                         var standaloneRecord = new Base();
 
                         var sessionRecord = session.createRecord('Base', {
@@ -4414,15 +5500,17 @@ describe("Ext.data.Session", function() {
                         expect(sessionRecord.id).toBe(standaloneRecord.id);
                     });
 
-                    it('should track all created records', function () {
+                    it('should track all created records', function() {
                         var a = session.createRecord('Base', {
                             name: 'Don'
                         });
+
                         expect(a.id).toBe(expectations['B-1']);
 
                         var b = session.createRecord('Derived', {
                             name: 'Evan'
                         });
+
                         expect(b.id).toBe(expectations['D-1']);
 
                         var changes = session.getChanges();
@@ -4466,8 +5554,9 @@ describe("Ext.data.Session", function() {
         });
     });
 
-    describe("Random UUID's", function () {
+    describe("Random UUID's", function() {
         var Base, Derived;
+
         var schema;
 
         beforeEach(function() {
@@ -4476,6 +5565,7 @@ describe("Ext.data.Session", function() {
                     defaultIdentifier: 'uuid'
                 });
             }
+
             schema.setNamespace('spec');
 
             Base = Ext.define('spec.Base', {
@@ -4501,7 +5591,7 @@ describe("Ext.data.Session", function() {
         });
 
         describe("record creation", function() {
-            it('should copy identifier reference into the session', function () {
+            it('should copy identifier reference into the session', function() {
                 var standaloneRecord = new Base();
 
                 var sessionRecord = session.createRecord('Base', {
@@ -4512,6 +5602,7 @@ describe("Ext.data.Session", function() {
                 expect(sessionRecord.id).not.toBe(standaloneRecord.id); // uuid !
 
                 var defaultIdentifier = session.getSchema().getDefaultIdentifier();
+
                 var identA = session.getIdentifier(Base);
 
                 expect(identA).toBe(Base.identifier); // not cloned
@@ -4521,8 +5612,9 @@ describe("Ext.data.Session", function() {
         }); // record creation
     }); // Random UUID's
 
-    describe("Sequential UUID's", function () {
+    describe("Sequential UUID's", function() {
         var Base, Derived;
+
         var schema;
 
         beforeEach(function() {
@@ -4537,6 +5629,7 @@ describe("Ext.data.Session", function() {
                     }
                 });
             }
+
             schema.setNamespace('spec');
 
             Base = Ext.define('spec.Base', {
@@ -4561,7 +5654,7 @@ describe("Ext.data.Session", function() {
         });
 
         describe("record creation", function() {
-            it('should copy identifier reference into the session', function () {
+            it('should copy identifier reference into the session', function() {
                 var standaloneRec = new Base();
 
                 var sessionRecord = session.createRecord('Base', {
@@ -4573,6 +5666,7 @@ describe("Ext.data.Session", function() {
                 // changes right here                 ^
 
                 var defaultIdentifier = session.getSchema().getDefaultIdentifier();
+
                 var identA = session.getIdentifier(Base);
 
                 expect(identA).toBe(Base.identifier); // not cloned
@@ -4583,7 +5677,7 @@ describe("Ext.data.Session", function() {
         }); // record creation
     }); // Sequential UUID's
 
-    describe('Many-to-many associations', function () {
+    describe('Many-to-many associations', function() {
         var User, Group;
 
         beforeEach(function() {
@@ -4619,8 +5713,9 @@ describe("Ext.data.Session", function() {
         });
 
         describe("loading a many-to-many", function() {
-            it('should load groups for a user', function () {
+            it('should load groups for a user', function() {
                 var groups = session.getRecord('User', userRufus.id, false).groups();
+
                 groups.load();
                 completeRequest(rufusGroups);
 
@@ -4640,7 +5735,7 @@ describe("Ext.data.Session", function() {
                 expect(matrix.right.slices[427].members[10]).toEqual([10, 427, 0]);
             });
 
-            it('should load both sides of a matrix', function () {
+            it('should load both sides of a matrix', function() {
                 var rufusGroupsStore = session.getRecord('User', userRufus.id, false).groups(),
                     adminUsersStore = session.getRecord('Group', adminGroup.id, false).users(),
                     peonUsersStore = session.getRecord('Group', peonGroup.id, false).users();
@@ -4673,7 +5768,7 @@ describe("Ext.data.Session", function() {
                 expect(rufusRec1).toBe(rufusRec2);
             });
 
-            it('should allow editing on both sides of a matrix', function () {
+            it('should allow editing on both sides of a matrix', function() {
                 var billGroupsStore = session.getRecord('User', userBill.id, false).groups(),
                     rufusGroupsStore = session.getRecord('User', userRufus.id, false).groups(),
                     adminUsersStore = session.getRecord('Group', adminGroup.id, false).users(),
@@ -4695,6 +5790,7 @@ describe("Ext.data.Session", function() {
                 expect(rufusGroupsStore.getById(adminGroup.id)).toBeTruthy();
 
                 var rufusRec = adminUsersStore.getById(userRufus.id);
+
                 adminUsersStore.remove(rufusRec);
 
                 expect(rufusGroupsStore.getCount()).toBe(1);
@@ -4706,12 +5802,14 @@ describe("Ext.data.Session", function() {
                 expect(billGroupsStore.getById(adminGroup.id)).toBe(null);
 
                 var billRec = peonUsersStore.getById(userBill.id);
+
                 adminUsersStore.add(billRec);
 
                 expect(billGroupsStore.getCount()).toBe(2);
                 expect(billGroupsStore.getById(adminGroup.id)).toBeTruthy();
 
                 var changes = session.getChanges();
+
                 expect(changes).toEqual({
                     User: {
                         groups: {
@@ -4728,8 +5826,151 @@ describe("Ext.data.Session", function() {
         }); // loading a many-to-many
     }); // Many-to-many associations
 
-    describe('transactions', function () {
+    describe("getSaveBatch", function() {
+        beforeEach(function() {
+            Ext.data.Model.schema.setNamespace('spec');
+
+            Ext.define('spec.User', {
+                extend: 'Ext.data.Model',
+                fields: ['name'],
+                proxy: {
+                    type: 'ajax',
+                    url: 'a',
+                    batchActions: true
+                }
+            });
+
+            Ext.define('spec.Office', {
+                extend: 'Ext.data.Model',
+                fields: ['name'],
+                proxy: {
+                    type: 'ajax',
+                    url: 'b',
+                    batchActions: false
+                }
+            });
+
+            session = new Ext.data.Session();
+        });
+
+        afterEach(function() {
+            Ext.undefine('spec.User');
+            Ext.undefine('spec.Office');
+        });
+
+        function sortFn(o1, o2) {
+            var r1 = o1.getRecords(),
+                r2 = o2.getRecords();
+
+            r1 = r1.isModel ? 1 : r1.length;
+            r2 = r2.isModel ? 1 : r2.length;
+
+            return r2 - r1;
+        }
+
+        it("should respect batchActions on the proxy for creates", function() {
+            session.createRecord(spec.User, { name: 'Foo1' });
+            session.createRecord(spec.User, { name: 'Foo2' });
+
+            session.createRecord(spec.Office, { name: 'Bar1' });
+            session.createRecord(spec.Office, { name: 'Bar2' });
+
+            var batch = session.getSaveBatch(),
+                operations = Ext.Array.clone(batch.getOperations());
+
+            operations.sort(sortFn);
+
+            expect(operations.length).toBe(3);
+
+            expect(operations[0].getRecords().length).toBe(2);
+            expect(operations[0].isCreateOperation).toBe(true);
+            expect(operations[0].getRecords()[0].$className).toBe('spec.User');
+            expect(operations[0].getRecords()[0].get('name')).toBe('Foo1');
+            expect(operations[0].getRecords()[1].$className).toBe('spec.User');
+            expect(operations[0].getRecords()[1].get('name')).toBe('Foo2');
+
+            var r = operations[1].getRecords()[0];
+
+            expect(operations[1].isCreateOperation).toBe(true);
+            expect(r.$className).toBe('spec.Office');
+            expect(r.get('name')).toBe('Bar1');
+
+            r = operations[2].getRecords()[0];
+            expect(operations[2].isCreateOperation).toBe(true);
+            expect(r.$className).toBe('spec.Office');
+            expect(r.get('name')).toBe('Bar2');
+        });
+
+        it("should respect batchActions on the proxy for updates", function() {
+            session.createRecord(spec.User, { id: 1 }).set('name', 'Foo1');
+            session.createRecord(spec.User, { id: 2 }).set('name', 'Foo2');
+
+            session.createRecord(spec.Office, { id: 1 }).set('name', 'Bar1');
+            session.createRecord(spec.Office, { id: 2 }).set('name', 'Bar2');
+
+            var batch = session.getSaveBatch(),
+                operations = Ext.Array.clone(batch.getOperations());
+
+            operations.sort(sortFn);
+
+            expect(operations.length).toBe(3);
+
+            expect(operations[0].isUpdateOperation).toBe(true);
+            expect(operations[0].getRecords().length).toBe(2);
+            expect(operations[0].getRecords()[0].$className).toBe('spec.User');
+            expect(operations[0].getRecords()[0].id).toBe(1);
+            expect(operations[0].getRecords()[1].$className).toBe('spec.User');
+            expect(operations[0].getRecords()[1].id).toBe(2);
+
+            var r = operations[1].getRecords()[0];
+
+            expect(operations[1].isUpdateOperation).toBe(true);
+            expect(r.$className).toBe('spec.Office');
+            expect(r.id).toBe(1);
+
+            r = operations[2].getRecords()[0];
+            expect(operations[2].isUpdateOperation).toBe(true);
+            expect(r.$className).toBe('spec.Office');
+            expect(r.id).toBe(2);
+        });
+
+        it("should respect batchActions on the proxy for deletes", function() {
+            session.createRecord(spec.User, { id: 1 }).drop();
+            session.createRecord(spec.User, { id: 2 }).drop();
+
+            session.createRecord(spec.Office, { id: 1 }).drop();
+            session.createRecord(spec.Office, { id: 2 }).drop();
+
+            var batch = session.getSaveBatch(),
+                operations = Ext.Array.clone(batch.getOperations());
+
+            operations.sort(sortFn);
+
+            expect(operations.length).toBe(3);
+
+            expect(operations[0].getRecords().length).toBe(2);
+            expect(operations[0].isDestroyOperation).toBe(true);
+            expect(operations[0].getRecords()[0].$className).toBe('spec.User');
+            expect(operations[0].getRecords()[0].id).toBe(1);
+            expect(operations[0].getRecords()[1].$className).toBe('spec.User');
+            expect(operations[0].getRecords()[1].id).toBe(2);
+
+            var r = operations[1].getRecords()[0];
+
+            expect(operations[1].isDestroyOperation).toBe(true);
+            expect(r.$className).toBe('spec.Office');
+            expect(r.id).toBe(1);
+
+            r = operations[2].getRecords()[0];
+            expect(operations[2].isDestroyOperation).toBe(true);
+            expect(r.$className).toBe('spec.Office');
+            expect(r.id).toBe(2);
+        });
+    });
+
+    describe('transactions', function() {
         var Base, Parent, Child, GrandChild, Group, User;
+
         var parentData, childData, grandChildData;
 
         beforeEach(function() {
@@ -4819,23 +6060,21 @@ describe("Ext.data.Session", function() {
             Ext.undefine('spec.Group');
             Ext.undefine('spec.User');
 
-            Ext.data.Model.schema.clear(true);
-
             session = null;
             Base = Parent = Child = GrandChild = Group = User = null;
         });
 
-        describe('complex transaction', function () {
+        describe('complex transaction', function() {
             var state;
 
-            beforeEach(function () {
+            beforeEach(function() {
                 state = {
                     parentRecs: [],
                     childRecs: [],
                     grandChildRecs: []
                 };
 
-                Ext.each([0, 1], function (n) {
+                Ext.each([0, 1], function(n) {
                     state.grandChildRecs.push(session.createRecord('GrandChild', grandChildData[n]));
                     state.childRecs.push(session.createRecord('Child', childData[n]));
                     state.parentRecs.push(session.createRecord('Parent', parentData[n]));
@@ -4857,11 +6096,12 @@ describe("Ext.data.Session", function() {
                 state.newChild.setParent(state.newParent);
                 state.newGrandChild.setChild(state.newChild);
             });
-            afterEach(function () {
+
+            afterEach(function() {
                 state = null;
             });
 
-            it('should describe the transaction via getChanges', function () {
+            it('should describe the transaction via getChanges', function() {
                 // Quick sanity check on pending changes
                 var changes = session.getChanges();
 
@@ -4884,7 +6124,7 @@ describe("Ext.data.Session", function() {
                 });
             });
 
-            it('should produce a Batch via getSaveBatch', function () {
+            it('should produce a Batch via getSaveBatch', function() {
                 var batch = session.getSaveBatch();
 
                 expect(batch.operations.length).toBe(9);
@@ -4901,7 +6141,7 @@ describe("Ext.data.Session", function() {
                     [ 'destroy', 'GrandChild',  [ state.grandChildRecs[1] ] ],
                     [ 'destroy', 'Child',       [ state.childRecs[1] ] ],
                     [ 'destroy', 'Parent',      [ state.parentRecs[1] ] ]
-                ], function (expectedData, index) {
+                ], function(expectedData, index) {
                     var operation = batch.operations[index],
                         str;
 
@@ -4913,14 +6153,16 @@ describe("Ext.data.Session", function() {
 
                     str = 'operation[' + index + '].records=';
                     var actual = Ext.Array.pluck(operation.getRecords(), 'id');
+
                     actual = Ext.encode(actual);
                     var expected = Ext.Array.pluck(expectedData[2], 'id');
+
                     expected = Ext.encode(expected);
                     expect(str + actual).toBe(str + expected);
                 });
             });
 
-            it('should progress save batch to completion', function () {
+            it('should progress save batch to completion', function() {
                 var newGrandChild2 = session.createRecord('GrandChild');
 
                 newGrandChild2.setChild(state.newChild);
@@ -4935,6 +6177,7 @@ describe("Ext.data.Session", function() {
                 // properly - we send the response records in the reverse order to ensure
                 // we are not just matching by indexes.
                 var createGrandChildRecs = batch.operations[2].getRecords();
+
                 expect(createGrandChildRecs[0]).toBe(state.newGrandChild);
                 expect(createGrandChildRecs[1]).toBe(newGrandChild2);
 
@@ -4963,7 +6206,7 @@ describe("Ext.data.Session", function() {
                 completeRequest([{
                     cid: newGrandChild2.id,
                     id: 3001
-                },{
+                }, {
                     cid: state.newGrandChild.id,
                     id: 3000
                 }]);
@@ -4973,17 +6216,21 @@ describe("Ext.data.Session", function() {
             });
         }); // complex transaction
 
-        describe('matrix updates', function () {
-            it('should be able to create matrix for new record', function () {
+        describe('matrix updates', function() {
+            it('should be able to create matrix for new record', function() {
                 var rufusGroupsStore = session.getRecord('User', userRufus.id, false).groups();
+
                 rufusGroupsStore.load();
                 completeRequest(rufusGroups);
 
                 var user = session.createRecord('User');
+
                 var groups = user.groups();
+
                 groups.add(rufusGroupsStore.getAt(0));
 
                 var batch = session.getSaveBatch();
+
                 var changes = session.getChanges();
 
                 expect(batch.operations.length).toBe(1); // Create for new User
@@ -5007,6 +6254,7 @@ describe("Ext.data.Session", function() {
                 });
 
                 var remainingChanges = session.getChanges();
+
                 expect(remainingChanges).toEqual({
                     User: {
                         groups: {

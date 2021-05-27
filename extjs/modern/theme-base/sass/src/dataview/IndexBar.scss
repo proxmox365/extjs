@@ -1,43 +1,38 @@
-.x-indexbar-wrapper {
-    @include st-box-pack(end, important);
+.#{$prefix}indexbar {
     pointer-events: none;
-}
+    position: relative;
 
-.x-indexbar {
-    pointer-events: auto;
-    z-index: 2;
-    min-height: 0 !important;
-    height: auto !important;
+    > .#{$prefix}body-el {
+        cursor: pointer;
+        display: flex;
+        pointer-events: auto;
+        position: absolute;
+        transition: .4s opacity;
 
-    @include st-box-flex(0, auto, important);
+        right: 0;
+        bottom: 0;
 
-    > div {
-        font-size: 0.6em;
-        text-align: center;
-        line-height: 1.1em;
-        font-weight: bold;
-        display: block;
+        &.#{$prefix}horizontal {
+            flex-direction: row;
+            left: 0;
+        }
+
+        &.#{$prefix}vertical {
+            flex-direction: column;
+            top: 0;
+        }
     }
 }
 
-.x-indexbar-vertical {
-    width: 15px;
-    @include st-box-orient(vertical);
-    margin-right: 15px;
+.#{$prefix}indexbar-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.x-indexbar-horizontal {
-    height: 15px;
-    @include st-box-orient(horizontal);
-}
-
-.x-phone.x-landscape .x-indexbar {
-    > div {
-        font-size: 0.38em;
-        line-height: 1em;
-    }
-}
-
-.x-indexbar-pressed {
-    background-color: #ccc;
+.#{$prefix}indexbar-indicator {
+    position: absolute;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }

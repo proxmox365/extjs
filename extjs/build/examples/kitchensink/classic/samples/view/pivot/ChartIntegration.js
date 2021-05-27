@@ -13,79 +13,96 @@ Ext.define('KitchenSink.view.pivot.ChartIntegration', {
         'KitchenSink.view.pivot.ChartIntegrationController'
     ],
 
+    //<example>
+    otherContent: [{
+        type: 'Controller',
+        path: 'classic/samples/view/pivot/ChartIntegrationController.js'
+    }, {
+        type: 'Model',
+        path: 'classic/samples/model/pivot/Sale.js'
+    }, {
+        type: 'Store',
+        path: 'classic/samples/store/pivot/Sales.js'
+    }],
+    profiles: {
+        classic: {
+            width: 600,
+            height: 450,
+            columnLines: true
+        },
+        neptune: {
+            width: 750,
+            height: 450,
+            columnLines: true
+        },
+        graphite: {
+            width: 750,
+            height: 600,
+            columnLines: true
+        },
+        'classic-material': {
+            width: 750,
+            height: 600,
+            columnLines: false
+        }
+    },
+    //</example>
+
     title: 'Pivot Grid with chart integration',
+    width: '${width}',
+    height: '${height}',
     collapsible: true,
-    height: 450,
     layout: 'border',
 
     items: [{
         xtype: 'pivotgrid',
         region: 'center',
         flex: 1,
+        columnLines: '${columnLines}',
 
-        store: {
-            type: 'sales'
-        },
         selModel: {
             type: 'cellmodel'
         },
 
-        // Configure the aggregate dimensions. Multiple dimensions are supported.
-        aggregate: [{
-            dataIndex:  'value',
-            header:     'Sum of value',
-            aggregator: 'sum',
-            flex:       1
-        }],
+        matrix: {
+            type: 'local',
+            store: {
+                type: 'sales'
+            },
 
-        // Configure the left axis dimensions that will be used to generate the grid rows
-        leftAxis: [{
-            dataIndex:  'person',
-            header:     'Person',
-            flex:       1
-        }],
+            // Configure the aggregate dimensions. Multiple dimensions are supported.
+            aggregate: [{
+                dataIndex: 'value',
+                header: 'Total',
+                aggregator: 'sum',
+                flex: 1
+            }],
 
+            // Configure the left axis dimensions that will be used to generate
+            // the grid rows
+            leftAxis: [{
+                dataIndex: 'person',
+                header: 'Person',
+                flex: 1
+            }],
 
-        // Configure the top axis dimensions that will be used to generate the columns.
-        // When columns are generated the aggregate dimensions are also used. If multiple aggregation dimensions
-        // are defined then each top axis result will have in the end a column header with children
-        // columns for each aggregate dimension defined.
-        topAxis: [{
-            dataIndex:  'year',
-            header:     'Year'
-        }],
+            /**
+             * Configure the top axis dimensions that will be used to generate
+             * the columns.
+             *
+             * When columns are generated the aggregate dimensions are also used.
+             * If multiple aggregation dimensions are defined then each top axis
+             * result will have in the end a column header with children columns
+             * for each aggregate dimension defined.
+             */
+            topAxis: [{
+                dataIndex: 'year',
+                header: 'Year'
+            }]
+        },
 
         listeners: {
             pivotdone: 'onPivotDone'
         }
-    }],
-
-    //<example>
-    otherContent: [{
-        type: 'Controller',
-        path: 'classic/samples/view/pivot/ChartIntegrationController.js'
-    },{
-        type: 'Model',
-        path: 'classic/samples/model/pivot/Sale.js'
-    },{
-        type: 'Store',
-        path: 'classic/samples/store/pivot/Sales.js'
-    }],
-    profiles: {
-        classic: {
-            width: 600
-        },
-        neptune: {
-            width: 750
-        }
-    },
-    //</example>
-
-    initComponent: function () {
-        var me = this;
-
-        me.width = me.profileInfo.width;
-
-        me.callParent();
-    }
+    }]
 });

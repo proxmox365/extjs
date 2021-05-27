@@ -1,11 +1,12 @@
 /**
  * A subclass of Ext.dd.DragTracker which handles dragging any Component.
  *
- * This is configured with a Component to be made draggable, and a config object for the {@link Ext.dd.DragTracker}
+ * This is configured with a Component to be made draggable, and a config object for the
+ * {@link Ext.dd.DragTracker}
  * class.
  *
- * A {@link #delegate} may be provided which may be either the element to use as the mousedown target or a
- * CSS selector to activate multiple mousedown targets.
+ * A {@link #delegate} may be provided which may be either the element to use as the mousedown
+ * target or a CSS selector to activate multiple mousedown targets.
  *
  * When the Component begins to be dragged, its `beginDrag` method will be called if implemented.
  *
@@ -16,23 +17,25 @@ Ext.define('Ext.util.ComponentDragger', {
 
     /**
      * @cfg {Boolean} constrain
-     * Specify as `true` to constrain the Component to within the bounds of the {@link #constrainTo} region.
+     * Specify as `true` to constrain the Component to within the bounds of the {@link #constrainTo}
+     * region.
      */
 
     /**
      * @cfg {String/Ext.dom.Element} delegate
      * A CSS selector which identifies child elements within the Component's encapsulating
-     * Element which are the drag handles. This limits dragging to only begin when the matching elements are
-     * mousedowned.
+     * Element which are the drag handles. This limits dragging to only begin when the matching
+     * elements are mousedowned.
      *
-     * This may also be a specific child element within the Component's encapsulating element to use as the drag handle.
+     * This may also be a specific child element within the Component's encapsulating element
+     * to use as the drag handle.
      */
 
     /**
      * @cfg {Boolean} constrainDelegate
      * Specify as `true` to constrain the drag handles within the {@link #constrainTo} region.
      */
-    
+
     /**
      * @cfg {Boolean} [liveDrag=false]
      * @member Ext.Component
@@ -60,14 +63,19 @@ Ext.define('Ext.util.ComponentDragger', {
         var me = this,
             comp = me.comp;
 
+        // ComponentDragger is always dragging the component.
+        // The superclass uses the delegated handle as the
+        // drag target and the target's start region.
+        me.dragTarget = me.el;
+        me.startRegion = me.el.getRegion();
+
         // Cache the start [X, Y] array
         me.startPosition = comp.getXY();
 
         // If client Component has a ghost method to show a lightweight version of itself
         // then use that as a drag proxy unless configured to liveDrag.
         if (comp.ghost && !comp.liveDrag) {
-             me.proxy = comp.ghost();
-             me.dragTarget = me.proxy.header.el;
+            me.proxy = comp.ghost();
         }
 
         // Set the constrainTo Region before we start dragging.
@@ -78,23 +86,25 @@ Ext.define('Ext.util.ComponentDragger', {
         if (comp.beginDrag) {
             comp.beginDrag();
         }
-        // Logic to drag components on top of iframes
-        if (comp.el.shim) {
-            comp.el.maskIframes();
-        }
+
+        // We should cover all iframes to avoid them stealing our current drag event
+        Ext.dom.Element.maskIframes();
     },
 
     calculateConstrainRegion: function() {
         var me = this,
             comp = me.comp,
-            constrainTo = me.initialConstrainTo,
+            constrainTo = me.initialConstrainTo || me.comp.el.dom.parentNode,
             constraintInsets = comp.constraintInsets,
             constrainEl,
             delegateRegion,
             elRegion,
             dragEl = me.proxy ? me.proxy.el : comp.el,
             shadow = dragEl.shadow,
-            shadowSize = (shadow && !me.constrainDelegate && comp.constrainShadow && !shadow.disabled) ? shadow.getShadowSize() : 0;
+            shadowSize =
+                (shadow && !me.constrainDelegate && comp.constrainShadow && !shadow.disabled)
+                    ? shadow.getShadowSize()
+                    : 0;
 
         // The configured constrainTo might be a Region or an element
         if (!(constrainTo instanceof Ext.util.Region)) {
@@ -102,15 +112,22 @@ Ext.define('Ext.util.ComponentDragger', {
             // draggable components are constrained to the area inside the borders of
             // their floatParent, but not inside the padding
             constrainTo = constrainEl.getConstrainRegion();
-        } else {
+        }
+        else {
             // Create a clone so we don't modify the original
             constrainTo = constrainTo.copy();
         }
 
         // Apply constraintInsets
         if (constraintInsets) {
-            constraintInsets = Ext.isObject(constraintInsets) ? constraintInsets : Ext.Element.parseBox(constraintInsets);
-            constrainTo.adjust(constraintInsets.top, constraintInsets.right, constraintInsets.bottom, constraintInsets.left);
+            constraintInsets = Ext.isObject(constraintInsets)
+                ? constraintInsets
+                : Ext.Element.parseBox(constraintInsets);
+
+            constrainTo.adjust(
+                constraintInsets.top, constraintInsets.right, constraintInsets.bottom,
+                constraintInsets.left
+            );
         }
 
         // Reduce the constrain region to allow for shadow
@@ -121,17 +138,18 @@ Ext.define('Ext.util.ComponentDragger', {
         // If they only want to constrain the *delegate* to within the constrain region,
         // adjust the region to be larger based on the insets of the delegate from the outer
         // edges of the Component.
-        if (!me.constrainDelegate) {
-            delegateRegion = Ext.fly(me.dragTarget).getRegion();
+        if (me.constrainDelegate) {
+            delegateRegion = Ext.fly(me.handle).getRegion();
             elRegion = dragEl.getRegion();
 
             constrainTo.adjust(
-                delegateRegion.top - elRegion.top,
-                delegateRegion.right - elRegion.right,
-                delegateRegion.bottom - elRegion.bottom,
-                delegateRegion.left - elRegion.left
+                elRegion.top - delegateRegion.top,
+                elRegion.right - delegateRegion.right,
+                elRegion.bottom - delegateRegion.bottom,
+                elRegion.left - delegateRegion.left
             );
         }
+
         return constrainTo;
     },
 
@@ -146,19 +164,20 @@ Ext.define('Ext.util.ComponentDragger', {
 
     onEnd: function(e) {
         var comp = this.comp;
+
         if (comp.destroyed || comp.destroying) {
             return;
         }
-        
+
         if (this.proxy && !comp.liveDrag) {
             comp.unghost();
         }
+
         if (comp.endDrag) {
             comp.endDrag();
         }
-        // Logic to drag components on top of iframes
-        if (comp.el.shim) {
-            comp.el.unmaskIframes();
-        }
+
+        // We should uncover all iframes
+        Ext.dom.Element.unmaskIframes();
     }
 });

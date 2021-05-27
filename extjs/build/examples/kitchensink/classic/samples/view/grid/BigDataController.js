@@ -9,43 +9,6 @@ Ext.define('KitchenSink.view.grid.BigDataController', {
     extend: 'Ext.app.ViewController',
     alias: 'controller.bigdata',
 
-    // Used as a column renderer by BigData: resolved using defaultListenerScope
-    concatNames: function(v, cellValues, rec) {
-        return rec.get('forename') + ' ' + rec.get('surname');
-    },
-
-    // Used as an editRenderer by BigData to display an uneditable field in the RowEditor
-    bold: function(v) {
-        return "<b>" + v + "</b>";
-    },
-
-    onNameFilterKeyup: function() {
-        var grid = this.getView(),
-            // Access the field using its "reference" property name.
-            filterField = this.lookupReference('nameFilterField'),
-            filters = grid.store.getFilters();
-
-        if (filterField.value) {
-            this.nameFilter = filters.add({
-                id            : 'nameFilter',
-                property      : 'name',
-                value         : filterField.value,
-                anyMatch      : true,
-                caseSensitive : false
-            });
-        } else if (this.nameFilter) {
-            filters.remove(this.nameFilter);
-            this.nameFilter = null;
-        }
-    },
-
-    exportToExcel: function(){
-        this.getView().saveDocumentAs({
-            title:      'Grid export demo',
-            fileName:   'excelExport.xml'
-        });
-    },
-
     init: function() {
         // RowEditing not appropriate for touch devices
         if (!Ext.supports.Touch) {
@@ -56,6 +19,39 @@ Ext.define('KitchenSink.view.grid.BigDataController', {
                 autoCancel: false
             }));
         }
+    },
+
+    // Used as a column renderer by BigData: resolved using defaultListenerScope
+    concatNames: function(v, cellValues, rec) {
+        return rec.get('forename') + ' ' + rec.get('surname');
+    },
+
+    // Used as an editRenderer by BigData to display an uneditable field in the RowEditor
+    bold: function(v) {
+        return "<b>" + v + "</b>";
+    },
+
+    nameSorter: function(rec1, rec2) {
+        // Sort prioritizing surname over forename as would be expected.
+        var rec1Name = rec1.get('surname') + rec1.get('forename'),
+            rec2Name = rec2.get('surname') + rec2.get('forename');
+
+        if (rec1Name > rec2Name) {
+            return 1;
+        }
+
+        if (rec1Name < rec2Name) {
+            return -1;
+        }
+
+        return 0;
+    },
+
+    onBeforeRenderNoticeEditor: function(editor) {
+        var view = this.getView(),
+            store = view.store;
+
+        editor.setStore(store.collect('noticePeriod', false, true));
     },
 
     // This method is called as a listener to the grid's headermenucreated event.
@@ -70,7 +66,54 @@ Ext.define('KitchenSink.view.grid.BigDataController', {
         });
     },
 
+    onNameFilterKeyup: function() {
+        var grid = this.getView(),
+            // Access the field using its "reference" property name.
+            filterField = this.lookupReference('nameFilterField'),
+            filters = grid.store.getFilters();
+
+        if (filterField.value) {
+            this.nameFilter = filters.add({
+                id: 'nameFilter',
+                property: 'name',
+                value: filterField.value,
+                anyMatch: true,
+                caseSensitive: false
+            });
+        }
+        else if (this.nameFilter) {
+            filters.remove(this.nameFilter);
+            this.nameFilter = null;
+        }
+    },
+
     onShowHeadersToggle: function(checkItem, checked) {
         this.getView().setHeaderBorders(checked);
+    },
+
+    renderMailto: function(v) {
+        return '<a href="mailto:' + encodeURIComponent(v) + '">' +
+            Ext.htmlEncode(v) + '</a>';
+    },
+
+    exportTo: function(btn) {
+        var cfg = Ext.merge({
+            title: 'Grid export demo',
+            fileName: 'GridExport' + '.' + (btn.cfg.ext || btn.cfg.type)
+        }, btn.cfg);
+
+        this.getView().saveDocumentAs(cfg);
+    },
+
+    onBeforeDocumentSave: function(view) {
+        view.mask({
+            xtype: 'loadmask',
+            message: 'Document is prepared for export. Please wait ...'
+        });
+    },
+
+    onDocumentSave: function(view) {
+        view.unmask();
     }
+
 });

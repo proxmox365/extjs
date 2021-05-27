@@ -14,94 +14,107 @@
  */
 Ext.define('KitchenSink.view.grid.LockingGrid', {
     extend: 'Ext.grid.Panel',
+    xtype: 'locking-grid',
+    controller: 'basicgrid',
+
     requires: [
         'Ext.grid.RowNumberer'
     ],
-    xtype: 'locking-grid',
-    store: 'Companies',
-    columnLines: true,
-    height: 350,
-    width: 600,
-    title: 'Locking Grid',
-
-    // There is no asymmetric data, we do not need to go to the expense of synching row heights
-    syncRowHeight: false,
 
     //<example>
     otherContent: [{
+        type: 'Controller',
+        path: 'classic/samples/view/grid/BasicGridController.js'
+    }, {
         type: 'Store',
-        path: 'classic/samples/store/Companies.js'
-    },{
+        path: 'app/store/Companies.js'
+    }, {
         type: 'Model',
-        path: 'classic/samples/model/Company.js'
+        path: 'app/model/Company.js'
     }],
     profiles: {
         classic: {
+            gainColor: 'green',
+            lossColor: 'red',
+            percentageChangeWidth: 105
         },
         neptune: {
+            gainColor: '#73b51e',
+            lossColor: '#cf4c35',
+            percentageChangeWidth: 105
+        },
+        graphite: {
+            gainColor: 'unset',
+            lossColor: 'unset',
+            percentageChangeWidth: 135
+        },
+        'classic-material': {
+            gainColor: 'unset',
+            lossColor: 'unset',
+            percentageChangeWidth: 150
         }
     },
     //</example>
 
-    initComponent: function () {
-        this.columns = [{
-                xtype: 'rownumberer'
-            }, {
-                text     : 'Company Name',
-                locked   : true,
-                width    : 230,
-                sortable : false,
-                dataIndex: 'name'
-            }, {
-                text     : 'Price',
-                lockable: false,
-                width    : 80,
-                sortable : true,
-                formatter: 'usMoney',
-                dataIndex: 'price'
-            }, {
-                text     : 'Tall<br>Header',
-                hidden   : true,
-                width    : 70,
-                sortable : false,
-                renderer : function(val) {
-                    return Math.round(val * 3.14 * 100) / 10;
-                },
-                dataIndex: 'change'
-            }, {
-                text     : 'Change',
-                width    : 90,
-                sortable : true,
-                renderer : function(val) {
-                    if (val > 0) {
-                        return '<span style="color:green;">' + val + '</span>';
-                    } else if (val < 0) {
-                        return '<span style="color:red;">' + val + '</span>';
-                    }
-                    return val;
-                },
-                dataIndex: 'change'
-            }, {
-                text     : '% Change',
-                width    : 105,
-                sortable : true,
-                renderer : function(val) {
-                    if (val > 0) {
-                        return '<span style="color:green;">' + val + '%</span>';
-                    } else if (val < 0) {
-                        return '<span style="color:red;">' + val + '%</span>';
-                    }
-                    return val;
-                },
-                dataIndex: 'pctChange'
-            }, {
-                text     : 'Last Updated',
-                width    : 135,
-                sortable : true,
-                formatter: 'date("m/d/Y")',
-                dataIndex: 'lastChange'
-            }];
+    title: 'Locking Grid',
+    height: 350,
+    width: 600,
 
-        this.callParent();
-    }
+    store: 'Companies',
+    columnLines: true,
+    // There is no asymmetric data, we do not need to go to the expense of synching row heights
+    syncRowHeight: false,
+    signTpl: '<span style="' +
+            'color:{value:sign(\'${lossColor}\',\'${gainColor}\')}"' +
+        '>{text}</span>',
+
+    columns: [{
+        xtype: 'rownumberer'
+    }, {
+        text: 'Company Name',
+        dataIndex: 'name',
+        locked: true,
+
+        width: 230,
+        sortable: false
+    }, {
+        text: 'Price',
+        dataIndex: 'price',
+        lockable: false,
+
+        width: 80,
+        sortable: true,
+        formatter: 'usMoney'
+    }, {
+        text: 'Tall<br>Header',
+        dataIndex: 'rating',
+
+        hidden: true,
+        align: 'center',
+        width: 70,
+        sortable: false,
+        innerCls: 'ks-font-larger',
+        formatter: 'pick("Ⓐ","Ⓑ","Ⓒ")'
+    }, {
+        text: 'Change',
+        dataIndex: 'priceChange',
+
+        width: 90,
+        sortable: true,
+        renderer: 'renderChange'
+    }, {
+        text: '% Change',
+        dataIndex: 'priceChangePct',
+
+        width: '${percentageChangeWidth}',
+        sortable: true,
+        renderer: 'renderChange'
+    }, {
+        text: 'Last Updated',
+        dataIndex: 'priceLastChange',
+
+        width: 135,
+        sortable: true,
+        formatter: 'date("m/d/Y")'
+    }]
 });

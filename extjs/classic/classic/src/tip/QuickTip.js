@@ -1,7 +1,7 @@
 /**
- * A specialized tooltip class for tooltips that can be specified in markup and automatically managed
- * by the global {@link Ext.tip.QuickTipManager} instance.  See the QuickTipManager documentation for
- * additional usage details and examples.
+ * A specialized tooltip class for tooltips that can be specified in markup and automatically
+ * managed by the global {@link Ext.tip.QuickTipManager} instance. See the QuickTipManager
+ * documentation for additional usage details and examples.
  *
  *      @example     
  *      Ext.tip.QuickTipManager.init(); // Instantiate the QuickTipManager 
@@ -21,6 +21,9 @@
  *                      text  : 'My Button has a QuickTip' // Tip content  
  *                  });
  *
+ *              },
+ *              destroy: function(me) {
+ *                  Ext.tip.QuickTipManager.unregister(me.getId());
  *              }
  *          }
  *      });
@@ -42,7 +45,7 @@ Ext.define('Ext.tip.QuickTip', {
      * @cfg {Boolean} interceptTitles
      * `true` to automatically use the element's DOM title value if available.
      */
-    interceptTitles : false,
+    interceptTitles: false,
 
     /**
      * @cfg {String/Ext.panel.Title} title
@@ -54,35 +57,48 @@ Ext.define('Ext.tip.QuickTip', {
     /**
      * @private
      */
-    tagConfig : {
-        namespace : 'data-',
-        attribute : 'qtip',
-        width : 'qwidth',
-        target : 'target',
-        title : 'qtitle',
-        hide : 'hide',
-        cls : 'qclass',
-        align : 'qalign',
-        anchor : 'anchor',
+    tagConfig: {
+        namespace: 'data-',
+        attribute: 'qtip',
+        width: 'qwidth',
+        target: 'target',
+        title: 'qtitle',
+        hide: 'hide',
+        cls: 'qclass',
+        align: 'qalign',
+        anchor: 'anchor',
         showDelay: 'qshowDelay',
         hideAction: 'hideAction',
         anchorTarget: 'anchorTarget'
     },
-    
+
     isQuickTip: true,
-    
+
+    /**
+     * @cfg shrinkWrapDock
+     * @inheritdoc
+     */
     shrinkWrapDock: true,
 
-    initComponent : function(){
+    initComponent: function() {
         var me = this;
+
+        // delegate selector is a function which detects presence
+        // of attributes which provide QuickTip text.
+        me.delegate = me.delegate.bind(me);
 
         me.target = me.target || Ext.getDoc();
         me.targets = me.targets || {};
+
+        me.header = me.header || {};
+        me.header.focusableContainer = false;
+
         me.callParent();
     },
 
     setTagConfig: function(cfg) {
         this.tagConfig = Ext.apply({}, cfg);
+
         // Let attr get recomputed
         delete this.tagConfig.attr;
     },
@@ -117,7 +133,7 @@ Ext.define('Ext.tip.QuickTip', {
      * hides (overrides singleton value).  See {@link Ext.tip.QuickTip#dismissDelay}.
      * @param config.width Tip width in pixels.  See {@link Ext.tip.QuickTip#width}.
      */
-    register : function(config){
+    register: function(config) {
         var configs = Ext.isArray(config) ? config : arguments,
             i = 0,
             len = configs.length,
@@ -126,12 +142,14 @@ Ext.define('Ext.tip.QuickTip', {
         for (; i < len; i++) {
             config = configs[i];
             target = config.target;
+
             if (target) {
                 if (Ext.isArray(target)) {
                     for (j = 0, targetLen = target.length; j < targetLen; j++) {
                         this.targets[Ext.id(target[j])] = config;
                     }
-                } else{
+                }
+                else {
                     this.targets[Ext.id(target)] = config;
                 }
             }
@@ -143,7 +161,7 @@ Ext.define('Ext.tip.QuickTip', {
      * @param {String/HTMLElement/Ext.dom.Element} el The element from which the quick tip
      * is to be removed or ID of the element.
      */
-    unregister : function(el){
+    unregister: function(el) {
         delete this.targets[Ext.id(el)];
     },
 
@@ -152,291 +170,304 @@ Ext.define('Ext.tip.QuickTip', {
      * @param {String/HTMLElement/Ext.dom.Element} el The element that is the target of
      * the tip or ID of the element.
      */
-    cancelShow: function(el){
+    cancelShow: function(el) {
         var me = this,
-            activeTarget = me.activeTarget;
+            currentTarget = me.currentTarget;
 
-        el = Ext.get(el).dom;
+        el = Ext.getDom(el);
+
         if (me.isVisible()) {
-            if (activeTarget && activeTarget.el === el) {
+            if (currentTarget.dom === el) {
                 me.hide();
             }
-        } else if (activeTarget && activeTarget.el === el) {
+        }
+        else if (currentTarget.dom === el) {
             me.clearTimer('show');
         }
     },
 
-    /**
-     * @private
-     * Reads the tip text from the closest node to the event target which contains the
-     * attribute we are configured to look for. Returns an object containing the text
-     * from the attribute, and the target element from which the text was read.
-     */
-    getTipCfg: function (target, event) {
-        var titleText = target.title,
-            cfg = this.tagConfig,
+    delegate: function(target) {
+        var me = this,
+            cfg = me.tagConfig,
             attr = cfg.attr || (cfg.attr = cfg.namespace + cfg.attribute),
             text;
 
-        if (this.interceptTitles && titleText && Ext.isString(titleText)) {
+        // We can now only activate on elements which have the required attributes
+        text = target.getAttribute(attr) || (me.interceptTitles && target.title);
+
+        return !!text;
+    },
+
+    /**
+     * @private
+     * Reads the tip text from the target.
+     */
+    getTipText: function(target) {
+        var titleText = target.title,
+            cfg = this.tagConfig,
+            attr = cfg.attr || (cfg.attr = cfg.namespace + cfg.attribute);
+
+        if (this.interceptTitles && titleText) {
             target.setAttribute(attr, titleText);
             target.removeAttribute('title');
 
-            return {
-                text: titleText
-            };
+            return titleText;
         }
         else {
-            target = Ext.fly(target).findParent(function(dom) {
-                // Want to test the truthiness of the attribute and save it.
-                return (text = dom.getAttribute(attr));
-            });
-            if (target) {
-                return {
-                    target: target,
-                    text: text
-                };
-            }
+            return target.getAttribute(attr);
         }
     },
 
-    onTargetOver: function (event) {
-        // This is a separate method so that tooltip activation can be done by calling
-        // doTargetOver directly.
-        this.doTargetOver(event.getTarget(this.delegate), null, event);
-    },
-
-    /**
-     * @private
-     */
-    doTargetOver : function (target, xy, event) {
+    onTargetOver: function(event) {
         var me = this,
-            hasShowDelay, hideAction, delay, elTarget, cfg, ns, tipConfig, autoHide,
-            targets, targetEl, value, key;
+            currentTarget = me.currentTarget,
+            target = event.target,
+            targets, registeredTarget, key;
 
-        if (me.disabled) {
+        // If the over target is not an HTMLElement, or is the <html> or the <body>, then return
+        if (!target || target.nodeType !== 1 || target === document.documentElement ||
+            target === document.body) {
             return;
         }
 
-        if (typeof target === 'string') {
-            target = Ext.getDom(target);
-        }
+        me.pointerEvent = event;
+        targets = me.targets;
 
-        me.targetXY = xy || (event ? event.getXY() : Ext.fly(target).getXY());
+        // Loop through registered targets seeing if we are over one.
+        for (key in targets) {
+            if (targets.hasOwnProperty(key)) {
+                registeredTarget = targets[key];
 
-        // If the over target was filtered out by the delegate selector, or is not an HTMLElement, or is the <html> or the <body>, then return
-        if(!target || target.nodeType !== 1 || target === document.documentElement || target === document.body){
-            return;
-        }
+                target = Ext.getDom(registeredTarget.target);
 
-        if (me.activeTarget && ((target === me.activeTarget.el) || Ext.fly(me.activeTarget.el).contains(target))) {
-            // We may have started a delayed show where we have an active target.
-            // If the timer is yet to be fired, but the mouse moves, it will try to
-            // show it immediately. If the attribute has been removed from the element,
-            // we want to cancel the show.
-            if (me.targetTextEmpty()) {
-                me.onShowVeto();
-                delete me.activeTarget;
-            } else {
-                me.clearTimer('hide');
-                me.show();
-            }
-            return;
-        }
+                // If we moved over a registered target from outside of it, activate it.
+                if (target && Ext.fly(target).contains(event.target) &&
+                    !Ext.fly(target).contains(event.relatedTarget)) {
+                    currentTarget.attach(target);
+                    me.activeTarget = registeredTarget;
+                    registeredTarget.el = currentTarget;
+                    me.anchor = registeredTarget.anchor;
+                    me.activateTarget();
 
-        if (target) {
-            targets = me.targets;
-
-            for (key in targets) {
-                if (targets.hasOwnProperty(key)) {
-                    value = targets[key];
-
-                    targetEl = Ext.fly(value.target);
-                    if (targetEl && (targetEl.dom === target || targetEl.contains(target))) {
-                        elTarget = targetEl.dom;
-                        break;
-                    }
+                    return;
                 }
-            }
-
-            if (elTarget) {
-                me.activeTarget = me.targets[elTarget.id];
-                me.activeTarget.el = target;
-                me.anchor = me.activeTarget.anchor;
-                if (me.anchor) {
-                    me.anchorTarget = target;
-                }
-                hasShowDelay = parseInt(me.activeTarget.showDelay, 10);
-                if (hasShowDelay) {
-                    delay = me.showDelay;
-                    me.showDelay = hasShowDelay;
-                }
-                me.delayShow();
-                if (hasShowDelay) {
-                    me.showDelay = delay;
-                }
-                if (!(hideAction = me.activeTarget.hideAction)) {
-                    delete me.hideAction;
-                } else {
-                    me.hideAction = hideAction;
-                }
-                return;
             }
         }
 
-        // Should be a fly.
-        elTarget = Ext.fly(target, '_quicktip-target');
-        cfg = me.tagConfig;
-        ns = cfg.namespace;
-        tipConfig = me.getTipCfg(target, event);
+        // We found no registered targets, now continue as a regular ToolTip, and
+        // see if we are over any of our delegated targets.
+        me.callParent([event]);
+    },
 
-        if (tipConfig) {
+    handleTargetOver: function(target, event) {
+        var me = this,
+            currentTarget = me.currentTarget,
+            cfg = me.tagConfig,
+            ns = cfg.namespace,
+            tipText = me.getTipText(target, event),
+            autoHide;
 
-            // getTipCfg may look up the parentNode axis for a tip text attribute and will return the new target node.
-            // Change our target element to match that from which the tip text attribute was read.
-            if (tipConfig.target) {
-                target = tipConfig.target;
-                elTarget = Ext.fly(target, '_quicktip-target');
-            }
-            autoHide = elTarget.getAttribute(ns + cfg.hide);
+        if (tipText) {
+
+            autoHide = currentTarget.getAttribute(ns + cfg.hide);
 
             me.activeTarget = {
-                el: target,
-                text: tipConfig.text,
-                width: +elTarget.getAttribute(ns + cfg.width) || null,
+                el: currentTarget,
+                text: tipText,
+                width: +currentTarget.getAttribute(ns + cfg.width) || null,
                 autoHide: autoHide !== "user" && autoHide !== 'false',
-                title: elTarget.getAttribute(ns + cfg.title),
-                cls: elTarget.getAttribute(ns + cfg.cls),
-                align: elTarget.getAttribute(ns + cfg.align),
-                showDelay: parseInt(elTarget.getAttribute(ns + cfg.showDelay)||0, 10),
-                hideAction: elTarget.getAttribute(ns + cfg.hideAction),
-                anchorTarget: elTarget.getAttribute(ns + cfg.anchorTarget)
+                title: currentTarget.getAttribute(ns + cfg.title),
+                cls: currentTarget.getAttribute(ns + cfg.cls),
+                align: currentTarget.getAttribute(ns + cfg.align),
+                showDelay: currentTarget.getAttribute(ns + cfg.showDelay),
+                hideAction: currentTarget.getAttribute(ns + cfg.hideAction),
+                alignTarget: currentTarget.getAttribute(ns + cfg.anchorTarget)
             };
 
-            // If we were not configured with an anchor, allow it to be set by the target's properties
+            // If we were not configured with an anchor,
+            // allow it to be set by the target's properties
             if (!me.initialConfig.hasOwnProperty('anchor')) {
-                me.anchor = elTarget.getAttribute(ns + cfg.anchor);
+                me.anchor = currentTarget.getAttribute(ns + cfg.anchor);
             }
 
-            // If we are anchored, and not configured with an anchorTarget, anchor to the target element, or whatever its 'data-anchortarget' points to
+            // If we are anchored, and not configured with an anchorTarget,
+            // anchor to the target element, or whatever its 'data-anchortarget' points to
             if (me.anchor && !me.initialConfig.hasOwnProperty('anchorTarget')) {
-                me.anchorTarget = me.activeTarget.anchorTarget || target;
+                me.alignTarget = me.activeTarget.alignTarget || target;
             }
-            hasShowDelay = parseInt(me.activeTarget.showDelay, 10);
-            if (hasShowDelay) {
+
+            me.activateTarget();
+        }
+    },
+
+    activateTarget: function() {
+        var me = this,
+            activeTarget = me.activeTarget,
+            delay = activeTarget.showDelay,
+            hideAction = activeTarget.hideAction;
+
+        // If moved from target to target rapidly, the hide delay will not
+        // have fired, so just update content and alignment.
+        if (me.isVisible()) {
+            me.updateContent();
+            me.realignToTarget();
+        }
+        else {
+            if (activeTarget.showDelay) {
                 delay = me.showDelay;
-                me.showDelay = hasShowDelay;
+                me.showDelay = parseInt(activeTarget.showDelay, 10);
             }
+
             me.delayShow();
-            if (hasShowDelay) {
+
+            if (activeTarget.showDelay) {
                 me.showDelay = delay;
             }
+
+            if (!(hideAction = activeTarget.hideAction)) {
+                delete me.hideAction;
+            }
+            else {
+                me.hideAction = hideAction;
+            }
         }
+    },
+
+    getAnchorAlign: function() {
+        var active = this.activeTarget;
+
+        return (active && active.align) || this.callParent();
+    },
+
+    getAlignRegion: function() {
+        var me = this,
+            activeTarget = me.activeTarget,
+            currentTargetDom = me.currentTarget.dom,
+            result;
+
+        // If we are anchored, and not configured with an anchorTarget,
+        // align to the target element, or whatever its 'data-anchortarget' points to
+        if (activeTarget && activeTarget.alignTarget && me.anchor &&
+            !me.initialConfig.hasOwnProperty('anchorTarget')) {
+            me.currentTarget.attach(Ext.getDom(activeTarget.alignTarget));
+        }
+
+        // Anchor to the target when have an align config or an anchor config
+        me.anchorToTarget = !!(activeTarget.align || me.anchor);
+        result = me.callParent();
+
+        // Return currentTarget to correctness for pointer event processing
+        me.currentTarget.attach(currentTargetDom);
+
+        return result;
     },
 
     /**
      * @private
      */
-    onTargetOut : function(e){
+    handleTargetOut: function(e) {
         var me = this,
             active = me.activeTarget,
-            hasHideDelay,
-            delay;
+            autoHide = me.autoHide,
+            hideDelay = me.hideDelay;
 
-        // If moving within the current target, and it does not have a new tip, ignore
-        // the mouseout. e.within is the only correct way to determine this.
-        if (active && e.within(me.activeTarget.el) && !me.getTipCfg(e.getTarget(), e)) {
-            return;
-        }
+        if (active && autoHide !== false) {
+            me.autoHide = true;
 
-        me.clearTimer('show');
-        delete me.activeTarget;
-        if (me.autoHide !== false) {
-            hasHideDelay = active && parseInt(active.hideDelay, 10);
-            if (hasHideDelay) {
-                delay = me.hideDelay;
-                me.hideDelay = hasHideDelay;
+            if (active.hideDelay) {
+                me.hideDelay = parseInt(active.hideDelay, 10);
             }
-            me.delayHide();
-            if (hasHideDelay) {
-                me.hideDelay = delay;
-            }
+
+            me.callParent([e]);
+            me.autoHide = autoHide;
+            me.hideDelay = hideDelay;
         }
     },
 
-    targetTextEmpty: function(){
+    targetTextEmpty: function() {
         var me = this,
             target = me.activeTarget,
             cfg = me.tagConfig,
             el, text;
 
-         if (target) {
-             el = target.el;
-             if (el) {
-                 text = el.getAttribute(cfg.namespace + cfg.attribute);
-                 // Note that the quicktip could also have been registered with the QuickTipManager.
-                 // If this was the case, then we don't want to veto showing it.
-                 // Simply do a lookup in the registered targets collection.
-                 if (!text && !me.targets[Ext.id(target.target)]) {
-                     return true;
-                 }
-             }
-         }
-         return false;
+        if (target) {
+            el = target.el;
+
+            if (el) {
+                text = el.getAttribute(cfg.namespace + cfg.attribute);
+
+                // Note that the quicktip could also have been registered with the QuickTipManager.
+                // If this was the case, then we don't want to veto showing it.
+                // Simply do a lookup in the registered targets collection.
+                if (!text && !me.targets[Ext.id(target.el.dom)]) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     },
 
-    show: function(){
+    show: function() {
         var me = this,
             fromDelay = me.fromDelayShow;
 
         // We're coming from a delayed show, so check whether
         // the attribute has been removed before we show it
         if (fromDelay && me.targetTextEmpty()) {
-            me.onShowVeto();
-            delete me.activeTarget;
+            me.activeTarget = null;
+            me.currentTarget.detach();
+
             return;
         }
+
         me.callParent(arguments);
     },
 
     /**
-     * @inheritdoc Ext.tip.Tip#method-showAt
+     * @method beforeShow
+     * @inheritdoc Ext.tip.Tip#method-beforeShow
      */
-    showAt : function(xy){
+    beforeShow: function() {
+        this.updateContent();
+        this.callParent(arguments);
+    },
+
+    /**
+     * @private
+     */
+    updateContent: function() {
         var me = this,
             target = me.activeTarget,
             header = me.header,
             dismiss, cls;
 
         if (target) {
-            if (!me.rendered) {
-                me.render(Ext.getBody());
-                me.activeTarget = target;
-            }
             me.suspendLayouts();
+
             if (target.title) {
                 me.setTitle(target.title);
                 header.show();
-            } else if (header) {
+            }
+            else if (header) {
                 header.hide();
             }
+
             me.update(target.text);
             me.autoHide = target.autoHide;
             dismiss = target.dismissDelay;
-            
+
             me.dismissDelay = Ext.isNumber(dismiss) ? dismiss : me.dismissDelay;
-            if (target.mouseOffset) {
-                xy[0] += target.mouseOffset[0];
-                xy[1] += target.mouseOffset[1];
-            }
 
             cls = me.lastCls;
+
             if (cls) {
                 me.removeCls(cls);
                 delete me.lastCls;
             }
 
             cls = target.cls;
+
             if (cls) {
                 me.addCls(cls);
                 me.lastCls = cls;
@@ -444,43 +475,17 @@ Ext.define('Ext.tip.QuickTip', {
 
             me.setWidth(target.width);
 
-            if (me.anchor) {
-                me.constrainPosition = false;
-            } else if (target.align) { // TODO: this doesn't seem to work consistently
-                xy = me.getAlignToXY(target.el, target.align);
-                me.constrainPosition = false;
-            }else{
-                me.constrainPosition = true;
-            }
+            me.align = target.align;
             me.resumeLayouts(true);
         }
-        me.callParent([xy]);
     },
-    
-    showByTarget: function(targetEl) {
-        var me = this,
-            target, size, xy, x, y;
-        
-        target = me.targets[targetEl.id];
-        
-        if (target) {
-            me.activeTarget = target;
-            me.activeTarget.el = Ext.get(targetEl).dom;
-            me.anchor = me.activeTarget.anchor;
-        
-            size = targetEl.getSize();
-            xy = targetEl.getXY();
-        
-            me.showAt([ xy[0], xy[1] + size.height ]);
-        }
-    },
-    
+
     /**
      * @method hide
      * @inheritdoc
      */
-    hide: function(){
-        delete this.activeTarget;
+    hide: function() {
+        this.activeTarget = null;
         this.callParent();
     }
 });
