@@ -9,6 +9,7 @@ Homepage: https://www.sencha.com/
 Package: libjs-extjs
 Architecture: all
 Depends: ${misc:Depends}
+Breaks: proxmox-widget-toolkit (<< 3.1-1)
 Description: cross-browser JavaScript library
  Ext JS is a cross-browser JavaScript library for building rich internet
  applications.
