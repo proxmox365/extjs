@@ -1,3 +1,11 @@
+libjs-extjs (7.0.0-1) bullseye; urgency=medium
+
+  * import ExtJS 7.0 GPL release
+
+  * build for our Bullseye based releases
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 27 May 2021 13:35:34 +0200
+
 libjs-extjs (6.0.1-10) pve pmg; urgency=medium
 
   * bump version for Debian Buster
